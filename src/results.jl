@@ -1,79 +1,165 @@
 ################################################################################
 #                                  MODEL QUERIES
 ################################################################################
+# Ensure results are reliable
+function _check_result_is_current(model::InfiniteModel, func)
+    if JuMP.termination_status(model) == MOI.OPTIMIZE_NOT_CALLED
+        error("Unable to query `$func` since up-to-date solution results " *
+              "are not available. This is likely because the transformation " *
+              "backend has not been built and optimized yet, or the model " *
+              "has been modified since the backend was optimized.")
+    end
+    return
+end
+
+# Make `get_attribute` check for reliability
+function JuMP.get_attribute(model::InfiniteModel, attr::MOI.TerminationStatus)
+    if !transformation_backend_ready(model)
+        return MOI.OPTIMIZE_NOT_CALLED
+    end
+    return JuMP.get_attribute(model.backend, attr)
+end
+function JuMP.get_attribute(model::InfiniteModel, attr::MOI.ResultCount)
+    if JuMP.termination_status(model) == MOI.OPTIMIZE_NOT_CALLED
+        return 0
+    end
+    return JuMP.get_attribute(model.backend, attr)
+end
+function JuMP.get_attribute(model::InfiniteModel, attr::MOI.RawStatusString)
+    if JuMP.termination_status(model) == MOI.OPTIMIZE_NOT_CALLED
+        return "optimize not called"
+    end
+    return JuMP.get_attribute(model.backend, attr)
+end
+function JuMP.get_attribute(
+    model::InfiniteModel,
+    attr::Union{MOI.PrimalStatus, MOI.DualStatus}
+    )
+    if JuMP.termination_status(model) == MOI.OPTIMIZE_NOT_CALLED
+        return MOI.NO_SOLUTION
+    end
+    return JuMP.get_attribute(model.backend, attr)
+end
+function JuMP.get_attribute(
+    model::InfiniteModel,
+    attr::MOI.AbstractModelAttribute
+    )
+    if MOI.is_set_by_optimize(attr)
+        _check_result_is_current(model::InfiniteModel, attr)
+    end
+    return JuMP.get_attribute(model.backend, attr)
+end
+
 # Simple model queries
-for func in (:termination_status, :raw_status, :solve_time, :simplex_iterations,
-             :barrier_iterations, :node_count, :objective_bound, :relative_gap,
-             :result_count)
+for (func, Attr) in (
+    (:termination_status, :TerminationStatus),
+    (:raw_status, :RawStatusString),
+    (:solve_time, :SolveTimeSec),
+    (:simplex_iterations, :SimplexIterations),
+    (:barrier_iterations, :BarrierIterations),
+    (:node_count, :NodeCount),
+    (:objective_bound, :ObjectiveBound),
+    (:relative_gap, :RelativeGap),
+    (:result_count, :ResultCount)
+    )
     @eval begin
-        @doc """
-            JuMP.$($func)(backend::AbstractTransformationBackend)
-
-        Implment `JuMP.$($func)` for transformation backends. If applicable, this 
-        should be extended for new backend types. No extension is needed for 
-        [`JuMPBackend`](@ref)s.
-        """
-        function JuMP.$func(backend::AbstractTransformationBackend)
-            error("`JuMP.$($func)` not defined for backends of type " *
-                  "`$(typeof(backend))`.")
-        end
-
-        # Define for JuMPBackend
-        function JuMP.$func(backend::JuMPBackend)
-            return JuMP.$func(backend.model)
-        end
-
         @doc """
             JuMP.$($func)(model::InfiniteModel)
 
         Extend [`JuMP.$($func)`](https://jump.dev/JuMP.jl/v1/api/JuMP/#$($func)) 
         for `InfiniteModel`s in accordance with that reported by its 
         transformation backend. Errors if such a query is not supported or if 
-        the transformation backend hasn't be solved.
+        the transformation backend hasn't been solved.
         """
         function JuMP.$func(model::InfiniteModel)
-            return JuMP.$func(model.backend)
+            JuMP.get_attribute(model, MOI.$Attr())
         end
     end
 end
 
 # Simple result dependent model queries
-for func in (:primal_status, :dual_status, :has_values, :has_duals, 
-             :objective_value, :dual_objective_value)
+for (func, Attr) in (
+    (:primal_status, :PrimalStatus),
+    (:dual_status, :DualStatus),
+    (:objective_value, :ObjectiveValue),
+    (:dual_objective_value, :DualObjectiveValue)
+    )
     @eval begin 
         @doc """
-            JuMP.$($func)(backend::AbstractTransformationBackend; [kwargs...])
-
-        Implment `JuMP.$($func)` for transformation backends. If applicable, this 
-        should be extended for new backend types. No extension is needed for 
-        [`JuMPBackend`](@ref)s. As needed keyword arguments can be added. 
-        `JuMPBackend`s use the `result::Int = 1` keyword argument.
-        """
-        function JuMP.$func(backend::AbstractTransformationBackend; kwargs...)
-            error("`JuMP.$($func)` not defined for backends of type " *
-                  "`$(typeof(backend))`.")
-        end
-
-        # Define for JuMPBackend
-        function JuMP.$func(backend::JuMPBackend; kwargs...)
-            return JuMP.$func(backend.model; kwargs...)
-        end
-
-        @doc """
-            JuMP.$($func)(model::InfiniteModel; [kwargs...])
+            JuMP.$($func)(model::InfiniteModel; result::Int = 1)
 
         Extend [`JuMP.$($func)`](https://jump.dev/JuMP.jl/v1/api/JuMP/#$($func)) 
         for `InfiniteModel`s in accordance with that reported by its 
         transformation backend. Errors if such a query is not supported or if the 
-        transformation backend hasn't be solved. Accepts keywords depending 
-        on the backend. JuMP-based backends use the `result::Int = 1` keyword 
-        argument to access the solution index of interest (if the solver supports 
+        transformation backend hasn't be solved. Accepts keyword `result`
+        to access the solution index of interest (if the solver/backend supports 
         multiple solutions).
         """
-        function JuMP.$func(model::InfiniteModel; kwargs...)
-            return JuMP.$func(model.backend; kwargs...)
+        function JuMP.$func(model::InfiniteModel; result::Int = 1)
+            return JuMP.get_attribute(model, MOI.$Attr(result))
         end
     end
+end
+
+# Simple result dependent model queries
+for (func, Attr) in ((:has_values, :PrimalStatus), (:has_duals, :DualStatus))
+    @eval begin 
+        @doc """
+            JuMP.$($func)(model::InfiniteModel; result::Int = 1)
+
+        Extend [`JuMP.$($func)`](https://jump.dev/JuMP.jl/v1/api/JuMP/#$($func)) 
+        for `InfiniteModel`s in accordance with that reported by its 
+        transformation backend. Errors if such a query is not supported or if the 
+        transformation backend hasn't be solved. Accepts keyword `result`
+        to access the solution index of interest (if the solver/backend supports 
+        multiple solutions).
+        """
+        function JuMP.$func(model::InfiniteModel; result::Int = 1)
+            return JuMP.get_attribute(model, MOI.$Attr(result)) != MOI.NO_SOLUTION
+        end
+    end
+end
+
+"""
+    JuMP.is_solved_and_feasible(
+        model::InfiniteModel;
+        [dual::Bool = false,
+        allow_local::Bool = true,
+        allow_almost::Bool = false,
+        result::Int = 1]
+        )::Bool
+
+Extend [`JuMP.is_solved_and_feasible`](https://jump.dev/JuMP.jl/v1/api/JuMP/#is_solved_and_feasible))
+for `model`. See the JuMP docs details. 
+For new transformation backend types, this relies on `JuMP.termination_status`,
+`JuMP.primal_status`, and `JuMP.dual_status`.
+"""
+function JuMP.is_solved_and_feasible(
+    model::InfiniteModel;
+    dual::Bool = false,
+    allow_local::Bool = true,
+    allow_almost::Bool = false,
+    result::Int = 1
+    )
+    status = JuMP.termination_status(model)
+    ret =
+        (status == MOI.OPTIMAL) ||
+        (allow_local && (status == MOI.LOCALLY_SOLVED)) ||
+        (allow_almost && (status == MOI.ALMOST_OPTIMAL)) ||
+        (allow_almost && allow_local && (status == MOI.ALMOST_LOCALLY_SOLVED))
+    if ret
+        primal = JuMP.primal_status(model; result)
+        ret &=
+            (primal == MOI.FEASIBLE_POINT) ||
+            (allow_almost && (primal == MOI.NEARLY_FEASIBLE_POINT))
+    end
+    if ret && dual
+        dual_stat = JuMP.dual_status(model; result)
+        ret &=
+            (dual_stat == MOI.FEASIBLE_POINT) ||
+            (allow_almost && (dual_stat == MOI.NEARLY_FEASIBLE_POINT))
+    end
+    return ret
 end
 
 ################################################################################
@@ -224,6 +310,7 @@ julia> value(z)
 ```
 """
 function JuMP.value(vref::GeneralVariableRef; kwargs...)
+    _check_result_is_current(JuMP.owner_model(vref), JuMP.value)
     return _get_value(vref, _index_type(vref); kwargs...)
 end
 
@@ -286,6 +373,7 @@ function JuMP.value(
         return JuMP.constant(expr)
     # otherwise let's call map_value
     else
+        _check_result_is_current(model, JuMP.value)
         return map_value(expr, model.backend; kwargs...)
     end
 end
@@ -331,7 +419,9 @@ julia> value(c1)
 ```
 """
 function JuMP.value(cref::InfOptConstraintRef; kwargs...)
-    return map_value(cref, JuMP.owner_model(cref).backend; kwargs...)
+    model = JuMP.owner_model(cref)
+    _check_result_is_current(model, JuMP.value)
+    return map_value(cref, model.backend; kwargs...)
 end
 
 ################################################################################
@@ -404,7 +494,9 @@ for (Ref, func, mapper) in (
         all be called with the same keyword arguments for consistency.
         """
         function JuMP.$func(ref::$Ref; kwargs...)
-            backend = JuMP.owner_model(ref).backend
+            model = JuMP.owner_model(ref)
+            backend = model.backend
+            _check_result_is_current(model, JuMP.$func)
             return $(Symbol(string("map_", func)))(ref, backend; kwargs...)
         end
     end
@@ -492,7 +584,9 @@ julia> dual(c1)
 ```
 """
 function JuMP.dual(cref::InfOptConstraintRef; kwargs...)
-    return map_dual(cref, JuMP.owner_model(cref).backend; kwargs...)
+    model = JuMP.owner_model(cref)
+    _check_result_is_current(model, JuMP.dual)
+    return map_dual(cref, model.backend; kwargs...)
 end
 
 # Error redirect for variable call
@@ -596,5 +690,6 @@ julia> report[x]
 ```
 """
 function JuMP.lp_sensitivity_report(model::InfiniteModel; atol::Float64 = 1e-8)
+    _check_result_is_current(model, JuMP.lp_sensitivity_report)
     return JuMP.lp_sensitivity_report(model.backend; atol = atol)
 end

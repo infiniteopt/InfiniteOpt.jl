@@ -43,8 +43,13 @@ function _data_object(mref::MeasureRef)
     return object
 end
 
-# Extend _core_variable_object
-function _core_variable_object(mref::MeasureRef)
+"""
+    core_object(mref::MeasureRef)::Measure
+
+Retrieve the underlying core [`Measure`](@ref) object for `vref`. 
+This is intended as an advanced method for developers.
+"""
+function core_object(mref::MeasureRef)
     return _data_object(mref).measure
 end
 
@@ -54,12 +59,12 @@ end
 Return the list of infinite parameter group integer indices used by `mref`.
 """
 function parameter_group_int_indices(mref::MeasureRef)
-    return _core_variable_object(mref).group_int_idxs
+    return core_object(mref).group_int_idxs
 end
 
 # Extend _parameter_numbers
 function _parameter_numbers(mref::MeasureRef)
-    return _core_variable_object(mref).parameter_nums
+    return core_object(mref).parameter_nums
 end
 
 ## Set helper methods for adapting data_objects with parametric changes 
@@ -78,7 +83,7 @@ function _adaptive_data_update(
     mref::MeasureRef, 
     m::M1, 
     data::MeasureData{M2}
-    )::Nothing  where {M1, M2}
+    )  where {M1, M2}
     new_data = MeasureData(m, data.name, data.measure_indices, 
                            data.constraint_indices, data.derivative_indices,
                            data.in_objective)
@@ -87,26 +92,23 @@ function _adaptive_data_update(
 end
 
 # Update the core measure object
-function _set_core_variable_object(
-    mref::MeasureRef,
-    meas::Measure
-    )::Nothing
+function _set_core_object(mref::MeasureRef, meas::Measure)
     _adaptive_data_update(mref, meas, _data_object(mref))
     return
 end
 
 # Extend _measure_dependencies
-function _measure_dependencies(mref::MeasureRef)::Vector{MeasureIndex}
+function _measure_dependencies(mref::MeasureRef)
     return _data_object(mref).measure_indices
 end
 
 # Extend _constraint_dependencies
-function _constraint_dependencies(mref::MeasureRef)::Vector{InfOptConstraintIndex}
+function _constraint_dependencies(mref::MeasureRef)
     return _data_object(mref).constraint_indices
 end
 
 # Extend _derivative_dependencies
-function _derivative_dependencies(mref::MeasureRef)::Vector{DerivativeIndex}
+function _derivative_dependencies(mref::MeasureRef)
     return _data_object(mref).derivative_indices
 end
 
@@ -763,13 +765,13 @@ function build_measure(
     expr::JuMP.AbstractJuMPScalar, 
     data::AbstractMeasureData
     )
-    vrefs = _all_function_variables(expr)
+    vrefs = all_expression_variables(expr)
     expr_group_int_idxs = parameter_group_int_indices(expr)
     expr_param_nums = _parameter_numbers(expr)
     prefs = parameter_refs(data)
     data_group_int_idxs = parameter_group_int_indices(prefs)
     data_param_nums = [_parameter_number(pref) for pref in prefs]
-    # NOTE setdiff! cannot be used here since it modifies object_nums of expr if expr is a single infinite variable
+    # NOTE setdiff! cannot be used here since it modifies group_int_idxs of expr if expr is a single infinite variable
     group_int_idxs = sort(setdiff(expr_group_int_idxs, data_group_int_idxs))
     param_nums = sort(setdiff(expr_param_nums, data_param_nums))
     # check if analytic method should be applied
@@ -1020,7 +1022,7 @@ function add_measure(
     name::String = "measure"
     )::GeneralVariableRef
     # get the expression variables and check validity
-    vrefs = _all_function_variables(meas.func)
+    vrefs = all_expression_variables(meas.func)
     for vref in vrefs
         JuMP.check_belongs_to_model(vref, model)
     end
@@ -1061,7 +1063,7 @@ y(x, t) + 2
 ```
 """
 function measure_function(mref::MeasureRef)::JuMP.AbstractJuMPScalar
-    return _core_variable_object(mref).func
+    return core_object(mref).func
 end
 
 """
@@ -1078,7 +1080,7 @@ FunctionalDiscreteMeasureData{Vector{GeneralVariableRef},Vector{Float64}}
 ```
 """
 function measure_data(mref::MeasureRef)::AbstractMeasureData
-    return _core_variable_object(mref).data
+    return core_object(mref).data
 end
 
 """
@@ -1093,7 +1095,7 @@ false
 ```
 """
 function is_analytic(mref::MeasureRef)::Bool
-    return _core_variable_object(mref).constant_func
+    return core_object(mref).constant_func
 end
 
 ## Return an element of a parameter reference tuple given the model, index, and parameter numbers
@@ -1102,8 +1104,8 @@ function _make_param_tuple_element(
     model::InfiniteModel,
     idx::IndependentParameterIndex,
     param_nums::Vector{Int}
-    )::GeneralVariableRef
-    return _make_parameter_ref(model, idx)
+    )
+    return GeneralVariableRef(model, idx)
 end
 
 # DependentParametersIndex
@@ -1111,7 +1113,7 @@ function _make_param_tuple_element(
     model::InfiniteModel,
     idx::DependentParametersIndex,
     param_nums::Vector{Int}
-    )::Union{GeneralVariableRef, Vector{GeneralVariableRef}}
+    )
     dpref = DependentParameterRef(model, DependentParameterIndex(idx, 1))
     el_param_nums = _data_object(dpref).parameter_nums
     prefs = [GeneralVariableRef(model, idx.value, DependentParameterIndex, i)
@@ -1135,7 +1137,7 @@ julia> parameter_refs(meas)
 """
 function parameter_refs(mref::MeasureRef)
     model = JuMP.owner_model(mref)
-    obj_indices = _param_object_indices(model)[parameter_group_int_indices(mref)]
+    obj_indices = parameter_group_indices(model)[parameter_group_int_indices(mref)]
     param_nums = _parameter_numbers(mref)
     return Tuple(_make_param_tuple_element(model, idx, param_nums)
                  for idx in obj_indices)
@@ -1254,7 +1256,7 @@ julia> used_by_measure(mref)
 true
 ```
 """
-function used_by_measure(mref::MeasureRef)::Bool
+function used_by_measure(mref::MeasureRef)
     return !isempty(_measure_dependencies(mref))
 end
 
@@ -1269,7 +1271,7 @@ julia> used_by_constraint(mref)
 false
 ```
 """
-function used_by_constraint(mref::MeasureRef)::Bool
+function used_by_constraint(mref::MeasureRef)
     return !isempty(_constraint_dependencies(mref))
 end
 
@@ -1284,7 +1286,7 @@ julia> used_by_objective(mref)
 true
 ```
 """
-function used_by_objective(mref::MeasureRef)::Bool
+function used_by_objective(mref::MeasureRef)
     return _data_object(mref).in_objective
 end
 
@@ -1299,7 +1301,7 @@ julia> used_by_derivative(mref)
 true
 ```
 """
-function used_by_derivative(mref::MeasureRef)::Bool
+function used_by_derivative(mref::MeasureRef)
     return !isempty(_derivative_dependencies(mref))
 end
 
@@ -1314,7 +1316,7 @@ julia> is_used(mref)
 true
 ```
 """
-function is_used(mref::MeasureRef)::Bool
+function is_used(mref::MeasureRef)
     return used_by_measure(mref) || used_by_constraint(mref) ||
            used_by_objective(mref) || used_by_derivative(mref)
 end
@@ -1333,7 +1335,7 @@ julia> num_measures(model)
 2
 ```
 """
-function num_measures(model::InfiniteModel)::Int
+function num_measures(model::InfiniteModel)
     return length(_data_dictionary(model, Measure))
 end
 
@@ -1350,7 +1352,7 @@ julia> all_measures(model)
  𝔼{x}[w(t, x)]
 ```
 """
-function all_measures(model::InfiniteModel)::Vector{GeneralVariableRef}
+function all_measures(model::InfiniteModel)
     vrefs_list = Vector{GeneralVariableRef}(undef, num_measures(model))
     for (i, (index, _)) in enumerate(_data_dictionary(model, Measure))
         vrefs_list[i] = GeneralVariableRef(model, index)
@@ -1388,7 +1390,7 @@ Subject to
  g(0.5) = 0
 ```
 """
-function JuMP.delete(model::InfiniteModel, mref::MeasureRef)::Nothing
+function JuMP.delete(model::InfiniteModel, mref::MeasureRef)
     @assert JuMP.is_valid(model, mref) "Invalid measure reference."
     # Reset the transcription status
     if is_used(mref)
@@ -1407,24 +1409,24 @@ function JuMP.delete(model::InfiniteModel, mref::MeasureRef)::Nothing
             _remove_variable(func, gvref)
             new_meas = build_measure(func, data)
         end
-        _set_core_variable_object(meas_ref, new_meas)
+        _set_core_object(meas_ref, new_meas)
     end
     # Remove from dependent constraints if there are any
     for cindex in copy(_constraint_dependencies(mref))
-        cref = _make_constraint_ref(model, cindex)
+        cref = InfOptConstraintRef(model, cindex)
         func = JuMP.jump_function(JuMP.constraint_object(cref))
         if func isa GeneralVariableRef
             set = JuMP.moi_set(JuMP.constraint_object(cref))
             new_func = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
             new_constr = JuMP.ScalarConstraint(new_func, set)
-            _set_core_constraint_object(cref, new_constr)
+            _set_core_object(cref, new_constr)
             empty!(parameter_group_int_indices(cref))
             empty!(_measure_dependencies(cref))
         elseif func isa AbstractArray && any(isequal(gvref), func)
             JuMP.delete(model, cref)
         else
             _remove_variable(func, gvref)
-            _data_object(cref).object_nums = sort(parameter_group_int_indices(func))
+            _data_object(cref).group_int_idxs = sort(parameter_group_int_indices(func))
             filter!(e -> e != JuMP.index(mref), _measure_dependencies(cref))
         end
     end
@@ -1444,7 +1446,7 @@ function JuMP.delete(model::InfiniteModel, mref::MeasureRef)::Nothing
     end
     # Update that the variables used by it are no longer used by it
     prefs = parameter_refs(measure_data(mref))
-    vrefs = _all_function_variables(measure_function(mref))
+    vrefs = all_expression_variables(measure_function(mref))
     union!(vrefs, prefs)
     for vref in vrefs
         filter!(e -> e != JuMP.index(mref), _measure_dependencies(vref))

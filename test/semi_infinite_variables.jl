@@ -51,12 +51,12 @@
     end
     # _core_variable_object
     @testset "_core_variable_object" begin
-        @test InfiniteOpt._core_variable_object(vref) === var
-        @test InfiniteOpt._core_variable_object(gvref) === var
+        @test core_object(vref) === var
+        @test core_object(gvref) === var
     end
-    # _set_core_variable_object
-    @testset "_set_core_variable_object" begin
-        @test InfiniteOpt._set_core_variable_object(vref, var) isa Nothing
+    # _set_core_object
+    @testset "_set_core_object" begin
+        @test InfiniteOpt._set_core_object(vref, var) isa Nothing
     end
     # _measure_dependencies
     @testset "_measure_dependencies" begin
@@ -215,8 +215,8 @@ end
         # test normal
         @test isequal(build_variable(error, ivref, eval_supps).infinite_variable_ref, ivref)
         @test build_variable(error, ivref, eval_supps).eval_supports === eval_supps
-        @test build_variable(error, ivref, eval_supps).object_nums == [2]
-        @test build_variable(error, ivref, eval_supps, check = false).object_nums == [2]
+        @test build_variable(error, ivref, eval_supps).group_int_idxs == [2]
+        @test build_variable(error, ivref, eval_supps, check = false).group_int_idxs == [2]
         @test build_variable(error, ivref, eval_supps, check = false).parameter_nums == [2]
     end
     # test JuMP.add_variable

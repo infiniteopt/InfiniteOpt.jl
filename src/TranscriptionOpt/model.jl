@@ -179,11 +179,10 @@ function JuMP.show_backend_summary(
     # reformulation information
     data = transcription_data(backend)
     supp_tuple = data.supports
-    obj_idxs = InfiniteOpt.parameter_group_indices(model)
+    prefs = InfiniteOpt.parameter_refs(model)
     for (i, supps) in enumerate(supp_tuple)
         # support info
-        pref_group = InfiniteOpt._make_param_tuple_element(model, obj_idxs[i])
-        param_name = InfiniteOpt._get_param_group_name(pref_group)
+        param_name = InfiniteOpt._get_param_group_name(prefs[i])
         println(io, "  `", param_name, "` transcribed over ", length(supps) - 1, " supports")
         # TODO add approximation method info (requires InfiniteOpt refactoring)
     end

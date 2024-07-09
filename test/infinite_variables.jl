@@ -59,14 +59,14 @@
     end
     # _core_variable_object
     @testset "_core_variable_object" begin
-        @test InfiniteOpt._core_variable_object(vref) === var
-        @test InfiniteOpt._core_variable_object(gvref) === var
+        @test core_object(vref) === var
+        @test core_object(gvref) === var
     end
-    # _set_core_variable_object
-    @testset "_set_core_variable_object" begin
-        @test InfiniteOpt._set_core_variable_object(vref, var) isa Nothing
-        @test InfiniteOpt._set_core_variable_object(vref, var2) isa Nothing
-        @test InfiniteOpt._set_core_variable_object(vref, var) isa Nothing
+    # _set_core_object
+    @testset "_set_core_object" begin
+        @test InfiniteOpt._set_core_object(vref, var) isa Nothing
+        @test InfiniteOpt._set_core_object(vref, var2) isa Nothing
+        @test InfiniteOpt._set_core_object(vref, var) isa Nothing
     end
     # parameter_group_int_indices
     @testset "parameter_group_int_indices" begin
@@ -291,7 +291,7 @@ end
         tuple = IC.VectorTuple(prefs)
         @test isequal(build_variable(error, info, Infinite(prefs)).parameter_refs, tuple)
         @test isequal(build_variable(error, info, Infinite(prefs)).parameter_nums, [3, 4])
-        @test isequal(build_variable(error, info, Infinite(prefs)).object_nums, [3])
+        @test isequal(build_variable(error, info, Infinite(prefs)).group_int_idxs, [3])
     end
     # _check_parameters_valid
     @testset "_check_parameters_valid" begin
@@ -336,7 +336,7 @@ end
         gvref = InfiniteOpt.GeneralVariableRef(m, idx)
         @test isequal(add_variable(m, v, "name"), gvref)
         @test haskey(InfiniteOpt._data_dictionary(vref), idx)
-        @test InfiniteOpt._core_variable_object(vref) == v
+        @test core_object(vref) == v
         @test InfiniteOpt._infinite_variable_dependencies(pref) == [idx]
         @test name(vref) == "name"
         # prepare infinite variable with all the possible info additions

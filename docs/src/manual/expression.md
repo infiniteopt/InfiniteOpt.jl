@@ -58,6 +58,7 @@ parameter_refs(::Union{JuMP.GenericAffExpr, JuMP.GenericNonlinearExpr, JuMP.Gene
 restrict(::JuMP.AbstractJuMPScalar)
 map_expression
 map_expression_to_ast
+all_expression_variables
 parameter_group_int_indices(::Any)
 ```
 
@@ -160,6 +161,8 @@ JuMP.set_integer(::GeneralVariableRef)
 JuMP.IntegerRef(::GeneralVariableRef)
 JuMP.unset_integer(::GeneralVariableRef)
 constant_over_collocation(::GeneralVariableRef, ::GeneralVariableRef)
+core_object
+core_object(::GeneralVariableRef)
 parameter_group_int_indices(::GeneralVariableRef)
 InfiniteOpt.parameter_group_int_index
 InfiniteOpt.parameter_group_int_index(::GeneralVariableRef)
@@ -171,9 +174,7 @@ InfiniteOpt._add_data_object
 InfiniteOpt._data_dictionary
 InfiniteOpt._data_object
 InfiniteOpt._delete_data_object
-InfiniteOpt._core_variable_object
-InfiniteOpt._core_variable_object(::GeneralVariableRef)
-InfiniteOpt._set_core_variable_object
+InfiniteOpt._set_core_object
 InfiniteOpt._infinite_variable_dependencies
 InfiniteOpt._infinite_variable_dependencies(::GeneralVariableRef)
 InfiniteOpt._semi_infinite_variable_dependencies

@@ -165,7 +165,7 @@ end
     gvref = GeneralVariableRef(m, 1, TestIndex)
     # test _core_variable_object (GeneralVariableRef)
     @testset "_core_variable_object (GeneralVariableRef)" begin
-        @test_throws MethodError InfiniteOpt._core_variable_object(gvref)
+        @test_throws MethodError core_object(gvref)
     end
 end
 

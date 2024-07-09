@@ -63,7 +63,7 @@ function set_parameter_supports(
     model::InfiniteOpt.InfiniteModel
     )
     # gather the basic information
-    param_indices = InfiniteOpt._param_object_indices(model)
+    param_indices = InfiniteOpt.parameter_group_indices(model)
     prefs = map(idx -> _temp_parameter_ref(model, idx), param_indices)
     data = transcription_data(backend)
     # check and add supports to prefs as needed
@@ -151,7 +151,7 @@ function transcribe_infinite_variables!(
         base_name = object.name
         param_nums = var.parameter_nums
         # prepare for iterating over its supports
-        supp_indices = support_index_iterator(backend, var.object_nums)
+        supp_indices = support_index_iterator(backend, var.group_int_idxs)
         vrefs = Vector{JuMP.VariableRef}(undef, length(supp_indices))
         labels = Vector{Set{DataType}}(undef, length(supp_indices))
         lookup_dict = Dict{Vector{Float64}, Int}()
@@ -275,7 +275,7 @@ function _set_semi_infinite_variable_mapping(
     ivref_param_nums = InfiniteOpt._parameter_numbers(ivref)
     eval_supps = var.eval_supports
     # prepare for iterating over its supports
-    supp_indices = support_index_iterator(backend, var.object_nums)
+    supp_indices = support_index_iterator(backend, var.group_int_idxs)
     vrefs = Vector{JuMP.VariableRef}(undef, length(supp_indices))
     labels = Vector{Set{DataType}}(undef, length(supp_indices))
     lookup_dict = Dict{Vector{Float64}, Int}()
@@ -562,7 +562,7 @@ function transcribe_measures!(
             new_expr = InfiniteOpt.expand_measure(meas.func, meas.data, backend)
         end
         # prepare to transcribe over the supports
-        supp_indices = support_index_iterator(backend, meas.object_nums)
+        supp_indices = support_index_iterator(backend, meas.group_int_idxs)
         exprs = Vector{JuMP.AbstractJuMPScalar}(undef, length(supp_indices))
         labels = Vector{Set{DataType}}(undef, length(supp_indices))
         lookup_dict = Dict{Vector{Float64}, Int}()
@@ -755,8 +755,8 @@ function transcribe_constraints!(
         constr = object.constraint
         func = JuMP.jump_function(constr)
         set = JuMP.moi_set(constr)
-        group_int_idxs = object.object_nums
-        cref = InfiniteOpt._make_constraint_ref(model, idx)
+        group_int_idxs = object.group_int_idxs
+        cref = InfiniteOpt.InfOptConstraintRef(model, idx)
         # prepare the iteration helpers
         supp_indices = support_index_iterator(backend, group_int_idxs)
         crefs = Vector{JuMP.ConstraintRef}(undef, length(supp_indices))

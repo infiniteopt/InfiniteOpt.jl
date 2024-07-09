@@ -47,8 +47,8 @@
     end
     # _core_variable_object
     @testset "_core_variable_object" begin
-        @test InfiniteOpt._core_variable_object(fref) === func
-        @test InfiniteOpt._core_variable_object(gvref) === func
+        @test core_object(fref) === func
+        @test core_object(gvref) === func
     end
     # parameter_group_int_indices
     @testset "parameter_group_int_indices" begin
@@ -382,8 +382,8 @@ end
     end
 end
 
-# Test _all_function_variables
-@testset "_all_function_variables" begin
+# Test all_expression_variables
+@testset "all_expression_variables" begin
     # initialize model and references
     m = InfiniteModel()
     @infinite_parameter(m, par in [0, 1])
@@ -399,10 +399,10 @@ end
     dinf = @deriv(inf, par)
     # test for variable reference
     @testset "Variable" begin
-        @test isequal(InfiniteOpt._all_function_variables(par), [par])
-        @test isequal(InfiniteOpt._all_function_variables(inf), [inf])
-        @test isequal(InfiniteOpt._all_function_variables(meas), [meas])
-        @test isequal(InfiniteOpt._all_function_variables(dinf), [dinf])
+        @test isequal(all_expression_variables(par), [par])
+        @test isequal(all_expression_variables(inf), [inf])
+        @test isequal(all_expression_variables(meas), [meas])
+        @test isequal(all_expression_variables(dinf), [dinf])
     end
     # test for GenericAffExpr
     @testset "AffExpr" begin
@@ -410,9 +410,9 @@ end
         aff1 = meas + 2par + finite - dinf
         aff2 = zero(GenericAffExpr{Float64, GeneralVariableRef})
         # test expressions
-        @test isempty(setdiff(InfiniteOpt._all_function_variables(aff1),
+        @test isempty(setdiff(all_expression_variables(aff1),
                               [meas, par, finite, dinf]))
-        @test InfiniteOpt._all_function_variables(aff2) == GeneralVariableRef[]
+        @test all_expression_variables(aff2) == GeneralVariableRef[]
     end
     # test for GenericQuadExpr
     @testset "QuadExpr" begin
@@ -421,11 +421,11 @@ end
         quad2 = pt^2 + inf * pt
         quad3 = zero(GenericQuadExpr{Float64, GeneralVariableRef})
         # test expressions
-        @test isempty(setdiff(InfiniteOpt._all_function_variables(quad1),
+        @test isempty(setdiff(all_expression_variables(quad1),
                       [meas, par, finite, dinf, pt, inf]))
-        @test isempty(setdiff(InfiniteOpt._all_function_variables(quad2),
+        @test isempty(setdiff(all_expression_variables(quad2),
                               [pt, inf]))
-        @test InfiniteOpt._all_function_variables(quad3) == GeneralVariableRef[]
+        @test all_expression_variables(quad3) == GeneralVariableRef[]
     end
     # test for Array of expressions
     @testset "AbstractArray" begin
@@ -433,9 +433,9 @@ end
         ex1 = [inf, pt]
         ex2 = [inf + pt, meas + pt]
         # test expressions
-        @test isempty(setdiff(InfiniteOpt._all_function_variables(ex1),
+        @test isempty(setdiff(all_expression_variables(ex1),
                       [pt, inf]))
-        @test isempty(setdiff(InfiniteOpt._all_function_variables(ex2),
+        @test isempty(setdiff(all_expression_variables(ex2),
                               [pt, inf, meas]))
     end
     # test for Array of expressions
@@ -443,13 +443,13 @@ end
         # make expressions
         nlp = sin(pt) + inf / pt
         # test expressions
-        @test isempty(setdiff(InfiniteOpt._all_function_variables(nlp),
+        @test isempty(setdiff(all_expression_variables(nlp),
                       [pt, inf]))
     end
     # test backup
     @testset "Fallback" begin
         @variable(Model(), x)
-        @test_throws ErrorException InfiniteOpt._all_function_variables(x)
+        @test_throws ErrorException all_expression_variables(x)
     end
 end
 

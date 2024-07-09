@@ -644,8 +644,8 @@ function JuMP.constraint_string(print_mode,
     in_math_mode = false
     )
     # get the function and set strings
-    func_str = JuMP.function_string(print_mode, _core_constraint_object(cref))
-    in_set_str = JuMP.in_set_string(print_mode, _core_constraint_object(cref))
+    func_str = JuMP.function_string(print_mode, JuMP.constraint_object(cref))
+    in_set_str = JuMP.in_set_string(print_mode, JuMP.constraint_object(cref))
     # check if constraint if finite
     group_int_idxs = parameter_group_int_indices(cref)
     if isempty(group_int_idxs)
@@ -690,7 +690,7 @@ function JuMP.constraints_string(print_mode, model::InfiniteModel)::Vector{Strin
     # produce a string for each constraint
     counter = 1
     for (index, object) in model.constraints
-        cref = _make_constraint_ref(model, index)
+        cref = InfOptConstraintRef(model, index)
         strings[counter] = JuMP.constraint_string(print_mode, cref,
                                                   in_math_mode = true)
         counter += 1

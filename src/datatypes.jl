@@ -1577,6 +1577,44 @@ new types of [`AbstractTransformationBackend`](@ref)s.
 """
 parameter_group_indices(model::InfiniteModel) = model.param_group_indices
 
+## Return an element of a parameter reference tuple given the model and index
+# IndependentParameterIndex
+function _make_param_tuple_element(
+    model::InfiniteModel,
+    idx::IndependentParameterIndex,
+    )
+    return GeneralVariableRef(model, idx)
+end
+# DependentParametersIndex
+function _make_param_tuple_element(
+    model::InfiniteModel,
+    idx::DependentParametersIndex,
+    )
+    num_params = length(model.dependent_params[idx].parameter_nums)
+    return [GeneralVariableRef(model, idx.value, DependentParameterIndex, i)
+            for i in 1:num_params]
+end
+
+"""
+    parameter_refs(model::InfiniteModel)::Tuple
+
+Returns a tuple of the infinite parameters used by `model`.
+
+For developers, note that the integer index of each element is what is referred
+to as an infinite parameter group integer index which corresponds to
+[`parameter_group_int_indices`](@ref).
+
+**Example**
+```julia-repl
+julia> parameter_refs(model)
+(t, x)
+```
+"""
+function parameter_refs(model::InfiniteModel)
+    group_idxs = parameter_group_indices(model)
+    return Tuple(_make_param_tuple_element(model, idx) for idx in group_idxs)
+end
+
 ################################################################################
 #                             OBJECT REFERENCES
 ################################################################################

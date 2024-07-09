@@ -10,8 +10,23 @@
     @objective(m, Min, g^2)
     @constraint(m, c1, 2 * inf * g <= 1)
     tb = m.backend
-    JuMP.optimize!(m)
+
+    # test not optimized yet
+    set_objective_sense(m, MOI.MAX_SENSE)
+    @testset "Not solved yet" begin 
+        for f in (solve_time, simplex_iterations,
+                  barrier_iterations, node_count)
+            @test_throws ErrorException f(m)
+        end
+        @test termination_status(m) == MOI.OPTIMIZE_NOT_CALLED
+        @test result_count(m) == 0
+        @test raw_status(m) == "optimize not called"
+        @test primal_status(m) == MOI.NO_SOLUTION
+        @test dual_status(m) == MOI.NO_SOLUTION
+    end
+
     # setup the results
+    JuMP.optimize!(m)
     mockoptimizer = JuMP.backend(tb).optimizer.model
     MOI.set(mockoptimizer, MOI.TerminationStatus(), MOI.OPTIMAL)
     MOI.set(mockoptimizer, MOI.RawStatusString(), "solver specific string")
@@ -25,9 +40,20 @@
     MOI.set(mockoptimizer, MOI.RelativeGap(), 9.0)
     MOI.set(mockoptimizer, MOI.NodeCount(), Int64(2))
     MOI.set(mockoptimizer, MOI.SolveTimeSec(), 0.42)
+
+    # make model to set fallbacks
+    test_model = InfiniteModel(TestBackend())
+    set_transformation_backend_ready(test_model, true)
+
     # test termination_status
     @testset "JuMP.termination_status" begin
         @test termination_status(m) == MOI.OPTIMAL
+    end
+    # test is_solved_and_feasible
+    @testset "JuMP.is_solved_and_feasible" begin
+        @test is_solved_and_feasible(m)
+        @test !is_solved_and_feasible(test_model)
+        @test is_solved_and_feasible(test_model, allow_almost = true, dual = true)
     end
     # test primal_status
     @testset "JuMP.primal_status" begin
@@ -69,10 +95,20 @@
     end
     # test fallbacks
     @testset "Fallbacks" begin
-        for f in (termination_status, raw_status, solve_time, simplex_iterations,
+        for f in (raw_status, solve_time, simplex_iterations,
                   barrier_iterations, node_count, result_count)
-            @test_throws ErrorException f(TestBackend())
+            @test_throws ErrorException f(test_model)
         end
+    end
+    # test model not up to date
+    set_objective_sense(m, MOI.MAX_SENSE)
+    @testset "Not up-to-date" begin 
+        for f in (solve_time, simplex_iterations,
+                  barrier_iterations, node_count)
+            @test_throws ErrorException f(m)
+        end
+        @test raw_status(m) == "optimize not called"
+        @test result_count(m) == 0
     end
 end
 
@@ -99,10 +135,13 @@ end
     MOI.set(mockoptimizer, MOI.PrimalStatus(), MOI.FEASIBLE_POINT)
     MOI.set(mockoptimizer, MOI.DualStatus(), MOI.FEASIBLE_POINT)
     MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c1), -2.0)
+    # make model to set fallbacks
+    test_model = InfiniteModel(TestBackend())
+    # test objective_bound
     @testset "JuMP.objective_bound" begin
         @test objective_bound(m) == 2.0
     end
-    # test objective_bound
+    # test objective_value
     @testset "JuMP.objective_value" begin
         @test objective_value(m) == -1.
     end
@@ -113,7 +152,14 @@ end
     # test fallbacks
     @testset "Fallbacks" begin
         for f in (objective_bound, objective_value, dual_objective_value)
-            @test_throws ErrorException f(TestBackend())
+            @test_throws ErrorException f(test_model)
+        end
+    end
+    # test model not up to date
+    set_objective_sense(m, MOI.MAX_SENSE)
+    @testset "Not up-to-date" begin 
+        for f in (objective_bound, objective_value, dual_objective_value)
+            @test_throws ErrorException f(m)
         end
     end
 end
@@ -228,6 +274,13 @@ end
     @testset "JuMP.dual" begin
         @test_throws ErrorException dual(g)
     end
+    # test model not up to date
+    set_objective_sense(m, MOI.MAX_SENSE)
+    @testset "Not up-to-date" begin 
+        @test_throws ErrorException value(inf)
+        @test_throws ErrorException reduced_cost(inf)
+        @test_throws ErrorException optimizer_index(inf)
+    end
 end
 
 # Test expression/measure queries 
@@ -288,6 +341,12 @@ end
     # test dual
     @testset "JuMP.dual" begin
         @test_throws ErrorException dual(meas1)
+    end
+    # test model not up to date
+    set_objective_sense(m, MOI.MAX_SENSE)
+    @testset "Not up-to-date" begin 
+        @test_throws ErrorException value(meas1)
+        @test value(zero(AffExpr) + 1) == 1
     end
 end
 
@@ -382,6 +441,13 @@ end
         @test shadow_price(c4) == [-2, -3]
         @test_throws ErrorException InfiniteOpt.map_shadow_price(c1, TestBackend())
     end
+    # test model not up to date
+    set_objective_sense(m, MOI.MAX_SENSE)
+    @testset "Not up-to-date" begin 
+        @test_throws ErrorException dual(c1)
+        @test_throws ErrorException shadow_price(c1)
+        @test_throws ErrorException optimizer_index(c1)
+    end
 end
 
 # Test LP sensitivity methods
@@ -442,4 +508,9 @@ end
     @test lp_sensitivity_report(m)[g] == (0, 0)
     @test lp_sensitivity_report(m)[inf, label = UserDefined] == [(0, 0), (0, 0)]
     @test lp_sensitivity_report(m)[inf, ndarray = true] == [(0, 0), (0, 0)]
+    # test model not up to date
+    set_objective_sense(m, MOI.MIN_SENSE)
+    @testset "Not up-to-date" begin 
+        @test_throws ErrorException lp_sensitivity_report(m)
+    end
 end

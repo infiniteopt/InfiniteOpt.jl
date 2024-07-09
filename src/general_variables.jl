@@ -270,33 +270,33 @@ end
 #                             CORE OBJECT METHODS
 ################################################################################
 """
-    _core_variable_object(vref::DispatchVariableRef)::Union{InfOptParameter, InfOptVariable, Measure}
+    core_object(vref::DispatchVariableRef)::Union{InfOptParameter, InfOptVariable, Measure}
 
 Return the core object that `vref` points to. This needs to be extended for type
 of `vref`. This should use `_data_object` to access the data object where the
 variable object is stored.
 """
-function _core_variable_object end
+function core_object end
 
 """
-    _core_variable_object(vref::GeneralVariableRef)::Union{InfOptParameter, InfOptVariable, Measure}
+    core_object(vref::GeneralVariableRef)::Union{InfOptParameter, InfOptVariable, Measure}
 
 Return the core object that `vref` points to. This is enabled
-with appropriate definitions of `_core_variable_object` for the
+with appropriate definitions of `core_object` for the
 underlying `DispatchVariableRef`, otherwise an `MethodError` is thrown.
 """
-function _core_variable_object(vref::GeneralVariableRef)
-    return _core_variable_object(dispatch_variable_ref(vref))
+function core_object(vref::GeneralVariableRef)
+    return core_object(dispatch_variable_ref(vref))
 end
 
 """
-    _set_core_variable_object(vref::DispatchVariableRef, object)::Nothing
+    _set_core_object(vref::DispatchVariableRef, object)::Nothing
 
 Sets the core object that `vref` points to `object`. This needs to be extended
 for types of `vref` and `object`. This should use `_data_object` to access the
 data object where the variable object is stored.
 """
-function _set_core_variable_object end
+function _set_core_object end
 
 ################################################################################
 #                               DEPENDENCY METHODS

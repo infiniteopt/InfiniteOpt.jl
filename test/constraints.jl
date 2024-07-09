@@ -43,18 +43,22 @@
         @test InfiniteOpt._data_object(cref) === object
         @test_throws ErrorException InfiniteOpt._data_object(bad_cref)
     end
-    # _core_constraint_object
-    @testset "_core_constraint_object" begin
-        @test InfiniteOpt._core_constraint_object(cref) === con
+    # constraint_object
+    @testset "JuMP.constraint_object" begin
+        @test constraint_object(cref) === con
     end
-    # _set_core_constraint_object
-    @testset "_set_core_constraint_object" begin
-        @test InfiniteOpt._set_core_constraint_object(cref, con) isa Nothing
+    # core_object
+    @testset "core_object" begin
+        @test core_object(cref) === con
+    end
+    # _set_core_object
+    @testset "_set_core_object" begin
+        @test InfiniteOpt._set_core_object(cref, con) isa Nothing
         con2 = ScalarConstraint(zero(AffExpr), MOI.LessThan(0.0))
-        @test InfiniteOpt._set_core_constraint_object(cref, con2) isa Nothing
-        @test InfiniteOpt._core_constraint_object(cref) === con2
-        @test InfiniteOpt._set_core_constraint_object(cref, con) isa Nothing
-        @test InfiniteOpt._core_constraint_object(cref) === con
+        @test InfiniteOpt._set_core_object(cref, con2) isa Nothing
+        @test constraint_object(cref) === con2
+        @test InfiniteOpt._set_core_object(cref, con) isa Nothing
+        @test constraint_object(cref) === con
     end
     # parameter_group_int_indices
     @testset "parameter_group_int_indices" begin
@@ -64,8 +68,8 @@
     @testset "_measure_dependencies" begin
         @test InfiniteOpt._measure_dependencies(cref) == MeasureIndex[]
     end
-    @testset "_is_info_constraint" begin
-        @test !InfiniteOpt._is_info_constraint(cref)
+    @testset "is_variable_domain_constraint" begin
+        @test !is_variable_domain_constraint(cref)
     end
     # constraint_object
     @testset "JuMP.constraint_object" begin
@@ -89,10 +93,6 @@
     # test domain_restrictions
     @testset "domain_restrictions" begin
         @test domain_restrictions(cref) == DomainRestrictions()
-    end
-    # _make_constraint_ref
-    @testset "_make_constraint_ref" begin
-        @test InfiniteOpt._make_constraint_ref(m, idx) == cref
     end
     # constraint_by_name
     @testset "JuMP.constraint_by_name" begin
@@ -247,7 +247,7 @@ end
         cref = InfOptConstraintRef(m, idx)
         @test add_constraint(m, con, "d") == cref
         @test name(cref) == "d"
-        @test !InfiniteOpt._is_info_constraint(cref)
+        @test !is_variable_domain_constraint(cref)
         @test !transformation_backend_ready(m)
         @test used_by_constraint(pt)
         # test vector constraint
@@ -264,14 +264,14 @@ end
         idx = InfOptConstraintIndex(5)
         cref = InfOptConstraintRef(m, idx)
         @test @constraint(m, f, x + pt -2 <= 2) == cref
-        @test InfiniteOpt._core_constraint_object(cref) isa ScalarConstraint
+        @test constraint_object(cref) isa ScalarConstraint
         # test restricted scalar constraint
         rs = DomainRestrictions(par => [0, 1])
         idx = InfOptConstraintIndex(6)
         cref = InfOptConstraintRef(m, idx)
         @test @constraint(m, g, inf + meas - dinf <= 2, rs) == cref
         @test InfiniteOpt.parameter_group_int_indices(cref) == [1]
-        @test InfiniteOpt._core_constraint_object(cref) isa ScalarConstraint
+        @test constraint_object(cref) isa ScalarConstraint
         @test used_by_constraint(dinf)
     end
 end

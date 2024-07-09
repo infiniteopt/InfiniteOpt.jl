@@ -8,12 +8,6 @@
     vref1 = dispatch_variable_ref(gvref1)
     vref2 = dispatch_variable_ref(gvref2)
     vref3 = dispatch_variable_ref(gvref3)
-    # _make_constraint_ref
-    @testset "_temp_constraint_ref" begin
-        cindex = InfOptConstraintIndex(1)
-        expected = InfOptConstraintRef(m, cindex)
-        @test InfiniteOpt._make_constraint_ref(m, cindex) == expected
-    end
     # is_fixed
     @testset "JuMP.is_fixed" begin
         @test is_fixed(vref3)
@@ -68,7 +62,7 @@
         cref = LowerBoundRef(vref1)
         @test InfiniteOpt._data_object(cref).is_info_constraint
         @test !transformation_backend_ready(m)
-        @test InfiniteOpt._core_constraint_object(cref) == ScalarConstraint(gvref1, MOI.GreaterThan(1.))
+        @test constraint_object(cref) == ScalarConstraint(gvref1, MOI.GreaterThan(1.))
         # test changing lower bound
         @test isa(set_lower_bound(vref2, 1.5), Nothing)
         @test has_lower_bound(vref2)
@@ -76,7 +70,7 @@
         cref = LowerBoundRef(vref2)
         @test InfiniteOpt._data_object(cref).is_info_constraint
         @test !transformation_backend_ready(m)
-        @test InfiniteOpt._core_constraint_object(cref) == ScalarConstraint(gvref2, MOI.GreaterThan(1.5))
+        @test constraint_object(cref) == ScalarConstraint(gvref2, MOI.GreaterThan(1.5))
         # test fixed variable error
         @test_throws AssertionError set_lower_bound(vref3, 0)
     end
@@ -146,7 +140,7 @@ end
         cref = UpperBoundRef(vref1)
         @test InfiniteOpt._data_object(cref).is_info_constraint
         @test !transformation_backend_ready(m)
-        @test InfiniteOpt._core_constraint_object(cref) == ScalarConstraint(gvref1, MOI.LessThan(1.))
+        @test constraint_object(cref) == ScalarConstraint(gvref1, MOI.LessThan(1.))
         # test changing upper bound
         @test isa(set_upper_bound(vref2, 1.5), Nothing)
         @test has_upper_bound(vref2)
@@ -154,7 +148,7 @@ end
         cref = UpperBoundRef(vref2)
         @test InfiniteOpt._data_object(cref).is_info_constraint
         @test !transformation_backend_ready(m)
-        @test InfiniteOpt._core_constraint_object(cref) == ScalarConstraint(gvref2, MOI.LessThan(1.5))
+        @test constraint_object(cref) == ScalarConstraint(gvref2, MOI.LessThan(1.5))
         # test fixed variable error
         @test_throws AssertionError set_upper_bound(vref3, 0)
     end
@@ -219,7 +213,7 @@ end
         cref = FixRef(vref1)
         @test InfiniteOpt._data_object(cref).is_info_constraint
         @test !transformation_backend_ready(m)
-        @test InfiniteOpt._core_constraint_object(cref) == ScalarConstraint(gvref1, MOI.EqualTo(1.))
+        @test constraint_object(cref) == ScalarConstraint(gvref1, MOI.EqualTo(1.))
         # test changing fix
         @test isa(fix(gvref2, 1.5), Nothing)
         @test is_fixed(vref2)
@@ -227,7 +221,7 @@ end
         cref = FixRef(vref2)
         @test InfiniteOpt._data_object(cref).is_info_constraint
         @test !transformation_backend_ready(m)
-        @test InfiniteOpt._core_constraint_object(cref) == ScalarConstraint(gvref2, MOI.EqualTo(1.5))
+        @test constraint_object(cref) == ScalarConstraint(gvref2, MOI.EqualTo(1.5))
         # add lower and upper bounds to vars 3 and 4
         set_lower_bound(vref3, 0.0)
         set_upper_bound(vref4, 0.0)
@@ -241,7 +235,7 @@ end
         cref = FixRef(vref3)
         @test InfiniteOpt._data_object(cref).is_info_constraint
         @test !transformation_backend_ready(m)
-        @test InfiniteOpt._core_constraint_object(cref) == ScalarConstraint(gvref3, MOI.EqualTo(1.))
+        @test constraint_object(cref) == ScalarConstraint(gvref3, MOI.EqualTo(1.))
         # test forcing with upper
         @test isa(fix(gvref4, 1.5, force = true), Nothing)
         @test is_fixed(vref4)
@@ -249,7 +243,7 @@ end
         cref = FixRef(vref4)
         @test InfiniteOpt._data_object(cref).is_info_constraint
         @test !transformation_backend_ready(m)
-        @test InfiniteOpt._core_constraint_object(cref) == ScalarConstraint(gvref4, MOI.EqualTo(1.5))
+        @test constraint_object(cref) == ScalarConstraint(gvref4, MOI.EqualTo(1.5))
     end
 end
 
@@ -362,14 +356,14 @@ end
         cref = BinaryRef(vref1)
         @test InfiniteOpt._data_object(cref).is_info_constraint
         @test !transformation_backend_ready(m)
-        @test InfiniteOpt._core_constraint_object(cref) == ScalarConstraint(gvref1, MOI.ZeroOne())
+        @test constraint_object(cref) == ScalarConstraint(gvref1, MOI.ZeroOne())
         # test setting binary again
         @test isa(set_binary(gvref2), Nothing)
         @test is_binary(vref2)
         cref = BinaryRef(vref2)
         @test InfiniteOpt._data_object(cref).is_info_constraint
         @test !transformation_backend_ready(m)
-        @test InfiniteOpt._core_constraint_object(cref) == ScalarConstraint(gvref2, MOI.ZeroOne())
+        @test constraint_object(cref) == ScalarConstraint(gvref2, MOI.ZeroOne())
         # test integer variable error
         @test_throws ErrorException set_binary(vref3)
     end
@@ -425,14 +419,14 @@ end
         cref = IntegerRef(vref1)
         @test InfiniteOpt._data_object(cref).is_info_constraint
         @test !transformation_backend_ready(m)
-        @test InfiniteOpt._core_constraint_object(cref) == ScalarConstraint(gvref1, MOI.Integer())
+        @test constraint_object(cref) == ScalarConstraint(gvref1, MOI.Integer())
         # test setting integer again
         @test isa(set_integer(gvref2), Nothing)
         @test is_integer(vref2)
         cref = IntegerRef(vref2)
         @test InfiniteOpt._data_object(cref).is_info_constraint
         @test !transformation_backend_ready(m)
-        @test InfiniteOpt._core_constraint_object(cref) == ScalarConstraint(gvref2, MOI.Integer())
+        @test constraint_object(cref) == ScalarConstraint(gvref2, MOI.Integer())
         # test integer variable error
         @test_throws ErrorException set_integer(vref3)
     end

@@ -230,9 +230,9 @@ end
         @test InfiniteOpt._parameter_numbers(dmref2) == []
         # undo changes
         meas = Measure(inf + par - x + rv + par2 + par3 + fin, data, [2, 4], [2, 5], false)
-        InfiniteOpt._set_core_variable_object(dmref, meas)
+        InfiniteOpt._set_core_object(dmref, meas)
         meas = Measure(par2, data, [2], [2], false)
-        InfiniteOpt._set_core_variable_object(dmref2, meas)
+        InfiniteOpt._set_core_object(dmref2, meas)
     end
     # test _update_constraints
     @testset "_update_constraints" begin
@@ -244,9 +244,9 @@ end
         @test !is_valid(m, con3)
         # undo changes
         constr = ScalarConstraint(inf2 + inf4 - par2 + par3 + fin, MOI.LessThan(0.))
-        InfiniteOpt._set_core_constraint_object(con, constr)
+        InfiniteOpt._set_core_object(con, constr)
         constr = ScalarConstraint(par2, MOI.GreaterThan(0.))
-        InfiniteOpt._set_core_constraint_object(con2, constr)
+        InfiniteOpt._set_core_object(con2, constr)
         unregister(m, :con3)
         @constraint(m, con3, [par2, par2] in MOI.Zeros(2))
     end
@@ -284,7 +284,7 @@ end
         @test isequal(jump_function(constraint_object(con2)),zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
         expected = [IndependentParameterIndex(1), DependentParametersIndex(1),
                     IndependentParameterIndex(3)]
-        @test InfiniteOpt._param_object_indices(m) == expected
+        @test InfiniteOpt.parameter_group_indices(m) == expected
         @test InfiniteOpt._last_param_num(m) == 4
         @test InfiniteOpt.parameter_group_int_index(dpar) == 1
         @test InfiniteOpt.parameter_group_int_index(dpars[1]) == 2
@@ -307,7 +307,7 @@ end
         @test isequal_canonical(jump_function(constraint_object(con)), inf4 + fin)
         @test isempty(setdiff(InfiniteOpt.parameter_group_int_indices(con), [1, 2]))
         expected = [IndependentParameterIndex(1), DependentParametersIndex(1)]
-        @test InfiniteOpt._param_object_indices(m) == expected
+        @test InfiniteOpt.parameter_group_indices(m) == expected
         @test InfiniteOpt._last_param_num(m) == 3
         @test InfiniteOpt._parameter_number(dpars[2]) == 3
         @test InfiniteOpt._parameter_numbers(dinf4) == [1, 2, 3]
@@ -400,7 +400,7 @@ end
         @test isequal_canonical(measure_function(dmref), inf + par - x)
         @test isequal_canonical(jump_function(constraint_object(con)), inf2 - par2)
         expected = [IndependentParameterIndex(1), IndependentParameterIndex(2)]
-        @test InfiniteOpt._param_object_indices(m) == expected
+        @test InfiniteOpt.parameter_group_indices(m) == expected
         @test InfiniteOpt._last_param_num(m) == 2
         @test InfiniteOpt.parameter_group_int_index(dpar) == 1
         @test InfiniteOpt.parameter_group_int_index(dpar2) == 2

@@ -20,7 +20,7 @@
     # test _add_data_object
     @testset "_add_data_object" begin
         @test InfiniteOpt._add_data_object(m, object) == obj_idx
-        @test InfiniteOpt._param_object_indices(m)[end] == obj_idx
+        @test InfiniteOpt.parameter_group_indices(m)[end] == obj_idx
     end
     # test _data_dictionary
     @testset "_data_dictionary" begin
@@ -36,8 +36,8 @@
     end
     # test _core_variable_object
     @testset "_core_variable_object" begin
-        @test InfiniteOpt._core_variable_object(pref) == params
-        @test InfiniteOpt._core_variable_object(gvref) == params
+        @test core_object(pref) == params
+        @test core_object(gvref) == params
     end
     # test _num_parameters
     @testset "_num_parameters" begin
@@ -136,21 +136,21 @@ end
         prefs = [GeneralVariableRef(m, 1, DependentParameterIndex, i) for i in 1:2]
         params = InfiniteOpt._build_parameters(error, [domain1, domain1], inds1)
         @test isequal(add_parameters(m, params, ["", ""]), prefs)
-        @test InfiniteOpt._param_object_indices(m) == [index(prefs[1]).object_index]
+        @test InfiniteOpt.parameter_group_indices(m) == [index(prefs[1]).object_index]
         @test InfiniteOpt._last_param_num(m) == 2
         @test name.(prefs) == ["", ""]
         # test vector build
         prefs = [GeneralVariableRef(m, 2, DependentParameterIndex, i) for i in 1:2]
         params = InfiniteOpt._build_parameters(error, [domain2, domain2], inds1)
         @test isequal(add_parameters(m, params, ["p1", "p2"]), prefs)
-        @test InfiniteOpt._param_object_indices(m)[2] == index(prefs[1]).object_index
+        @test InfiniteOpt.parameter_group_indices(m)[2] == index(prefs[1]).object_index
         @test InfiniteOpt._last_param_num(m) == 4
         @test name.(prefs) == ["p1", "p2"]
         # test array build
         prefs = [GeneralVariableRef(m, 3, DependentParameterIndex, i) for i in 1:4]
         params = InfiniteOpt._build_parameters(error, [domain3 for i in 1:4], inds2)
         @test isequal(add_parameters(m, params, ["p$i" for i in 1:4]), prefs)
-        @test InfiniteOpt._param_object_indices(m)[3] == index(prefs[1]).object_index
+        @test InfiniteOpt.parameter_group_indices(m)[3] == index(prefs[1]).object_index
         @test InfiniteOpt._last_param_num(m) == 8
         @test name.(prefs) == ["p$i" for i in 1:4]
         # test name error 
@@ -200,15 +200,15 @@ end
         prefs = [GeneralVariableRef(m, 1, DependentParameterIndex, i) for i in 1:2]
         @test isequal(@infinite_parameter(m, a[1:2] ~ dist1, num_supports = 10), prefs)
         @test name.(prefs) == ["a[1]", "a[2]"]
-        @test length(InfiniteOpt._core_variable_object(prefs[1]).supports) == 10
-        @test WeightedSample in first(InfiniteOpt._core_variable_object(prefs[1]).supports)[2]
-        @test InfiniteOpt._core_variable_object(prefs[1]).domain.domains == domain5.domains
+        @test length(core_object(prefs[1]).supports) == 10
+        @test WeightedSample in first(core_object(prefs[1]).supports)[2]
+        @test core_object(prefs[1]).domain.domains == domain5.domains
         # test another explicit build
         prefs = [GeneralVariableRef(m, 2, DependentParameterIndex, i) for i in 1:2]
         expected = JuMPC.DenseAxisArray(prefs, 3:4)
         @test isequal(@infinite_parameter(m, b[3:4] in domain2, supports = 0), expected)
         @test name.(prefs) == ["b[3]", "b[4]"]
-        @test InfiniteOpt._core_variable_object(prefs[1]).supports == Dict{Vector{Float64}, Set{DataType}}(zeros(2) => Set([UserDefined]))
+        @test core_object(prefs[1]).supports == Dict{Vector{Float64}, Set{DataType}}(zeros(2) => Set([UserDefined]))
         # test explicit build with some args
         prefs = [GeneralVariableRef(m, 3, DependentParameterIndex, i) for i in 1:2]
         expected = convert(JuMPC.SparseAxisArray, prefs)
@@ -220,15 +220,15 @@ end
         prefs = [GeneralVariableRef(m, 4, DependentParameterIndex, i) for i in 1:2]
         @test isequal(@infinite_parameter(m, d[1:2] in [0, 1], num_supports = 10), prefs)
         @test name.(prefs) == ["d[1]", "d[2]"]
-        @test length(InfiniteOpt._core_variable_object(prefs[1]).supports) == 10
-        @test UniformGrid in first(InfiniteOpt._core_variable_object(prefs[1]).supports)[2]
-        @test InfiniteOpt._core_variable_object(prefs[1]).domain.domains == domain1.domains
+        @test length(core_object(prefs[1]).supports) == 10
+        @test UniformGrid in first(core_object(prefs[1]).supports)[2]
+        @test core_object(prefs[1]).domain.domains == domain1.domains
         # test test anonymous
         prefs = [GeneralVariableRef(m, 5, DependentParameterIndex, i) for i in 1:4]
         prefs = reshape(prefs, (2, 2))
         @test isequal(@infinite_parameter(m, [1:2, 1:2], distribution = dist3), prefs)
         @test name.(prefs) == ["" ""; "" ""]
-        @test isempty(InfiniteOpt._core_variable_object(prefs[1]).supports)
+        @test isempty(core_object(prefs[1]).supports)
         # test anonymous with domain keyword
         prefs = [GeneralVariableRef(m, 6, DependentParameterIndex, i) for i in 1:2]
         @test isequal(@infinite_parameter(m, [1:2], domain = sdomain2, 
@@ -462,16 +462,16 @@ end
         domain = MultiDistributionDomain(MvNormal([0, 0], LinearAlgebra.Diagonal(map(abs2, [1, 1]))))
         ps = DependentParameters(domain, Dict{Vector{Float64}, Set{DataType}}(), 10, methods)
         @test InfiniteOpt._adaptive_data_update(prefs[2], ps, data) isa Nothing
-        @test InfiniteOpt._core_variable_object(prefs[2]) == ps
+        @test core_object(prefs[2]) == ps
     end
-    # test _set_core_variable_object
-    @testset "_set_core_variable_object" begin
+    # test _set_core_object
+    @testset "_set_core_object" begin
         # test with different type
-        @test InfiniteOpt._set_core_variable_object(prefs[1], params) isa Nothing
-        @test InfiniteOpt._core_variable_object(prefs[2]) == params
+        @test InfiniteOpt._set_core_object(prefs[1], params) isa Nothing
+        @test core_object(prefs[2]) == params
         # test with same type
-        @test InfiniteOpt._set_core_variable_object(prefs[2], params) isa Nothing
-        @test InfiniteOpt._core_variable_object(prefs[1]) == params
+        @test InfiniteOpt._set_core_object(prefs[2], params) isa Nothing
+        @test core_object(prefs[1]) == params
     end
 end
 
@@ -522,11 +522,11 @@ end
     # test _adaptive_method_update
     @testset "_adaptive_method_update" begin
         # same type
-        params = InfiniteOpt._core_variable_object(prefs[1])
+        params = core_object(prefs[1])
         @test InfiniteOpt._adaptive_method_update(prefs[1], params, TestMethod()) isa Nothing
         @test derivative_method(prefs[1]) isa TestMethod
         # different type
-        params = InfiniteOpt._core_variable_object(prefs[1])
+        params = core_object(prefs[1])
         method = InfiniteOpt.DefaultDerivativeMethod
         @test InfiniteOpt._adaptive_method_update(prefs[2], params, method) isa Nothing
         @test InfiniteOpt._derivative_methods(prefs[1]) == [TestMethod(), method]
@@ -1029,5 +1029,9 @@ end
     # test all_parameters (InfiniteParameter)
     @testset "all_parameters (InfiniteParameter)" begin
         @test isequal(all_parameters(m, InfiniteParameter), [prefs1; [prefs2...]; pref])
+    end
+    # test parameter_refs
+    @testset "parameter_refs" begin
+        @test parameter_refs(m) == (prefs1, vec(prefs2), pref)
     end
 end

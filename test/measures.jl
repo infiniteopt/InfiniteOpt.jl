@@ -30,8 +30,8 @@
     end
     # test _core_variable_object
     @testset "_core_variable_object" begin
-        @test InfiniteOpt._core_variable_object(mref) == meas
-        @test InfiniteOpt._core_variable_object(gvref) == meas
+        @test core_object(mref) == meas
+        @test core_object(gvref) == meas
     end
     # test _parameter_numbers
     @testset "_parameter_numbers" begin
@@ -43,9 +43,9 @@
         @test InfiniteOpt.parameter_group_int_indices(mref) == [1]
         @test InfiniteOpt.parameter_group_int_indices(gvref) == [1]
     end
-    # test _set_core_variable_object
-    @testset "_set_core_variable_object" begin
-        @test InfiniteOpt._set_core_variable_object(mref, meas) isa Nothing
+    # test _set_core_object
+    @testset "_set_core_object" begin
+        @test InfiniteOpt._set_core_object(mref, meas) isa Nothing
     end
     # _measure_dependencies
     @testset "_measure_dependencies" begin
@@ -704,11 +704,11 @@ end
         # test scalar FunctionalDiscreteMeasureData
         mref6 = GeneralVariableRef(m, 5, MeasureIndex)
         @test isequal(measure(inf, data4), mref6)
-        @test InfiniteOpt._core_variable_object(mref6).data.label == UniformGrid
+        @test core_object(mref6).data.label == UniformGrid
         # test multidim FunctionalDiscreteMeasureData
         mref7 = GeneralVariableRef(m, 6, MeasureIndex)
         @test isequal(measure(inf5, data5), mref7)
-        @test InfiniteOpt._core_variable_object(mref7).data.label == WeightedSample
+        @test core_object(mref7).data.label == WeightedSample
         # test analytic evaluation
         @test measure(x, data) isa GeneralVariableRef
         @test is_analytic(measure(x, data))
