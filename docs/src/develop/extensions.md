@@ -763,8 +763,6 @@ extended using the following steps:
     - [`JuMP.add_bridge`](@ref JuMP.add_bridge(::AbstractTransformationBackend, ::Any))
     - [`JuMP.print_active_bridges`](@ref JuMP.print_active_bridges(::IO,::AbstractTransformationBackend))
     - [`JuMP.print_active_bridges`](@ref JuMP.print_active_bridges(::IO,::AbstractTransformationBackend))
-    - [`JuMP.set_string_names_on_creation`](@ref JuMP.set_string_names_on_creation(::AbstractTransformationBackend))
-    - [`JuMP.set_string_names_on_creation`](@ref JuMP.set_string_names_on_creation(::AbstractTransformationBackend, ::Any))
     - [`JuMP.compute_conflict!`](@ref JuMP.compute_conflict!(::AbstractTransformationBackend))
     - [`JuMP.copy_conflict`](@ref JuMP.copy_conflict(::AbstractTransformationBackend))
     - [`JuMP.mode`](@ref JuMP.mode(::AbstractTransformationBackend))

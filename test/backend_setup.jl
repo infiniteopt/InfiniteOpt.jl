@@ -73,7 +73,7 @@ end
     set_time_limit_sec(bmodel, 10)
     @testset "Single Argument Direct Methods" begin
         for f in (bridge_constraints, backend, JuMP.mode, unsafe_backend,
-                  compute_conflict!, copy_conflict, set_string_names_on_creation)
+                  compute_conflict!, copy_conflict)
             @test_throws ErrorException f(TestBackend())
             if f != copy_conflict
                 @test f(jump_backend) == f(bmodel)
@@ -121,13 +121,6 @@ end
         @test solver_name(m) == get_attribute(m.backend, MOI.SolverName())
         @test solver_name(InfiniteModel(jump_backend)) == solver_name(bmodel)
         @test_throws ErrorException solver_name(InfiniteModel(TestBackend()))
-    end
-    @testset "JuMP.set_string_names_on_creation" begin
-        @test_throws ErrorException set_string_names_on_creation(TestBackend(), false)
-        @test set_string_names_on_creation(jump_backend, false) isa Nothing
-        @test set_string_names_on_creation(jump_backend) == false
-        @test set_string_names_on_creation(m, true) isa Nothing
-        @test set_string_names_on_creation(m) == true
     end
     @testset "JuMP.add_bridge" begin
         bridge = MOI.Bridges.Variable.VectorizeBridge

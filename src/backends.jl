@@ -466,7 +466,7 @@ end
 
 # Single argument methods that don't rely on `[get/set]_attribute`
 for func in (:bridge_constraints, :backend, :mode, :unsafe_backend, 
-             :compute_conflict!, :copy_conflict, :set_string_names_on_creation)
+             :compute_conflict!, :copy_conflict)
     @eval begin
         @doc """
             JuMP.$($func)(backend::AbstractTransformationBackend)
@@ -498,38 +498,34 @@ for func in (:bridge_constraints, :backend, :mode, :unsafe_backend,
     end
 end
 
-# Two argument setters 
-for func in (:set_string_names_on_creation, :add_bridge)
-    @eval begin
-        @doc """
-            JuMP.$($func)(backend::AbstractTransformationBackend, value)
 
-        Implement [`JuMP.$($func)`](https://jump.dev/JuMP.jl/v1/api/JuMP/#$($func))
-        for transformation backends. If applicable, this should be extended for 
-        new backend types. No extension is needed for [`JuMPBackend`](@ref)s.
-        """
-        function JuMP.$func(backend::AbstractTransformationBackend, value)
-            error("`JuMP.$($func)` not defined for backends of type " *
-                "`$(typeof(backend))`.")
-        end
+"""
+    JuMP.add_bridge(backend::AbstractTransformationBackend, value)
 
-        # Define for JuMPBackend
-        function JuMP.$func(backend::JuMPBackend, value)
-            return JuMP.$func(backend.model, value)
-        end
-
-        @doc """
-            JuMP.$($func)(model::InfiniteModel, value)
-
-        Extend [`JuMP.$($func)`](https://jump.dev/JuMP.jl/v1/api/JuMP/#$($func))
-        to accept `InfiniteModel`s. This relies on the underlying transformation 
-        backend supporting `JuMP.$($func)`.
-        """
-        function JuMP.$func(model::InfiniteModel, value)
-            return JuMP.$func(model.backend, value)
-        end 
-    end
+Implement [`JuMP.add_bridge`](https://jump.dev/JuMP.jl/v1/api/JuMP/#add_bridge)
+for transformation backends. If applicable, this should be extended for 
+new backend types. No extension is needed for [`JuMPBackend`](@ref)s.
+"""
+function JuMP.add_bridge(backend::AbstractTransformationBackend, value)
+    error("`JuMP.add_bridge` not defined for backends of type " *
+        "`$(typeof(backend))`.")
 end
+
+# Define for JuMPBackend
+function JuMP.add_bridge(backend::JuMPBackend, value)
+    return JuMP.add_bridge(backend.model, value)
+end
+
+"""
+    JuMP.add_bridge(model::InfiniteModel, value)
+
+Extend [`JuMP.add_bridge`](https://jump.dev/JuMP.jl/v1/api/JuMP/#add_bridge)
+to accept `InfiniteModel`s. This relies on the underlying transformation 
+backend supporting `JuMP.add_bridge`.
+"""
+function JuMP.add_bridge(model::InfiniteModel, value)
+    return JuMP.add_bridge(model.backend, value)
+end 
 
 """
     JuMP.print_active_bridges(

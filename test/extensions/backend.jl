@@ -150,7 +150,7 @@ end
 # To the extend desired, extend any or all of the JuMP API below
 # Not needed for `JuMPBackend`s
 for func in (:bridge_constraints, :backend, :mode, :unsafe_backend,
-             :compute_conflict!, :copy_conflict, :set_string_names_on_creation)
+             :compute_conflict!, :copy_conflict)
     @eval begin
         # EXTEND FUNCTION AS APPROPRIATE
         function JuMP.$func(backend::NewReformBackend)
@@ -158,13 +158,9 @@ for func in (:bridge_constraints, :backend, :mode, :unsafe_backend,
         end
     end
 end
-for func in (:set_string_names_on_creation, :add_bridge)
-    @eval begin
-        # EXTEND FUNCTION AS APPROPRIATE
-        function JuMP.$func(backend::NewReformBackend, value)
-            return JuMP.$func(backend.model, value)
-        end
-    end
+# EXTEND FUNCTION AS APPROPRIATE
+function JuMP.add_bridge(backend::NewReformBackend, value)
+    return JuMP.add_bridge(backend.model, value)
 end
 for Attr in (:Silent, :TimeLimitSec, :SolverName)
     @eval begin
