@@ -27,6 +27,8 @@ all_derivatives
 parameter_refs(::DerivativeRef)
 parameter_list(::DerivativeRef)
 raw_parameter_refs(::DerivativeRef)
+parameter_group_int_indices(::DerivativeRef)
+core_object(::DerivativeRef)
 ```
 
 ## Modification

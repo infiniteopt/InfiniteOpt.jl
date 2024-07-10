@@ -35,14 +35,19 @@ function _data_object(dref::DerivativeRef)
     return object
 end
 
-# Extend _core_variable_object
-function _core_variable_object(dref::DerivativeRef)
+"""
+    core_object(dref::DerivativeRef)::Derivative
+
+Retrieve the underlying core [`Derivative`](@ref) object for `dref`. 
+This is intended as an advanced method for developers.
+"""
+function core_object(dref::DerivativeRef)
     return _data_object(dref).variable
 end
 
 # Define getter function for deriv.is_vector_start
 function _is_vector_start(dref::DerivativeRef)
-    return _core_variable_object(dref).is_vector_start
+    return core_object(dref).is_vector_start
 end
 
 """
@@ -58,7 +63,7 @@ x(t)
 ```
 """
 function derivative_argument(dref::DerivativeRef)
-    return _core_variable_object(dref).variable_ref
+    return core_object(dref).variable_ref
 end
 
 """
@@ -73,7 +78,7 @@ julia> derivative_order(dref)
 ```
 """
 function derivative_order(dref::DerivativeRef)
-    return _core_variable_object(dref).order
+    return core_object(dref).order
 end
 
 """
@@ -89,7 +94,7 @@ t
 ```
 """
 function operator_parameter(dref::DerivativeRef)
-    return _core_variable_object(dref).parameter_ref
+    return core_object(dref).parameter_ref
 end
 
 """
@@ -110,9 +115,13 @@ function derivative_method(dref::DerivativeRef)
     return derivative_method(operator_parameter(dref))
 end
 
-# Extend _object_numbers
-function _object_numbers(dref::DerivativeRef)
-    return _object_numbers(derivative_argument(dref))
+"""
+    parameter_group_int_indices(dref::DerivativeRef)::Vector{Int}
+
+Return the list of infinite parameter group integer indices used by `dref`.
+"""
+function parameter_group_int_indices(dref::DerivativeRef)
+    return parameter_group_int_indices(derivative_argument(dref))
 end
 
 # Extend _parameter_numbers
@@ -175,8 +184,8 @@ function _adaptive_data_update(
     return
 end
 
-# Extend _set_core_variable_object for DerivativeRefs
-function _set_core_variable_object(dref::DerivativeRef, d::Derivative)
+# Extend _set_core_object for DerivativeRefs
+function _set_core_object(dref::DerivativeRef, d::Derivative)
     _adaptive_data_update(dref, d, _data_object(dref))
     return
 end
@@ -354,18 +363,18 @@ function add_derivative(model::InfiniteModel, d::Derivative, name::String = "")
         # update the derivative lookup dict
         model.deriv_lookup[(d.variable_ref, d.parameter_ref, d.order)] = dindex
         # add the info constraints
-        gvref = _make_variable_ref(model, dindex)
+        gvref = GeneralVariableRef(model, dindex)
         _set_info_constraints(d.info, gvref, dref)
     else
         dref = DerivativeRef(model, existing_index)
-        gvref = _make_variable_ref(model, existing_index)
+        gvref = GeneralVariableRef(model, existing_index)
         old_info = _variable_info(dref)
         if old_info.has_lb || old_info.has_ub || old_info.has_fix || old_info.has_start
             @warn "Overwriting $dref, any previous properties (e.g., lower bound " * 
                   "or start value) will be lost/changed."
         end
         _update_info_constraints(d.info, gvref, dref)
-        _set_core_variable_object(dref, d)
+        _set_core_object(dref, d)
         if !isempty(name)
             set_name(dref, name)
         end
@@ -389,7 +398,7 @@ function _build_add_derivative(vref, pref, order)
         d = Derivative(info, true, vref, pref, order)
         return add_derivative(model, d)
     else 
-        return _make_variable_ref(model, dindex)
+        return GeneralVariableRef(model, dindex)
     end
 end
 
@@ -635,7 +644,7 @@ function _update_variable_info(
     order = derivative_order(dref)
     is_vect_func = _is_vector_start(dref)
     new_deriv = Derivative(_format_infinite_info(info), is_vect_func, vref, pref, order)
-    _set_core_variable_object(dref, new_deriv)
+    _set_core_object(dref, new_deriv)
     return
 end
 
@@ -671,7 +680,7 @@ function set_start_value_function(
     pref = operator_parameter(dref)
     order = derivative_order(dref)
     new_deriv = Derivative(new_info, is_vect_func, vref, pref, order)
-    _set_core_variable_object(dref, new_deriv)
+    _set_core_object(dref, new_deriv)
     return
 end
 
@@ -696,7 +705,7 @@ function reset_start_value_function(dref::DerivativeRef)::Nothing
     pref = operator_parameter(dref)
     order = derivative_order(dref)
     new_deriv = Derivative(new_info, true, vref, pref, order)
-    _set_core_variable_object(dref, new_deriv)
+    _set_core_object(dref, new_deriv)
     return
 end
 
@@ -740,7 +749,7 @@ julia> all_derivatives(model)
 function all_derivatives(model::InfiniteModel)::Vector{GeneralVariableRef}
     vrefs_list = Vector{GeneralVariableRef}(undef, num_derivatives(model))
     for (i, (index, _)) in enumerate(_data_dictionary(model, Derivative))
-        vrefs_list[i] = _make_variable_ref(model, index)
+        vrefs_list[i] = GeneralVariableRef(model, index)
     end
     return vrefs_list
 end
@@ -763,7 +772,7 @@ added directly to the `InfiniteModel` associated with `dref`. An empty vector is
 returned is there are no such constraints.
 """
 function derivative_constraints(dref::DerivativeRef)::Vector{InfOptConstraintRef}
-    return [_make_constraint_ref(JuMP.owner_model(dref), idx) 
+    return [InfOptConstraintRef(JuMP.owner_model(dref), idx) 
             for idx in _derivative_constraint_dependencies(dref)]
 end
 

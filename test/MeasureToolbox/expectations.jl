@@ -49,7 +49,7 @@ end
     warn = "Cannot specify a nonzero `num_supports` for individual " *
            "dependent parameters."
     @test_logs (:warn, warn) expect(inf, xi[1], num_supports = 3)
-    @test !InfiniteOpt._is_expect(InfiniteOpt._core_variable_object(expect(inf, y)).data)
+    @test !InfiniteOpt._is_expect(core_object(expect(inf, y)).data)
     @test 𝔼(inf, x) isa GeneralVariableRef
 
     # test with new pdf 

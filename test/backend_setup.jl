@@ -53,6 +53,8 @@
         @test get_optimizer_attribute(m, MOI.TimeLimitSec()) == 12
         @test set_attributes(m, MOI.TimeLimitSec() => 10.) isa Nothing
         @test get_attribute(m, MOI.TimeLimitSec()) == 10
+        @test set_attribute(m, "something", 42) isa Nothing
+        @test get_attribute(m, "something") == 42
     end
     # Base.empty!
     @testset "Base.empty!" begin
@@ -69,11 +71,9 @@ end
     bmodel = Model(mockoptimizer)
     jump_backend = JuMPBackend{TestJuMPTag}(bmodel, 42)
     set_time_limit_sec(bmodel, 10)
-    @testset "Single Argument Methods" begin
-        for f in (set_silent, unset_silent, bridge_constraints, 
-                  time_limit_sec, unset_time_limit_sec, solver_name, backend,
-                  JuMP.mode, unsafe_backend, compute_conflict!, copy_conflict,
-                  set_string_names_on_creation)
+    @testset "Single Argument Direct Methods" begin
+        for f in (bridge_constraints, backend, JuMP.mode, unsafe_backend,
+                  compute_conflict!, copy_conflict)
             @test_throws ErrorException f(TestBackend())
             if f != copy_conflict
                 @test f(jump_backend) == f(bmodel)
@@ -84,19 +84,43 @@ end
             end
         end
     end
+    @testset "JuMP.set_silent" begin
+        @test set_silent(m) isa Nothing
+        @test get_attribute(m, MOI.Silent())
+        @test set_silent(InfiniteModel(jump_backend)) isa Nothing
+        @test get_attribute(jump_backend, MOI.Silent())
+        @test_throws ErrorException set_silent(InfiniteModel(TestBackend()))
+    end
+    @testset "JuMP.unset_silent" begin
+        @test unset_silent(m) isa Nothing
+        @test !get_attribute(m, MOI.Silent())
+        @test unset_silent(InfiniteModel(jump_backend)) isa Nothing
+        @test !get_attribute(jump_backend, MOI.Silent())
+        @test_throws ErrorException unset_silent(InfiniteModel(TestBackend()))
+    end
+    @testset "JuMP.time_limit_sec" begin
+        @test time_limit_sec(m) isa Nothing
+        @test time_limit_sec(InfiniteModel(jump_backend)) == 10
+        @test_throws ErrorException time_limit_sec(InfiniteModel(TestBackend()))
+    end
     @testset "JuMP.set_time_limit_sec" begin
-        @test_throws ErrorException set_time_limit_sec(TestBackend(), 42)
-        @test set_time_limit_sec(jump_backend, 42) isa Nothing
-        @test time_limit_sec(jump_backend) == 42
+        @test_throws ErrorException set_time_limit_sec(InfiniteModel(TestBackend()), 42)
+        @test set_time_limit_sec(InfiniteModel(jump_backend), 42) isa Nothing
+        @test time_limit_sec(bmodel) == 42
         @test set_time_limit_sec(m, 42) isa Nothing
         @test time_limit_sec(m) == 42
     end
-    @testset "JuMP.set_string_names_on_creation" begin
-        @test_throws ErrorException set_string_names_on_creation(TestBackend(), false)
-        @test set_string_names_on_creation(jump_backend, false) isa Nothing
-        @test set_string_names_on_creation(jump_backend) == false
-        @test set_string_names_on_creation(m, true) isa Nothing
-        @test set_string_names_on_creation(m) == true
+    @testset "JuMP.unset_time_limit_sec" begin
+        @test unset_time_limit_sec(m) isa Nothing
+        @test time_limit_sec(m) isa Nothing
+        @test unset_time_limit_sec(InfiniteModel(jump_backend)) isa Nothing
+        @test time_limit_sec(bmodel) isa Nothing
+        @test_throws ErrorException unset_time_limit_sec(InfiniteModel(TestBackend()))
+    end
+    @testset "JuMP.solver_name" begin
+        @test solver_name(m) == get_attribute(m.backend, MOI.SolverName())
+        @test solver_name(InfiniteModel(jump_backend)) == solver_name(bmodel)
+        @test_throws ErrorException solver_name(InfiniteModel(TestBackend()))
     end
     @testset "JuMP.add_bridge" begin
         bridge = MOI.Bridges.Variable.VectorizeBridge
@@ -123,7 +147,7 @@ end
         bmodel2 = Model()
         jump_backend2 = JuMPBackend{TestJuMPTag}(bmodel2, 42)
         @test set_optimizer(jump_backend2, mockoptimizer) isa Nothing
-        @test solver_name(jump_backend2) == "Mock"
+        @test solver_name(jump_backend2.model) == "Mock"
         m2 = InfiniteModel()
         @test set_optimizer(m2, mockoptimizer) isa Nothing
         @test solver_name(m) == "Mock"

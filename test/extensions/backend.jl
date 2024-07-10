@@ -75,6 +75,7 @@ InfiniteOpt.transformation_model(backend::NewReformBackend) = backend.model
 InfiniteOpt.transformation_data(backend::NewReformBackend) = backend.data
 
 # Extend JuMP.[get/set]_attribute such to pass and retrieve settings for the backend
+# See the docstrings for information on specific MOI attributes that need to be accounted for
 # Not necessary for `JuMPBackend`s
 function JuMP.get_attribute(backend::NewReformBackend, attr) 
     # REPLACE WITH ACTUAL
@@ -148,10 +149,8 @@ end
 
 # To the extend desired, extend any or all of the JuMP API below
 # Not needed for `JuMPBackend`s
-for func in (:set_silent, :unset_silent, :bridge_constraints, 
-             :unset_time_limit_sec, :time_limit_sec, :solver_name, :backend,
-             :mode, :unsafe_backend, :compute_conflict!, :copy_conflict,
-             :set_string_names_on_creation)
+for func in (:bridge_constraints, :backend, :mode, :unsafe_backend,
+             :compute_conflict!, :copy_conflict)
     @eval begin
         # EXTEND FUNCTION AS APPROPRIATE
         function JuMP.$func(backend::NewReformBackend)
@@ -159,11 +158,21 @@ for func in (:set_silent, :unset_silent, :bridge_constraints,
         end
     end
 end
-for func in (:set_time_limit_sec, :set_string_names_on_creation, :add_bridge)
+# EXTEND FUNCTION AS APPROPRIATE
+function JuMP.add_bridge(backend::NewReformBackend, value)
+    return JuMP.add_bridge(backend.model, value)
+end
+for Attr in (:Silent, :TimeLimitSec, :SolverName)
     @eval begin
         # EXTEND FUNCTION AS APPROPRIATE
-        function JuMP.$func(backend::NewReformBackend, value)
-            return JuMP.$func(backend.model, value)
+        function JuMP.get_attribute(backend::NewReformBackend, attr::MOI.$Attr)
+            return JuMP.get_attribute(backend.model, attr)
+        end
+        if MOI.$Attr != MOI.SolverName
+            # EXTEND FUNCTION AS APPROPRIATE
+            function JuMP.set_attribute(backend::NewReformBackend, attr::MOI.$Attr, value)
+                return JuMP.set_attribute(backend.model, attr, value)
+            end
         end
     end
 end
@@ -231,7 +240,7 @@ function InfiniteOpt.variable_supports(
     )
     # REPLACE BELOW WITH ACTUAL CORRESPONDENCE TO THE INFINITE VARIABLE SUPPORT VALUES
     map_dict = backend.data.infvar_to_supports
-    gvref = InfiniteOpt._make_variable_ref(owner_model(vref), index(vref))
+    gvref = InfiniteOpt.GeneralVariableRef(owner_model(vref), index(vref))
     haskey(map_dict, gvref) || error("Variable $gvref not used in the backend.")
     return map_dict[gvref]
 end
@@ -244,7 +253,7 @@ function InfiniteOpt.variable_supports(
     )
     # REPLACE BELOW WITH ACTUAL CORRESPONDENCE TO THE INFINITE VARIABLE SUPPORT VALUES
     map_dict = backend.data.meas_to_supports
-    gvref = InfiniteOpt._make_variable_ref(owner_model(mref), index(mref))
+    gvref = InfiniteOpt.GeneralVariableRef(owner_model(mref), index(mref))
     haskey(map_dict, gvref) || error("Variable $gvref not used in the backend.")
     return map_dict[gvref]
 end
@@ -272,24 +281,24 @@ function InfiniteOpt.constraint_supports(
 end
 
 # As desired and as appropriate extend any or all of the following JuMP query API
-# Not required for `JuMPBackend`S
-for func in (:termination_status, :raw_status, :solve_time, :simplex_iterations,
-             :barrier_iterations, :node_count, :objective_bound, :relative_gap,
-             :result_count)
+# Note `TerminationStatus` is not optional (unless it is a `JuMPBackend`)
+# Not required for `JuMPBackend`s
+for Attr in (:TerminationStatus, :RawStatusString, :SolveTimeSec, :SimplexIterations,
+             :BarrierIterations, :NodeCount, :ObjectiveBound, :RelativeGap,
+             :ResultCount)
     @eval begin
         # EXTEND AS NEEDED
-        function JuMP.$func(backend::NewReformBackend)
-            return JuMP.$func(backend.model)
+        function JuMP.get_attribute(backend::NewReformBackend, attr::MOI.$Attr)
+            return JuMP.get_attribute(backend.model, attr)
         end
     end
 end
 # Simple result dependent model queries
-for func in (:primal_status, :dual_status, :has_values, :has_duals, 
-             :objective_value, :dual_objective_value)
+for Attr in (:PrimalStatus, :DualStatus, :ObjectiveValue, :DualObjectiveValue)
     @eval begin 
         # EXTEND AS NEEDED
-        function JuMP.$func(backend::NewReformBackend; kwargs...)
-            return JuMP.$func(backend.model; kwargs...)
+        function JuMP.get_attribute(backend::NewReformBackend, attr::MOI.$Attr)
+            return JuMP.get_attribute(backend.model, attr)
         end
     end
 end

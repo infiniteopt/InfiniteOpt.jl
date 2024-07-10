@@ -8,6 +8,7 @@ JuMP.termination_status(::InfiniteModel)
 JuMP.raw_status(::InfiniteModel)
 JuMP.primal_status(::InfiniteModel)
 JuMP.dual_status(::InfiniteModel)
+JuMP.is_solved_and_feasible(::InfiniteModel)
 ```
 
 ## General
@@ -57,25 +58,10 @@ InfOptSensitivityReport
 
 ## Transformation Backend Extension API
 ```@docs
-JuMP.termination_status(::AbstractTransformationBackend)
-JuMP.raw_status(::AbstractTransformationBackend)
-JuMP.primal_status(::AbstractTransformationBackend)
-JuMP.dual_status(::AbstractTransformationBackend)
-JuMP.solve_time(::AbstractTransformationBackend)
-JuMP.relative_gap(::AbstractTransformationBackend)
-JuMP.simplex_iterations(::AbstractTransformationBackend)
-JuMP.barrier_iterations(::AbstractTransformationBackend)
-JuMP.node_count(::AbstractTransformationBackend)
-JuMP.result_count(::AbstractTransformationBackend)
-JuMP.objective_bound(::AbstractTransformationBackend)
-JuMP.objective_value(::AbstractTransformationBackend)
-JuMP.dual_objective_value(::AbstractTransformationBackend)
-JuMP.has_values(::AbstractTransformationBackend)
 map_value(::Any, ::AbstractTransformationBackend)
 map_infinite_parameter_value
 map_reduced_cost(::GeneralVariableRef, ::AbstractTransformationBackend)
 map_optimizer_index(::GeneralVariableRef, ::AbstractTransformationBackend)
-JuMP.has_duals(::AbstractTransformationBackend)
 map_dual(::InfOptConstraintRef, ::AbstractTransformationBackend)
 map_shadow_price(::InfOptConstraintRef, ::AbstractTransformationBackend)
 map_optimizer_index(::InfOptConstraintRef, ::AbstractTransformationBackend)

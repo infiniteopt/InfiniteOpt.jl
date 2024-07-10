@@ -304,6 +304,7 @@ end
     @test dual(c1) == [-1, -1]
     @test dual(c2) == [0., -1.]
     @test dual(c3) == [0., -1.]
+    @test is_solved_and_feasible(m)
 #     @test optimizer_index(x) == optimizer_index.(transformation_variable(x))
 #     @test optimizer_index(x0) == optimizer_index(transformation_variable(x0))
 #     @test optimizer_index(y) == optimizer_index(transformation_variable(y))

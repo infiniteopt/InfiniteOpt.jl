@@ -190,7 +190,7 @@ end
     mockoptimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
                                              eval_objective_value=false)
     # test optimizer constructors
-    @test solver_name(InfiniteModel(mockoptimizer).backend) == "Mock"
+    @test solver_name(InfiniteModel(mockoptimizer).backend.model) == "Mock"
     m = InfiniteModel();
     @test isa(Base.broadcastable(m), Base.RefValue{InfiniteModel})
     @test length(JuMP.object_dictionary(m)) == 0
@@ -198,7 +198,7 @@ end
     @test InfiniteModel(mockoptimizer, add_bridges = false) isa InfiniteModel
     # test accessors
     @test InfiniteOpt._last_param_num(m) == 0
-    @test InfiniteOpt._param_object_indices(m) isa Vector{Union{IndependentParameterIndex, DependentParametersIndex}}
+    @test InfiniteOpt.parameter_group_indices(m) isa Vector{Union{IndependentParameterIndex, DependentParametersIndex}}
     # test other methods 
     @test empty!(InfiniteModel(mockoptimizer)).backend isa TranscriptionBackend
     @test variable_ref_type(InfiniteModel) == GeneralVariableRef

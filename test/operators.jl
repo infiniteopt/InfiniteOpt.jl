@@ -12,7 +12,7 @@
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
-    meas = InfiniteOpt._make_variable_ref(m, mindex)
+    meas = InfiniteOpt.GeneralVariableRef(m, mindex)
     # test addition
     @testset "Base.:+" begin
         # test infinite + measure
@@ -98,7 +98,7 @@ end
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
-    meas = InfiniteOpt._make_variable_ref(m, mindex)
+    meas = InfiniteOpt.GeneralVariableRef(m, mindex)
     aff1 = (inf + pt) - 2
     aff2 = finite - pt
     aff3 = (finite - meas) + 1
@@ -180,7 +180,7 @@ end
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
-    meas = InfiniteOpt._make_variable_ref(m, mindex)
+    meas = InfiniteOpt.GeneralVariableRef(m, mindex)
     aff1 = (inf + pt) - 2
     aff2 = finite - pt
     aff3 = (finite - meas) + 1
@@ -263,7 +263,7 @@ end
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
-    meas = InfiniteOpt._make_variable_ref(m, mindex)
+    meas = InfiniteOpt.GeneralVariableRef(m, mindex)
     aff1 = (inf + pt) - 2
     aff2 = finite - pt
     aff3 = (finite - meas) + 1
@@ -407,7 +407,7 @@ end
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
-    meas = InfiniteOpt._make_variable_ref(m, mindex)
+    meas = InfiniteOpt.GeneralVariableRef(m, mindex)
     aff1 = (inf + pt) - 2
     aff2 = finite - pt
     aff3 = (finite - meas) + 1
@@ -508,7 +508,7 @@ end
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
-    meas = InfiniteOpt._make_variable_ref(m, mindex)
+    meas = InfiniteOpt.GeneralVariableRef(m, mindex)
     aff1 = (inf + pt) - 2
     aff2 = finite - pt
     aff3 = (finite - meas) + 1
@@ -609,7 +609,7 @@ end
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
-    meas = InfiniteOpt._make_variable_ref(m, mindex)
+    meas = InfiniteOpt.GeneralVariableRef(m, mindex)
     aff1 = (inf + pt) - 2
     aff2 = finite - pt
     aff3 = (finite - meas) + 1
@@ -722,7 +722,7 @@ end
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
-    meas = InfiniteOpt._make_variable_ref(m, mindex)
+    meas = InfiniteOpt.GeneralVariableRef(m, mindex)
     aff1 = (inf + pt) - 2
     aff2 = finite - pt
     aff3 = (finite - meas) + 1
@@ -835,7 +835,7 @@ end
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
-    meas = InfiniteOpt._make_variable_ref(m, mindex)
+    meas = InfiniteOpt.GeneralVariableRef(m, mindex)
     aff1 = (inf + pt) - 2
     aff2 = finite - pt
     aff3 = (finite - meas) + 1

@@ -49,7 +49,7 @@ Collect the infinite parameter supports stored in their respective dictionaries
 form `model` and process them into a tuple of vectors where each vector
 contains the collected supports of a particular infinite parameter. These support
 collections are ordered in accordance with the definition order of the
-parameters (i.e., their object numbers). A support collection assocciated with
+parameters (i.e., their group integer indices). A support collection assocciated with
 an independent will be a `Vector{Float64}` and a support collection associated
 with a group of dependent parameters will be a `Vector{Vector{Float64}}`. Note
 that each collection vector will include an extra final placeholder element
@@ -63,7 +63,7 @@ function set_parameter_supports(
     model::InfiniteOpt.InfiniteModel
     )
     # gather the basic information
-    param_indices = InfiniteOpt._param_object_indices(model)
+    param_indices = InfiniteOpt.parameter_group_indices(model)
     prefs = map(idx -> _temp_parameter_ref(model, idx), param_indices)
     data = transcription_data(backend)
     # check and add supports to prefs as needed
@@ -101,7 +101,7 @@ function transcribe_finite_variables!(
     model::InfiniteOpt.InfiniteModel
     )
     for (idx, object) in InfiniteOpt._data_dictionary(model, InfiniteOpt.FiniteVariable)
-        hvref = InfiniteOpt._make_variable_ref(model, idx)
+        hvref = InfiniteOpt.GeneralVariableRef(model, idx)
         v = JuMP.ScalarVariable(object.variable.info)
         vref = JuMP.add_variable(backend.model, v, object.name)
         transcription_data(backend).finvar_mappings[hvref] = vref
@@ -151,7 +151,7 @@ function transcribe_infinite_variables!(
         base_name = object.name
         param_nums = var.parameter_nums
         # prepare for iterating over its supports
-        supp_indices = support_index_iterator(backend, var.object_nums)
+        supp_indices = support_index_iterator(backend, var.group_int_idxs)
         vrefs = Vector{JuMP.VariableRef}(undef, length(supp_indices))
         labels = Vector{Set{DataType}}(undef, length(supp_indices))
         lookup_dict = Dict{Vector{Float64}, Int}()
@@ -167,7 +167,7 @@ function transcribe_infinite_variables!(
             @inbounds labels[counter] = index_to_labels(backend, i)
         end
         # save the transcription information
-        ivref = InfiniteOpt._make_variable_ref(model, idx)
+        ivref = InfiniteOpt.GeneralVariableRef(model, idx)
         data = transcription_data(backend)
         data.infvar_lookup[ivref] = lookup_dict
         data.infvar_mappings[ivref] = vrefs
@@ -195,9 +195,9 @@ end
 function _transcribe_derivative_variable(dref, d, backend)
     base_name = InfiniteOpt.variable_string(MIME("text/plain"), dispatch_variable_ref(dref))
     param_nums = InfiniteOpt._parameter_numbers(d.variable_ref)
-    obj_nums = InfiniteOpt._object_numbers(d.variable_ref)
+    group_int_idxs = InfiniteOpt.parameter_group_int_indices(d.variable_ref)
     # prepare for iterating over its supports
-    supp_indices = support_index_iterator(backend, obj_nums)
+    supp_indices = support_index_iterator(backend, group_int_idxs)
     vrefs = Vector{JuMP.VariableRef}(undef, length(supp_indices))
     labels = Vector{Set{DataType}}(undef, length(supp_indices))
     lookup_dict = Dict{Vector{Float64}, Int}()
@@ -242,7 +242,7 @@ function transcribe_derivative_variables!(
     )
     for (idx, object) in InfiniteOpt._data_dictionary(model, InfiniteOpt.Derivative)
         # get the basic derivative information
-        dref = InfiniteOpt._make_variable_ref(model, idx)
+        dref = InfiniteOpt.GeneralVariableRef(model, idx)
         d = object.variable
         method = InfiniteOpt.derivative_method(dref)
         # if needed process lower order derivatives
@@ -275,7 +275,7 @@ function _set_semi_infinite_variable_mapping(
     ivref_param_nums = InfiniteOpt._parameter_numbers(ivref)
     eval_supps = var.eval_supports
     # prepare for iterating over its supports
-    supp_indices = support_index_iterator(backend, var.object_nums)
+    supp_indices = support_index_iterator(backend, var.group_int_idxs)
     vrefs = Vector{JuMP.VariableRef}(undef, length(supp_indices))
     labels = Vector{Set{DataType}}(undef, length(supp_indices))
     lookup_dict = Dict{Vector{Float64}, Int}()
@@ -340,7 +340,7 @@ function transcribe_semi_infinite_variables!(
     for (idx, object) in InfiniteOpt._data_dictionary(model, InfiniteOpt.SemiInfiniteVariable)
         # get the basic variable information
         var = object.variable
-        rvref = InfiniteOpt._make_variable_ref(model, idx)
+        rvref = InfiniteOpt.GeneralVariableRef(model, idx)
         # setup the mappings
         idx_type = InfiniteOpt._index_type(InfiniteOpt.infinite_variable_ref(rvref))
         _set_semi_infinite_variable_mapping(backend, var, rvref, idx_type)
@@ -411,7 +411,7 @@ function transcribe_point_variables!(
         supp = var.parameter_values
         # find the corresponding variable record the mapping
         vref = lookup_by_support(ivref, backend, supp)
-        pvref = InfiniteOpt._make_variable_ref(model, idx)
+        pvref = InfiniteOpt.GeneralVariableRef(model, idx)
         transcription_data(backend).finvar_mappings[pvref] = vref
         # update the info constraints as needed
         _update_point_info(pvref, vref)
@@ -562,7 +562,7 @@ function transcribe_measures!(
             new_expr = InfiniteOpt.expand_measure(meas.func, meas.data, backend)
         end
         # prepare to transcribe over the supports
-        supp_indices = support_index_iterator(backend, meas.object_nums)
+        supp_indices = support_index_iterator(backend, meas.group_int_idxs)
         exprs = Vector{JuMP.AbstractJuMPScalar}(undef, length(supp_indices))
         labels = Vector{Set{DataType}}(undef, length(supp_indices))
         lookup_dict = Dict{Vector{Float64}, Int}()
@@ -575,7 +575,7 @@ function transcribe_measures!(
             @inbounds labels[counter] = index_to_labels(backend, i)
         end
         # save the transcription information
-        mref = InfiniteOpt._make_variable_ref(model, idx)
+        mref = InfiniteOpt.GeneralVariableRef(model, idx)
         data = transcription_data(backend)
         data.measure_lookup[mref] = lookup_dict
         data.measure_mappings[mref] = exprs
@@ -755,10 +755,10 @@ function transcribe_constraints!(
         constr = object.constraint
         func = JuMP.jump_function(constr)
         set = JuMP.moi_set(constr)
-        obj_nums = object.object_nums
-        cref = InfiniteOpt._make_constraint_ref(model, idx)
+        group_int_idxs = object.group_int_idxs
+        cref = InfiniteOpt.InfOptConstraintRef(model, idx)
         # prepare the iteration helpers
-        supp_indices = support_index_iterator(backend, obj_nums)
+        supp_indices = support_index_iterator(backend, group_int_idxs)
         crefs = Vector{JuMP.ConstraintRef}(undef, length(supp_indices))
         supps = Vector{Tuple}(undef, length(supp_indices))
         labels = Vector{Set{DataType}}(undef, length(supp_indices))
@@ -773,7 +773,7 @@ function transcribe_constraints!(
                 if !isnothing(info_ref)
                     @inbounds crefs[counter] = info_ref
                     @inbounds supps[counter] = Tuple(param_supps[j][i[j]]
-                                                     for j in obj_nums)
+                                                     for j in group_int_idxs)
                     @inbounds labels[counter] = index_to_labels(backend, i)
                     counter += 1
                 end
@@ -796,7 +796,7 @@ function transcribe_constraints!(
                                                    set, raw_supp, new_name) 
                     @inbounds crefs[counter] = new_cref
                     @inbounds supps[counter] = Tuple(param_supps[j][i[j]]
-                                                     for j in obj_nums)
+                                                     for j in group_int_idxs)
                     @inbounds labels[counter] = index_to_labels(backend, i)
                     counter += 1
                 end
@@ -837,7 +837,7 @@ function transcribe_derivative_evaluations!(
     )
     for (idx, object) in InfiniteOpt._data_dictionary(model, InfiniteOpt.Derivative)
         # get the basic variable information
-        dref = InfiniteOpt._make_variable_ref(model, idx)
+        dref = InfiniteOpt.GeneralVariableRef(model, idx)
         pref = dispatch_variable_ref(object.variable.parameter_ref)
         method = InfiniteOpt.derivative_method(pref)
         order = object.variable.order
@@ -847,13 +847,13 @@ function transcribe_derivative_evaluations!(
             vref = object.variable.variable_ref
             if !InfiniteOpt.allows_high_order_derivatives(method) && order > 1
                 d_idx = model.deriv_lookup[vref, object.variable.parameter_ref, order - 1]
-                vref = InfiniteOpt._make_variable_ref(model, d_idx)
+                vref = InfiniteOpt.GeneralVariableRef(model, d_idx)
             end
             exprs = InfiniteOpt.evaluate_derivative(dref, vref, method, backend)
             # prepare the iteration helpers
-            param_obj_num = InfiniteOpt._object_number(pref)
-            obj_nums = filter(!isequal(param_obj_num), InfiniteOpt._object_numbers(dref))
-            supp_indices = support_index_iterator(backend, obj_nums)
+            param_group_int_idx = InfiniteOpt.parameter_group_int_index(pref)
+            group_int_idxs = filter(!isequal(param_group_int_idx), InfiniteOpt.parameter_group_int_indices(dref))
+            supp_indices = support_index_iterator(backend, group_int_idxs)
             # transcribe the constraints 
             set = MOI.EqualTo(0.0)
             for i in supp_indices 
@@ -886,19 +886,19 @@ function transcribe_variable_collocation_restictions!(
     data = transcription_data(backend)
     set = MOI.EqualTo(0.0)
     for (pidx, vidxs) in model.piecewise_vars
-        pref = InfiniteOpt._make_variable_ref(model, pidx)
+        pref = InfiniteOpt.GeneralVariableRef(model, pidx)
         if !InfiniteOpt.has_generative_supports(pref)
             continue
         end
-        obj_num = InfiniteOpt._object_number(pref)
-        supps = reverse!(data.supports[obj_num][1:end-1])
-        labels = reverse!(data.support_labels[obj_num][1:end-1])
+        group_int_idx = InfiniteOpt.parameter_group_int_index(pref)
+        supps = reverse!(data.supports[group_int_idx][1:end-1])
+        labels = reverse!(data.support_labels[group_int_idx][1:end-1])
         @assert any(l -> l <: InfiniteOpt.PublicLabel, first(labels))
         v_manip = GeneralVariableRef(model, -1, IndependentParameterIndex) # placeholder
         for vidx in vidxs
-            vref = InfiniteOpt._make_variable_ref(model, vidx)
-            obj_nums = filter(!isequal(obj_num), InfiniteOpt._object_numbers(vref))
-            supp_indices = support_index_iterator(backend, obj_nums)
+            vref = InfiniteOpt.GeneralVariableRef(model, vidx)
+            group_int_idxs = filter(!isequal(group_int_idx), InfiniteOpt.parameter_group_int_indices(vref))
+            supp_indices = support_index_iterator(backend, group_int_idxs)
             for (s, ls) in zip(supps, labels)
                 if any(l -> l <: InfiniteOpt.PublicLabel, ls)
                     v_manip = InfiniteOpt.make_reduced_expr(vref, pref, s, backend)

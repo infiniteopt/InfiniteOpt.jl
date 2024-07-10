@@ -22,4 +22,5 @@ methods available for finite parameters (i.e., any method typed for
 parameter_value(::FiniteParameterRef)
 JuMP.set_value(::FiniteParameterRef, ::Real)
 used_by_objective(::FiniteParameterRef)
+core_object(::FiniteParameterRef)
 ```

@@ -91,6 +91,8 @@ is_used(::Union{InfiniteVariableRef, DerivativeRef})
 used_by_derivative(::Union{DerivativeRef, InfiniteVariableRef})
 used_by_point_variable(::Union{InfiniteVariableRef, DerivativeRef})
 used_by_semi_infinite_variable(::Union{InfiniteVariableRef, DerivativeRef})
+parameter_group_int_indices(::InfiniteVariableRef)
+core_object(::InfiniteVariableRef)
 ```
 
 ### Semi-Infinite
@@ -116,6 +118,8 @@ raw_parameter_refs(::SemiInfiniteVariableRef)
 eval_supports(::SemiInfiniteVariableRef)
 is_used(::SemiInfiniteVariableRef)
 used_by_derivative(::SemiInfiniteVariableRef)
+parameter_group_int_indices(::SemiInfiniteVariableRef)
+core_object(::SemiInfiniteVariableRef)
 ```
 
 ### Point
@@ -123,6 +127,12 @@ used_by_derivative(::SemiInfiniteVariableRef)
 infinite_variable_ref(::PointVariableRef)
 parameter_values(::PointVariableRef)
 raw_parameter_values(::PointVariableRef)
+core_object(::PointVariableRef)
+```
+
+### Finite
+```@docs
+core_object(::FiniteVariableRef)
 ```
 
 ## Modification

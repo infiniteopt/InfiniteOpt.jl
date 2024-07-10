@@ -103,6 +103,8 @@ used_by_derivative(::MeasureRef)
 used_by_constraint(::MeasureRef)
 used_by_measure(::MeasureRef)
 used_by_objective(::MeasureRef)
+core_object(::MeasureRef)
+parameter_group_int_indices(::MeasureRef)
 ```
 
 ## Modification

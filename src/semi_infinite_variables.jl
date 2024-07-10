@@ -58,8 +58,13 @@ with `expand_measure`.
 """
 function internal_semi_infinite_variable end
 
-# Extend _core_variable_object
-function _core_variable_object(vref::SemiInfiniteVariableRef)
+"""
+    core_object(vref::SemiInfiniteVariableRef)::SemiInfiniteVariable
+
+Retrieve the underlying core [`SemiInfiniteVariable`] object for `vref`. 
+This is intended as an advanced method for developers.
+"""
+function core_object(vref::SemiInfiniteVariableRef)
     if !haskey(_data_dictionary(vref), JuMP.index(vref))
         model = JuMP.owner_model(vref)
         return internal_semi_infinite_variable(vref, model.backend)
@@ -68,14 +73,18 @@ function _core_variable_object(vref::SemiInfiniteVariableRef)
     end
 end
 
-# Extend _object_numbers
-function _object_numbers(vref::SemiInfiniteVariableRef)::Vector{Int}
-    return _core_variable_object(vref).object_nums
+"""
+    parameter_group_int_indices(vref::SemiInfiniteVariableRef)::Vector{Int}
+
+Return the list of infinite parameter group integer indices used by `vref`.
+"""
+function parameter_group_int_indices(vref::SemiInfiniteVariableRef)
+    return core_object(vref).group_int_idxs
 end
 
 # Extend _parameter_numbers
-function _parameter_numbers(vref::SemiInfiniteVariableRef)::Vector{Int}
-    return _core_variable_object(vref).parameter_nums
+function _parameter_numbers(vref::SemiInfiniteVariableRef)
+    return core_object(vref).parameter_nums
 end
 
 ################################################################################
@@ -230,11 +239,11 @@ function JuMP.build_variable(
             end
         end
     end
-    # get the parameter object numbers of the dependencies
-    object_nums = Int[]
+    # get the parameter group integer indices of the dependencies
+    group_int_idxs = Int[]
     for i in eachindex(prefs)
         if !haskey(eval_supports, i)
-            union!(object_nums, _object_number(prefs[i]))
+            union!(group_int_idxs, parameter_group_int_index(prefs[i]))
         end
     end
     # get the parameter numbers
@@ -246,7 +255,7 @@ function JuMP.build_variable(
         eval_supports[k] = round(v, sigdigits = significant_digits(prefs[k]))
     end
     # build the variable
-    return SemiInfiniteVariable(ivref, eval_supports, param_nums, object_nums)
+    return SemiInfiniteVariable(ivref, eval_supports, param_nums, group_int_idxs)
 end
 
 ## Make dispatch functions to add semi-infinite variable based supports
@@ -338,7 +347,7 @@ function JuMP.add_variable(
             model.semi_infinite_vars[vindex].name = name
         end
     end
-    return _make_variable_ref(model, vindex)
+    return GeneralVariableRef(model, vindex)
 end
 
 ################################################################################
@@ -357,7 +366,7 @@ g(t, x)
 ```
 """
 function infinite_variable_ref(vref::SemiInfiniteVariableRef)::GeneralVariableRef
-    return _core_variable_object(vref).infinite_variable_ref
+    return core_object(vref).infinite_variable_ref
 end
 
 """
@@ -374,7 +383,7 @@ Dict{Int64,Float64} with 1 entry:
 ```
 """
 function eval_supports(vref::SemiInfiniteVariableRef)::Dict{Int, Float64}
-    return _core_variable_object(vref).eval_supports
+    return core_object(vref).eval_supports
 end
 
 """

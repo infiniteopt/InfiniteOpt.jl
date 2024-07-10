@@ -48,7 +48,7 @@ function make_point_variable_ref(
         var = PointVariable(_make_float_info(info), ivref, support)
         return JuMP.add_variable(write_model, var; add_support = false)
     else
-        return _make_variable_ref(write_model, pindex)
+        return GeneralVariableRef(write_model, pindex)
     end
 end
 
@@ -142,7 +142,7 @@ function make_semi_infinite_variable_ref(
         var = JuMP.build_variable(error, ivref, eval_supps, check = false)
         return JuMP.add_variable(write_model, var, add_support = false)
     else 
-        return _make_variable_ref(write_model, existing_index)
+        return GeneralVariableRef(write_model, existing_index)
     end
 end
 
@@ -942,18 +942,18 @@ function expand_all_measures!(model::InfiniteModel)
             old_constr = object.constraint
             set = JuMP.moi_set(old_constr)
             # clear the old dependencies
-            old_vrefs = _all_function_variables(JuMP.jump_function(old_constr))
+            old_vrefs = all_expression_variables(JuMP.jump_function(old_constr))
             for vref in old_vrefs
                 filter!(e -> e != cindex, _constraint_dependencies(vref))
             end
             # expand the expression
             new_func = expand_measures(JuMP.jump_function(old_constr), model)
-            vrefs = _all_function_variables(new_func)
+            vrefs = all_expression_variables(new_func)
             # make the new constraint object
             new_constr = JuMP.build_constraint(error, new_func, set)
             # update the constraint data
-            cref = _make_constraint_ref(model, cindex)
-            _set_core_constraint_object(cref, new_constr)
+            cref = InfOptConstraintRef(model, cindex)
+            _set_core_object(cref, new_constr)
             empty!(object.measure_indices)
             _update_var_constr_mapping(vrefs, cref)
         end

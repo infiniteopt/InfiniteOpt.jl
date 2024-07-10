@@ -60,18 +60,18 @@
     end
     # _core_variable_object
     @testset "_core_variable_object" begin
-        @test InfiniteOpt._core_variable_object(dref) === deriv
-        @test InfiniteOpt._core_variable_object(gvref) === deriv
+        @test core_object(dref) === deriv
+        @test core_object(gvref) === deriv
     end
-    # _set_core_variable_object
-    @testset "_set_core_variable_object" begin
-        @test InfiniteOpt._set_core_variable_object(dref, deriv) isa Nothing
-        @test InfiniteOpt._set_core_variable_object(dref, deriv2) isa Nothing
-        @test InfiniteOpt._set_core_variable_object(dref, deriv) isa Nothing
+    # _set_core_object
+    @testset "_set_core_object" begin
+        @test InfiniteOpt._set_core_object(dref, deriv) isa Nothing
+        @test InfiniteOpt._set_core_object(dref, deriv2) isa Nothing
+        @test InfiniteOpt._set_core_object(dref, deriv) isa Nothing
     end
-    # _object_numbers
-    @testset "_object_numbers" begin
-        @test InfiniteOpt._object_numbers(dref) == [1]
+    # parameter_group_int_indices
+    @testset "parameter_group_int_indices" begin
+        @test InfiniteOpt.parameter_group_int_indices(dref) == [1]
     end
     # _parameter_numbers
     @testset "_parameter_numbers" begin
@@ -176,10 +176,6 @@
         @test isequal(parameter_list(dref), [a])
         @test isequal(parameter_list(gvref), [a])
     end
-    # _make_variable_ref
-    @testset "_make_variable_ref" begin
-        @test isequal(InfiniteOpt._make_variable_ref(m, idx), gvref)
-    end
     # _var_name_dict
     @testset "_var_name_dict" begin
         @test InfiniteOpt._var_name_dict(m) isa Nothing
@@ -263,10 +259,10 @@ end
         # test normal
         idx = DerivativeIndex(1)
         dref = DerivativeRef(m, idx)
-        gvref = InfiniteOpt._make_variable_ref(m, idx)
+        gvref = GeneralVariableRef(m, idx)
         @test isequal(add_derivative(m, d, "name"), gvref)
         @test haskey(InfiniteOpt._data_dictionary(dref), idx)
-        @test InfiniteOpt._core_variable_object(dref) == d
+        @test core_object(dref) == d
         @test InfiniteOpt._derivative_dependencies(pref) == [idx]
         @test InfiniteOpt._derivative_dependencies(x) == [idx]
         @test name(dref) == "name"
@@ -276,7 +272,7 @@ end
         # test info addition functions
         idx = DerivativeIndex(2)
         dref = DerivativeRef(m, idx)
-        gvref = InfiniteOpt._make_variable_ref(m, idx)
+        gvref = GeneralVariableRef(m, idx)
         @test isequal(add_derivative(m, d, "name"), gvref)
         @test !transformation_backend_ready(m)
         @test InfiniteOpt._derivative_dependencies(prefs[1]) == [idx]
@@ -313,11 +309,11 @@ end
         # test redundant build 
         idx = DerivativeIndex(1)
         dref = DerivativeRef(m, idx)
-        gvref = InfiniteOpt._make_variable_ref(m, idx)
+        gvref = GeneralVariableRef(m, idx)
         d = Derivative(info4, false, x, pref, 1)
         @test isequal(add_derivative(m, d, "name2"), gvref)
         @test haskey(InfiniteOpt._data_dictionary(dref), idx)
-        @test InfiniteOpt._core_variable_object(dref) == d
+        @test core_object(dref) == d
         @test name(dref) == "name2"
         @test lower_bound(dref) == 0
         # test redundant build with warning 
@@ -328,7 +324,7 @@ end
                "or start value) will be lost/changed."
         @test_logs (:warn, warn) add_derivative(m, d, "name3")
         @test haskey(InfiniteOpt._data_dictionary(dref), idx)
-        @test InfiniteOpt._core_variable_object(dref) == d
+        @test core_object(dref) == d
         @test name(dref) == "name3"
     end
     # test JuMP.add_variable 
@@ -338,10 +334,10 @@ end
         # test normal
         idx = DerivativeIndex(3)
         dref = DerivativeRef(m, idx)
-        gvref = InfiniteOpt._make_variable_ref(m, idx)
+        gvref = GeneralVariableRef(m, idx)
         @test isequal(add_variable(m, d, "name"), gvref)
         @test haskey(InfiniteOpt._data_dictionary(dref), idx)
-        @test InfiniteOpt._core_variable_object(dref) == d
+        @test core_object(dref) == d
         @test InfiniteOpt._derivative_dependencies(prefs[2]) == [idx]
         @test InfiniteOpt._derivative_dependencies(x) == [DerivativeIndex(i) for i = 1:3]
         @test name(dref) == "name"
@@ -563,7 +559,7 @@ end
         # test simple anon case
         idx = DerivativeIndex(1)
         dref = DerivativeRef(m, idx)
-        gvref = InfiniteOpt._make_variable_ref(m, idx)
+        gvref = GeneralVariableRef(m, idx)
         @test isequal(@variable(m, variable_type = Deriv(y, t)), gvref)
         @test isequal(derivative_argument(dref), y)
         @test isequal(operator_parameter(dref), t)
@@ -571,7 +567,7 @@ end
         # test anon with changes to fixed
         idx = DerivativeIndex(2)
         dref = DerivativeRef(m, idx)
-        gvref = InfiniteOpt._make_variable_ref(m, idx)
+        gvref = GeneralVariableRef(m, idx)
         @test isequal(@variable(m, variable_type = Deriv(y, x[1], 3), lower_bound = -5, 
                         upper_bound = 10, start = 2), gvref)
         @test isequal(derivative_argument(dref), y)
@@ -583,7 +579,7 @@ end
         # test regular with alias
         idx = DerivativeIndex(1)
         dref = DerivativeRef(m, idx)
-        gvref = InfiniteOpt._make_variable_ref(m, idx)
+        gvref = GeneralVariableRef(m, idx)
         @test isequal(@variable(m, dx <= 0, Deriv(y, t)), gvref)
         @test isequal(derivative_argument(dref), y)
         @test isequal(operator_parameter(dref), t)
@@ -597,7 +593,7 @@ end
         # test anon array with one parameter
         idxs = [DerivativeIndex(3), DerivativeIndex(4)]
         drefs = [DerivativeRef(m, idx) for idx in idxs]
-        gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
+        gvrefs = [GeneralVariableRef(m, idx) for idx in idxs]
         @test isequal(@variable(m, [i = 1:2], Deriv(q[i], t), lower_bound = 0), gvrefs)
         @test isequal(derivative_argument(drefs[1]), q[1])
         @test isequal(operator_parameter(drefs[2]), t)
@@ -605,7 +601,7 @@ end
         # test explicit array 
         idxs = [DerivativeIndex(5), DerivativeIndex(6)]
         drefs = [DerivativeRef(m, idx) for idx in idxs]
-        gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
+        gvrefs = [GeneralVariableRef(m, idx) for idx in idxs]
         @test isequal(@variable(m, q4[i = 1:2] == 3, Deriv(q[i+1], x[i])), gvrefs)
         @test isequal(derivative_argument(drefs[1]), q[2])
         @test isequal(operator_parameter(drefs[2]), x[2])
@@ -614,7 +610,7 @@ end
         # test semi anon array
         idxs = [DerivativeIndex(7), DerivativeIndex(8)]
         drefs = [DerivativeRef(m, idx) for idx in idxs]
-        gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
+        gvrefs = [GeneralVariableRef(m, idx) for idx in idxs]
         @test isequal(@variable(m, [i = 1:2], Deriv(q[i], x[i]), lower_bound = -5), gvrefs)
         @test isequal(derivative_argument(drefs[2]), q[2])
         @test isequal(operator_parameter(drefs[1]), x[1])

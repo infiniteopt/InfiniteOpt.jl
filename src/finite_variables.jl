@@ -2,10 +2,7 @@
 #                   CORE DISPATCHVARIABLEREF METHOD EXTENSIONS
 ################################################################################
 # Extend dispatch_variable_ref
-function dispatch_variable_ref(
-    model::InfiniteModel,
-    index::FiniteVariableIndex
-    )::FiniteVariableRef
+function dispatch_variable_ref(model::InfiniteModel, index::FiniteVariableIndex)
     return FiniteVariableRef(model, index)
 end
 
@@ -13,29 +10,22 @@ end
 function _add_data_object(
     model::InfiniteModel,
     object::VariableData{<:JuMP.ScalarVariable}
-    )::FiniteVariableIndex
+    )
     return MOIUC.add_item(model.finite_vars, object)
 end
 
 # Extend _data_dictionary (type based)
-function _data_dictionary(
-    model::InfiniteModel, 
-    ::Type{FiniteVariable}
-    )::MOIUC.CleverDict{FiniteVariableIndex, VariableData{JuMP.ScalarVariable{Float64, Float64, Float64, Float64}}}
+function _data_dictionary(model::InfiniteModel, ::Type{FiniteVariable})
     return model.finite_vars
 end
 
 # Extend _data_dictionary (reference based)
-function _data_dictionary(
-    vref::FiniteVariableRef
-    )::MOIUC.CleverDict{FiniteVariableIndex, VariableData{JuMP.ScalarVariable{Float64, Float64, Float64, Float64}}}
+function _data_dictionary(vref::FiniteVariableRef)
     return JuMP.owner_model(vref).finite_vars
 end
 
 # Extend _data_object
-function _data_object(
-    vref::FiniteVariableRef
-    )::VariableData{JuMP.ScalarVariable{Float64, Float64, Float64, Float64}}
+function _data_object(vref::FiniteVariableRef)
     object = get(_data_dictionary(vref), JuMP.index(vref), nothing)
     if isnothing(object) 
         error("Invalid finite variable reference, cannot find ",
@@ -45,10 +35,13 @@ function _data_object(
     return object
 end
 
-# Extend _core_variable_object
-function _core_variable_object(
-    vref::FiniteVariableRef
-    )::JuMP.ScalarVariable{Float64, Float64, Float64, Float64}
+"""
+    core_object(vref::FiniteVariableRef)::JuMP.ScalarVariable
+
+Retrieve the underlying core `JuMP.ScalarVariable` object for `vref`. 
+This is intended as an advanced method for developers.
+"""
+function core_object(vref::FiniteVariableRef)
     return _data_object(vref).variable
 end
 
@@ -58,15 +51,13 @@ end
 ## Process the variable to use the correct info 
 # All Floats 
 function _process_scalar_var(
-    v::V
-    )::V where {V <: JuMP.ScalarVariable{Float64, Float64, Float64, Float64}}
+    v::JuMP.ScalarVariable{Float64, Float64, Float64, Float64}
+    )
     return v
 end
 
 # Other
-function _process_scalar_var(
-    v::JuMP.ScalarVariable
-    )::JuMP.ScalarVariable{Float64, Float64, Float64, Float64}
+function _process_scalar_var(v::JuMP.ScalarVariable)
     return JuMP.ScalarVariable(_make_float_info(v.info))
 end
 
@@ -92,12 +83,12 @@ function JuMP.add_variable(
     model::InfiniteModel, 
     var::JuMP.ScalarVariable,
     name::String = ""
-    )::GeneralVariableRef
+    )
     new_var = _process_scalar_var(var)
     data_object = VariableData(new_var, name)
     vindex = _add_data_object(model, data_object)
     vref = FiniteVariableRef(model, vindex)
-    gvref = _make_variable_ref(model, vindex)
+    gvref = GeneralVariableRef(model, vindex)
     _set_info_constraints(new_var.info, gvref, vref)
     model.name_to_var = nothing
     return gvref
@@ -110,8 +101,8 @@ end
 function _update_variable_info(
     vref::FiniteVariableRef,
     info::JuMP.VariableInfo
-    )::Nothing
-    _set_core_variable_object(vref, JuMP.ScalarVariable(info))
+    )
+    _set_core_object(vref, JuMP.ScalarVariable(info))
     return
 end
 
@@ -119,7 +110,7 @@ end
 #                                 DELETION
 ################################################################################
 # Extend _delete_variable_dependencies (for use with JuMP.delete)
-function _delete_variable_dependencies(vref::FiniteVariableRef)::Nothing
+function _delete_variable_dependencies(vref::FiniteVariableRef)
     # remove variable info constraints associated with vref
     _delete_info_constraints(vref)
     return

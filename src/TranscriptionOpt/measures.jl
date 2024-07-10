@@ -25,7 +25,7 @@ function InfiniteOpt.add_point_variable(
     inf_model = JuMP.owner_model(ivref)
     inf_model_index = get(inf_model.point_lookup, (ivref, support), nothing)
     if !isnothing(inf_model_index)
-        return InfiniteOpt._make_variable_ref(inf_model, inf_model_index)
+        return InfiniteOpt.GeneralVariableRef(inf_model, inf_model_index)
     else
         # make negative index to not conflict with the InfiniteModel
         raw_index = data.last_point_index -= 1
@@ -66,7 +66,7 @@ function InfiniteOpt.add_semi_infinite_variable(
     inf_model = JuMP.owner_model(ivref)
     inf_model_index = get(inf_model.semi_lookup, (ivref, eval_supps), nothing)
     if !isnothing(inf_model_index)
-        return InfiniteOpt._make_variable_ref(inf_model, inf_model_index)
+        return InfiniteOpt.GeneralVariableRef(inf_model, inf_model_index)
     else
         # make negative index to not conflict with the InfiniteModel
         semi_infinite_vars = data.semi_infinite_vars

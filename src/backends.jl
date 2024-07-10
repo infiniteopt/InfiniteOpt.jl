@@ -161,15 +161,34 @@ end
 
 Retrieve some attribute `attr` from the `backend`. This is a general 
 purpose method typically used to query optimizer related information. 
-This serves as an extension point for new backend types. No extension 
-is needed for [`JuMPBackend`](@ref)s. 
+This serves as an extension point for new backend types. New backends
+should include extensions for the following attributes as appropriate:
+    - `MOI.Silent`
+    - `MOI.TimeLimitSec`
+    - `MOI.RawOptimizerAttribute`
+    - `MOI.SolverName`
+    - `MOI.TerminationStatus`
+    - `MOI.RawStatusString`
+    - `MOI.PrimalStatus`
+    - `MOI.DualStatus`
+    - `MOI.SolveTimeSec`
+    - `MOI.ResultCount`
+    - `MOI.SimplexIterations`
+    - `MOI.BarrierIterations`
+    - `MOI.NodeCount`
+    - `MOI.ObjectiveBound`
+    - `MOI.RelativeGap`
+    - `MOI.ObjectiveValue`
+    - `MOI.DualObjectiveValue`
+    
+No extension is needed for [`JuMPBackend`](@ref)s. 
 """
 function JuMP.get_attribute(
     backend::AbstractTransformationBackend,
     attr
     )
     error("`JuMP.get_attribute` not implemented for transformation backends " * 
-          "of type `$(typeof(backend))`.")
+          "of type `$(typeof(backend))` with attribute `$attr`.")
 end
 
 """
@@ -187,6 +206,9 @@ julia> get_attribute(model, MOI.TimeLimitSec())
 function JuMP.get_attribute(model::InfiniteModel, attr)
     return JuMP.get_attribute(model.backend, attr)
 end
+function JuMP.get_attribute(model::InfiniteModel, attr::String)
+    return JuMP.get_attribute(model.backend, MOI.RawOptimizerAttribute(attr))
+end
 function JuMP.get_optimizer_attribute(model::InfiniteModel, attr)
     return JuMP.get_attribute(model, attr)
 end
@@ -196,8 +218,13 @@ end
 
 Specify some attribute `attr` to the `backend`. This is a general 
 purpose method typically used to set optimizer related information. 
-This serves as an extension point for new backend types. No extension 
-is needed for [`JuMPBackend`](@ref)s. 
+This serves as an extension point for new backend types. New backends
+should include extensions for attributes of type:
+    - `MOI.Silent`
+    - `MOI.TimeLimitSec`
+    - `MOI.RawOptimizerAttribute`
+    
+No extension is needed for [`JuMPBackend`](@ref)s. 
 """
 function JuMP.set_attribute(
     backend::AbstractTransformationBackend,
@@ -205,7 +232,7 @@ function JuMP.set_attribute(
     value
     )
     error("`JuMP.set_attribute` not implemented for transformation backends " * 
-          "of type `$(typeof(backend))`.")
+          "of type `$(typeof(backend))` with attribute `$attr`.")
 end
 
 """
@@ -221,6 +248,9 @@ julia> set_attribute(model, MOI.TimeLimitSec(), 42.0)
 """
 function JuMP.set_attribute(model::InfiniteModel, attr, value)
     return JuMP.set_attribute(model.backend, attr, value)
+end
+function JuMP.set_attribute(model::InfiniteModel, attr::String, value)
+    return JuMP.set_attribute(model.backend, MOI.RawOptimizerAttribute(attr), value)
 end
 function JuMP.set_optimizer_attribute(model::InfiniteModel, attr, value)
     return JuMP.set_attribute(model, attr, value)
@@ -387,22 +417,67 @@ end
 ################################################################################
 #                            JUMP-BASED OPTIMIZER API
 ################################################################################
-# Single argument methods
-for func in (:set_silent, :unset_silent, :bridge_constraints, 
-             :unset_time_limit_sec, :time_limit_sec, :solver_name, :backend,
-             :mode, :unsafe_backend, :compute_conflict!, :copy_conflict,
-             :set_string_names_on_creation)
+# 1 arg setters
+for (func, Attr, val) in (
+    (:set_silent, :Silent, true),
+    (:unset_silent, :Silent, false),
+    (:unset_time_limit_sec, :TimeLimitSec, nothing)
+    )
+    @eval begin
+        @doc """
+            JuMP.$($func)(model::InfiniteModel)
+
+        Extend [`JuMP.$($func)`](https://jump.dev/JuMP.jl/v1/api/JuMP/#$($func))
+        to accept `InfiniteModel`s. This relies on the underlying transformation 
+        backend supporting `JuMP.set_attribute` with attribute `$(MOI.$Attr)()`.
+        """
+        function JuMP.$func(model::InfiniteModel)
+            return JuMP.set_attribute(model.backend, MOI.$Attr(), $val)
+        end
+    end
+end
+
+# 1 arg getters
+for (func, Attr) in ((:time_limit_sec, :TimeLimitSec), (:solver_name, :SolverName))
+    @eval begin
+        @doc """
+            JuMP.$($func)(model::InfiniteModel)
+
+        Extend [`JuMP.$($func)`](https://jump.dev/JuMP.jl/v1/api/JuMP/#$($func))
+        to accept `InfiniteModel`s. This relies on the underlying transformation 
+        backend supporting `JuMP.get_attribute` with attribute `$(MOI.$Attr)()`.
+        """
+        function JuMP.$func(model::InfiniteModel)
+            return JuMP.get_attribute(model.backend, MOI.$Attr())
+        end
+    end
+end
+
+"""
+    JuMP.set_time_limit_sec(model::InfiniteModel, value::Real)
+
+Extend [`JuMP.set_time_limit_sec`](https://jump.dev/JuMP.jl/v1/api/JuMP/#set_time_limit_sec)
+to accept `InfiniteModel`s. This relies on the underlying transformation 
+backend supporting `JuMP.set_attribute` with attribute `MOI.TimeLimitSec()`.
+"""
+function JuMP.set_time_limit_sec(model::InfiniteModel, value::Real)
+    return JuMP.set_attribute(model.backend, MOI.TimeLimitSec(), Float64(value))
+end
+
+# Single argument methods that don't rely on `[get/set]_attribute`
+for func in (:bridge_constraints, :backend, :mode, :unsafe_backend, 
+             :compute_conflict!, :copy_conflict)
     @eval begin
         @doc """
             JuMP.$($func)(backend::AbstractTransformationBackend)
 
-        Implment `JuMP.$($func)` for transformation backends. If applicable, this 
-        should be extended for new backend types. No extension is needed for 
-        [`JuMPBackend`](@ref)s.
+        Implement [`JuMP.$($func)`](https://jump.dev/JuMP.jl/v1/api/JuMP/#$($func))
+        for transformation backends. If applicable, this should be extended for 
+        new backend types. No extension is needed for [`JuMPBackend`](@ref)s.
         """
         function JuMP.$func(backend::AbstractTransformationBackend)
             error("`JuMP.$($func)` not defined for backends of type " *
-                  "`$(typeof(backend))`.")
+                "`$(typeof(backend))`.")
         end
 
         # Define for JuMPBackend
@@ -423,38 +498,34 @@ for func in (:set_silent, :unset_silent, :bridge_constraints,
     end
 end
 
-# Two argument setters 
-for func in (:set_time_limit_sec, :set_string_names_on_creation, :add_bridge)
-    @eval begin
-        @doc """
-            JuMP.$($func)(backend::AbstractTransformationBackend, value)
 
-        Implment `JuMP.$($func)` for transformation backends. If applicable, this 
-        should be extended for new backend types. No extension is needed for 
-        [`JuMPBackend`](@ref)s.
-        """
-        function JuMP.$func(backend::AbstractTransformationBackend, value)
-            error("`JuMP.$($func)` not defined for backends of type " *
-                  "`$(typeof(backend))`.")
-        end
+"""
+    JuMP.add_bridge(backend::AbstractTransformationBackend, value)
 
-        # Define for JuMPBackend
-        function JuMP.$func(backend::JuMPBackend, value)
-            return JuMP.$func(backend.model, value)
-        end
-
-        @doc """
-            JuMP.$($func)(model::InfiniteModel, value)
-
-        Extend [`JuMP.$($func)`](https://jump.dev/JuMP.jl/v1/api/JuMP/#$($func))
-        to accept `InfiniteModel`s. This relies on the underlying transformation 
-        backend supporting `JuMP.$($func)`.
-        """
-        function JuMP.$func(model::InfiniteModel, value)
-            return JuMP.$func(model.backend, value)
-        end 
-    end
+Implement [`JuMP.add_bridge`](https://jump.dev/JuMP.jl/v1/api/JuMP/#add_bridge)
+for transformation backends. If applicable, this should be extended for 
+new backend types. No extension is needed for [`JuMPBackend`](@ref)s.
+"""
+function JuMP.add_bridge(backend::AbstractTransformationBackend, value)
+    error("`JuMP.add_bridge` not defined for backends of type " *
+        "`$(typeof(backend))`.")
 end
+
+# Define for JuMPBackend
+function JuMP.add_bridge(backend::JuMPBackend, value)
+    return JuMP.add_bridge(backend.model, value)
+end
+
+"""
+    JuMP.add_bridge(model::InfiniteModel, value)
+
+Extend [`JuMP.add_bridge`](https://jump.dev/JuMP.jl/v1/api/JuMP/#add_bridge)
+to accept `InfiniteModel`s. This relies on the underlying transformation 
+backend supporting `JuMP.add_bridge`.
+"""
+function JuMP.add_bridge(model::InfiniteModel, value)
+    return JuMP.add_bridge(model.backend, value)
+end 
 
 """
     JuMP.print_active_bridges(

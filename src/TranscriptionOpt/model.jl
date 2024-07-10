@@ -179,11 +179,10 @@ function JuMP.show_backend_summary(
     # reformulation information
     data = transcription_data(backend)
     supp_tuple = data.supports
-    obj_idxs = InfiniteOpt._param_object_indices(model)
+    prefs = InfiniteOpt.parameter_refs(model)
     for (i, supps) in enumerate(supp_tuple)
         # support info
-        pref_group = InfiniteOpt._make_param_tuple_element(model, obj_idxs[i])
-        param_name = InfiniteOpt._get_param_group_name(pref_group)
+        param_name = InfiniteOpt._get_param_group_name(prefs[i])
         println(io, "  `", param_name, "` transcribed over ", length(supps) - 1, " supports")
         # TODO add approximation method info (requires InfiniteOpt refactoring)
     end
@@ -353,9 +352,9 @@ function transcription_variable(
     label::Type{<:InfiniteOpt.AbstractSupportLabel},
     ndarray::Bool
     )
-    # get the object numbers of the expression and form the support iterator
-    obj_nums = InfiniteOpt._object_numbers(fref)
-    support_indices = support_index_iterator(backend, obj_nums)
+    # get the parameter group integer indices of the expression and form the support iterator
+    group_int_idxs = InfiniteOpt.parameter_group_int_indices(fref)
+    support_indices = support_index_iterator(backend, group_int_idxs)
     vals = Vector{Float64}(undef, length(support_indices))
     check_labels = length(vals) > 1 && !_ignore_label(backend, label)
     label_inds = ones(Bool, length(vals))
@@ -443,7 +442,7 @@ function InfiniteOpt.variable_supports(
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
     ndarray::Bool = false
     )
-    vref = InfiniteOpt._make_variable_ref(JuMP.owner_model(dvref), JuMP.index(dvref))
+    vref = InfiniteOpt.GeneralVariableRef(JuMP.owner_model(dvref), JuMP.index(dvref))
     if !haskey(transcription_data(backend).infvar_mappings, vref)
         error("Variable reference $vref not used in transcription backend.")
     elseif !haskey(transcription_data(backend).infvar_supports, vref)
@@ -475,9 +474,9 @@ function InfiniteOpt.variable_supports(
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
     ndarray::Bool = false
     )
-    # get the object numbers of the expression and form the support iterator
-    obj_nums = sort(InfiniteOpt._object_numbers(dvref))
-    support_indices = support_index_iterator(backend, obj_nums)
+    # get the parameter group integer indices of the expression and form the support iterator
+    group_int_idxs = sort(InfiniteOpt.parameter_group_int_indices(dvref))
+    support_indices = support_index_iterator(backend, group_int_idxs)
     supps = Vector{Tuple}(undef, length(support_indices))
     check_labels = length(supps) > 1 && !_ignore_label(backend, label)
     param_supps = parameter_supports(backend)
@@ -487,7 +486,7 @@ function InfiniteOpt.variable_supports(
         if check_labels && !any(l -> l <: label, index_to_labels(backend, idx))
             @inbounds label_inds[i] = false
         end
-        @inbounds supps[i] = Tuple(param_supps[j][idx[j]] for j in obj_nums)
+        @inbounds supps[i] = Tuple(param_supps[j][idx[j]] for j in group_int_idxs)
     end
     # return the supports
     if ndarray
@@ -637,7 +636,7 @@ function InfiniteOpt.variable_supports(
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
     ndarray::Bool = false
     )
-    mref = InfiniteOpt._make_variable_ref(JuMP.owner_model(dmref), JuMP.index(dmref))
+    mref = InfiniteOpt.GeneralVariableRef(JuMP.owner_model(dmref), JuMP.index(dmref))
     if !haskey(transcription_data(backend).measure_mappings, mref)
         error("Measure reference $mref not used in transcription backend.")
     elseif !haskey(transcription_data(backend).measure_supports, mref)
@@ -710,9 +709,9 @@ function transcription_expression(
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
     ndarray::Bool = false
     )
-    # get the object numbers of the expression and form the support iterator
-    obj_nums = InfiniteOpt._object_numbers(expr)
-    support_indices = support_index_iterator(backend, obj_nums)
+    # get the parameter group integer indices of the expression and form the support iterator
+    group_int_idxs = InfiniteOpt.parameter_group_int_indices(expr)
+    support_indices = support_index_iterator(backend, group_int_idxs)
     exprs = Vector{JuMP.AbstractJuMPScalar}(undef, length(support_indices))
     check_labels = length(exprs) > 1 && !_ignore_label(backend, label)
     label_inds = ones(Bool, length(exprs))
@@ -795,9 +794,9 @@ function InfiniteOpt.expression_supports(
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
     ndarray::Bool = false
     )
-    # get the object numbers of the expression and form the support iterator
-    obj_nums = sort(InfiniteOpt._object_numbers(expr))
-    support_indices = support_index_iterator(backend, obj_nums)
+    # get the parameter group integer indices of the expression and form the support iterator
+    group_int_idxs = sort(InfiniteOpt.parameter_group_int_indices(expr))
+    support_indices = support_index_iterator(backend, group_int_idxs)
     supps = Vector{Tuple}(undef, length(support_indices))
     check_labels = length(supps) > 1 && !_ignore_label(backend, label)
     param_supps = parameter_supports(backend)
@@ -807,7 +806,7 @@ function InfiniteOpt.expression_supports(
         if check_labels && !any(l -> l <: label, index_to_labels(backend, idx))
             @inbounds label_inds[i] = false
         end
-        @inbounds supps[i] = Tuple(param_supps[j][idx[j]] for j in obj_nums)
+        @inbounds supps[i] = Tuple(param_supps[j][idx[j]] for j in group_int_idxs)
     end
     # return the supports
     if ndarray
@@ -961,12 +960,12 @@ function parameter_supports(backend::TranscriptionBackend)
 end
 
 """
-    support_index_iterator(backend::TranscriptionBackend, [obj_nums::Vector{Int}])::CartesianIndices
+    support_index_iterator(backend::TranscriptionBackend, [group_int_idxs::Vector{Int}])::CartesianIndices
 
 Return the `CartesianIndices` that determine the indices of the unique combinations
-of `TranscriptionData.supports` stored in `backend`. If `obj_nums` is specified,
+of `TranscriptionData.supports` stored in `backend`. If `group_int_idxs` is specified,
 then the indices will only include the tuple elements uses indices are included
-in the object numbers `obj_nums` and all others will be assigned the last index
+in the parameter group integer indices `group_int_idxs` and all others will be assigned the last index
 which should correspond to an appropriately sized placeholder comprised of `NaN`s.
 Note this method assumes that [`set_parameter_supports`](@ref) has already been
 called and that the last elements of each support vector contains a placeholder
@@ -977,16 +976,16 @@ function support_index_iterator(backend::TranscriptionBackend)
     return CartesianIndices(ntuple(i -> 1:length(raw_supps[i])-1, length(raw_supps)))
 end
 
-# Generate for a subset of object numbers (use last index as placeholder --> support with NaNs)
+# Generate for a subset of parameter group integer indices (use last index as placeholder --> support with NaNs)
 function support_index_iterator(
     backend::TranscriptionBackend,
-    obj_nums::Vector{Int}
+    group_int_idxs::Vector{Int}
     )
     raw_supps = parameter_supports(backend)
     lens = map(i -> length(i), raw_supps)
     # prepare the indices of each support combo
     # note that the actual supports are from 1:length-1 and the placeholders are at the ends
-    return CartesianIndices(ntuple(i -> i in obj_nums ? (1:lens[i]-1) : (lens[i]:lens[i]),
+    return CartesianIndices(ntuple(i -> i in group_int_idxs ? (1:lens[i]-1) : (lens[i]:lens[i]),
                                    length(raw_supps)))
 end
 
@@ -1031,17 +1030,17 @@ function _get_array_type(array::Array{T, N}) where {T, N}
     return T
 end
 
-## Helper functions to consistently get object numbers 
+## Helper functions to consistently get parameter group integer indices 
 # Fallback
-function _get_object_numbers(ref)
-    return InfiniteOpt._object_numbers(ref)
+function _getparameter_group_int_indices(ref)
+    return InfiniteOpt.parameter_group_int_indices(ref)
 end 
 
 # Expressions
-function _get_object_numbers(
+function _getparameter_group_int_indices(
     expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr}
     )
-    return sort(InfiniteOpt._object_numbers(expr))
+    return sort(InfiniteOpt.parameter_group_int_indices(expr))
 end 
 
 """
@@ -1060,15 +1059,15 @@ numbers. Thus, independent infinite parameters will each get their own dimension
 parameter group will have its own dimension. 
 """
 function make_ndarray(backend::TranscriptionBackend, ref, info::Vector, label::DataType)
-    # get the object numbers
-    obj_nums = _get_object_numbers(ref)
+    # get the parameter group integer indices
+    group_int_idxs = _getparameter_group_int_indices(ref)
     # return result if it is from a finite object
-    if isempty(obj_nums)
+    if isempty(group_int_idxs)
         return info
     end
     # determine the dimensions of the new array
     raw_supps = parameter_supports(backend)
-    dims = Tuple(length(raw_supps[i]) - 1 for i in eachindex(raw_supps) if i in obj_nums)
+    dims = Tuple(length(raw_supps[i]) - 1 for i in eachindex(raw_supps) if i in group_int_idxs)
     # check that the lengths match (otherwise we'll have some sparse set)
     # TODO add capability to avoid this problem (make reduced array by looking at the supports)
     if length(info) != prod(dims)
@@ -1082,12 +1081,12 @@ function make_ndarray(backend::TranscriptionBackend, ref, info::Vector, label::D
         narray[idx] = info[i]
     end
     # rearrange the array as needed to match the object number order
-    sorted_array = issorted(obj_nums) ? narray : permutedims(narray, sortperm(obj_nums)) 
+    sorted_array = issorted(group_int_idxs) ? narray : permutedims(narray, sortperm(group_int_idxs)) 
     # consider the label specified (this will enforce the intersection of labels)
     if _ignore_label(backend, label)
         return sorted_array
     else 
-        labels = transcription_data(backend).support_labels[obj_nums]
+        labels = transcription_data(backend).support_labels[group_int_idxs]
         inds = map(sets -> findall(s -> any(l -> l <: label, s), sets), labels)
         return sorted_array[inds...]
     end

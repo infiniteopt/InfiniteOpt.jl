@@ -40,7 +40,7 @@
     end
     # test _format_infinite_info
     @testset "_format_infinite_info" begin
-        var = InfiniteOpt._core_variable_object(y)
+        var = core_object(y)
         @test !IOTO._format_infinite_info(var, [0., 0.5, 0.75]).has_lb
         @test !IOTO._format_infinite_info(var, [0., 0.5, 0.75]).has_ub
         @test IOTO._format_infinite_info(var, [0., 0.5, 0.75]).has_fix
@@ -49,7 +49,7 @@
         @test IOTO._format_infinite_info(var, [0., 0.5, 0.75]).start == 1.25
         @test IOTO._format_infinite_info(var, [0., 0.5, 0.75]).binary 
         @test !IOTO._format_infinite_info(var, [0., 0.5, 0.75]).integer
-        var = InfiniteOpt._core_variable_object(x)
+        var = core_object(x)
         @test IOTO._format_infinite_info(var, [0.]).has_lb
         @test IOTO._format_infinite_info(var, [0.]).lower_bound == 0
         @test !IOTO._format_infinite_info(var, [0.]).has_ub
@@ -76,7 +76,7 @@
     end
     # test _format_derivative_info
     @testset "_format_derivative_info" begin
-        der = InfiniteOpt._core_variable_object(dy)
+        der = core_object(dy)
         @test !IOTO._format_derivative_info(der, [0., 0.5, 0.75]).has_lb
         @test !IOTO._format_derivative_info(der, [0., 0.5, 0.75]).has_ub
         @test !IOTO._format_derivative_info(der, [0., 0.5, 0.75]).has_fix
@@ -84,7 +84,7 @@
         @test IOTO._format_derivative_info(der, [0., 0.5, 0.75]).start == 1.25
         @test !IOTO._format_derivative_info(der, [0., 0.5, 0.75]).binary 
         @test !IOTO._format_derivative_info(der, [0., 0.5, 0.75]).integer
-        der = InfiniteOpt._core_variable_object(dx)
+        der = core_object(dx)
         @test IOTO._format_derivative_info(der, [0.]).has_lb
         @test IOTO._format_derivative_info(der, [0.]).lower_bound == 0
         @test !IOTO._format_derivative_info(der, [0.]).has_ub
@@ -263,38 +263,38 @@ end
     # test _get_info_constr_from_var
     @testset "_get_info_constr_from_var" begin 
         # lower bounds
-        set = moi_set(InfiniteOpt._core_constraint_object(LowerBoundRef(x)))
+        set = moi_set(constraint_object(LowerBoundRef(x)))
         expected = LowerBoundRef(IOTO.lookup_by_support(x, tb, [1., 1., 1.]))
         @test IOTO._get_info_constr_from_var(tb, x, set, [1., 1., 1.]) == expected
         @test IOTO._get_info_constr_from_var(tb, x, set, [0., 0., 0.]) isa Nothing
         # upper bounds
-        set = moi_set(InfiniteOpt._core_constraint_object(UpperBoundRef(x)))
+        set = moi_set(constraint_object(UpperBoundRef(x)))
         expected = UpperBoundRef(IOTO.lookup_by_support(x, tb, [0., 1., 1.]))
         @test IOTO._get_info_constr_from_var(tb, x, set, [1., 1., 0.]) == expected
         @test IOTO._get_info_constr_from_var(tb, x, set, [0., 0., 0.]) isa Nothing
-        set = moi_set(InfiniteOpt._core_constraint_object(UpperBoundRef(yf)))
+        set = moi_set(constraint_object(UpperBoundRef(yf)))
         expected = UpperBoundRef(yft)
         @test IOTO._get_info_constr_from_var(tb, y, set, [1., 1., 1.]) == expected
         # fix 
-        set = moi_set(InfiniteOpt._core_constraint_object(FixRef(y)))
+        set = moi_set(constraint_object(FixRef(y)))
         expected = FixRef(IOTO.lookup_by_support(y, tb, [0.]))
         @test IOTO._get_info_constr_from_var(tb, y, set, [1., 1., 0.]) == expected
         @test IOTO._get_info_constr_from_var(tb, y, set, [0., 0., 1.]) isa Nothing
-        set = moi_set(InfiniteOpt._core_constraint_object(FixRef(x0)))
+        set = moi_set(constraint_object(FixRef(x0)))
         expected = FixRef(x0t)
         @test IOTO._get_info_constr_from_var(tb, x, set, [0., 0., 0.]) == expected
         # binary 
-        set = moi_set(InfiniteOpt._core_constraint_object(BinaryRef(x0)))
+        set = moi_set(constraint_object(BinaryRef(x0)))
         expected = BinaryRef(IOTO.lookup_by_support(x, tb, [0., 0., 0.]))
         @test IOTO._get_info_constr_from_var(tb, x, set, [0., 0., 0.]) == expected
         @test IOTO._get_info_constr_from_var(tb, x, set, [1., 1., 1.]) isa Nothing
         @test IOTO._get_info_constr_from_var(tb, z, set, [1., 1., 1.]) == BinaryRef(zt)
         # integer
-        set = moi_set(InfiniteOpt._core_constraint_object(IntegerRef(x)))
+        set = moi_set(constraint_object(IntegerRef(x)))
         expected = IntegerRef(IOTO.lookup_by_support(x, tb, [0., 1., 1.]))
         @test IOTO._get_info_constr_from_var(tb, x, set, [1., 1., 0.]) == expected
         @test IOTO._get_info_constr_from_var(tb, x, set, [0., 0., 0.]) isa Nothing
-        set = moi_set(InfiniteOpt._core_constraint_object(IntegerRef(yf)))
+        set = moi_set(constraint_object(IntegerRef(yf)))
         expected = IntegerRef(yft)
         @test IOTO._get_info_constr_from_var(tb, yf, set, [1., 1., 1.]) == expected
     end
@@ -609,7 +609,7 @@ end
     @test isa(build_transformation_backend!(m), Nothing)
     @test transformation_backend_ready(m)
     @test num_variables(m.backend.model) == 44
-    @test time_limit_sec(m.backend) == 42
+    @test time_limit_sec(m.backend.model) == 42
     # test bad keyword
     @test_throws ErrorException build_transformation_backend!(m, bad = 42)
 end
