@@ -90,6 +90,7 @@ Subject to
  y(5.0) ≥ 0
  y(10.0) ≥ 0
  z binary
+```
 
 Thus, we have a transcribed `JuMP` model. To be precise, data on the mapping between 
 the transcribed variables/constraints and their infinite counterparts is also generated 

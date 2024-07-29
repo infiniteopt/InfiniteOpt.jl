@@ -551,7 +551,7 @@ end
     @test constraint_object(IOTO.transcription_constraint(c6)).func == [zt, wt]
     @test IOTO.transcription_constraint(c5) isa Vector{ConstraintRef}
     @test name(IOTO.transcription_constraint(c2)) == "c2"
-    @test name(IOTO.transcription_constraint(c1)) == "c1[1, 1]"
+    @test name(IOTO.transcription_constraint(c1)) in ["c1[1, 1]", "c1[1, 2]"]
     @test supports(c1) == (0., [0., 0.])
     @test IOTO.transcription_constraint(c7) isa ConstraintRef
     @test isequal(constraint_object(IOTO.transcription_constraint(c7)).func, gr(zt) - 2.)

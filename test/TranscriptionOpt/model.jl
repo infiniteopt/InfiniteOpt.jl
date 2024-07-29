@@ -67,7 +67,7 @@ end
         l2 = ([Set([UserDefined]), Set([UserDefined])], 
               [Set([UserDefined]), Set([PublicLabel])])
         @test IOTO._truncate_by_label(a2, l2, PublicLabel, nothing) == a2
-        @test IOTO._truncate_by_label(a2, l2, UserDefined, nothing) == [1; 3;;]
+        @test IOTO._truncate_by_label(a2, l2, UserDefined, nothing) == a2[:, [1]]
         # vector w/ valid indices
         a1 = [1, 3]
         l1 = ([Set([UserDefined]), Set([UserDefined]), Set([PublicLabel]), Set{DataType}()], )
@@ -402,7 +402,7 @@ end
     data = IOTO.transcription_data(tb)
     data.finvar_mappings[y] = a
     data.finvar_mappings[x0] = a
-    data.infvar_mappings[x] = [a; b;;]
+    data.infvar_mappings[x] = reshape([a, b], :, 1)
     data.measure_mappings[meas1] = fill(-2 * zero(AffExpr))
     data.measure_mappings[meas2] = [a^2 + c^2 - 2a, b^2 + d^2 - 2a]
     data.infvar_lookup[x] = Dict([0, 0, 0] => a, [1, 0, 0] => b)
