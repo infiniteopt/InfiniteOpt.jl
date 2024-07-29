@@ -728,19 +728,18 @@ Certain backends may also allow the use of keyward arguments.
 
 The default backend `TranscriptionOpt` uses the keyword arguments:
 - `label::Type{<:AbstractSupportLabel} = PublicLabel`
-- `ndarray::Bool = false`
 By default only variables corresponding to public supports are returned, the 
-full set can be accessed via `label = All`. Moreover, all the transcripted variables 
-of infinite variables are returned as a list. However, a n-dimensional array 
-can be obtained via `ndarray = true` which is handy when the variable has multiple 
-infinite parameter dependencies.
+full set can be accessed via `label = All`. Where possible, all the transcripted
+variables of infinite variables are returned as an n-dimensional array 
+where each dimension is determined by the each independent group of
+infinite parameters it depends on.
 
 **Example**
 ```julia-repl
 julia> transformation_variable(x) # infinite variable
 2-element Array{VariableRef,1}:
- x(support: 1)
- x(support: 2)
+ x(0.0)
+ x(1.0)
 
 julia> transformation_variable(z) # finite variable
 z
@@ -782,7 +781,6 @@ end
     supports(
         vref::DecisionVariableRef; 
         [label::Type{<:AbstractSupportLabel} = PublicLabel, 
-        ndarray::Bool = false,
         kwargs...]
         )::Vector{<:Tuple}
 
@@ -790,16 +788,16 @@ Return the supports associated with `vref` in the transformation
 model. Errors if [`InfiniteOpt.variable_supports`](@ref) has not been extended for the
 transformation backend type or if `vref` is not reformulated in the transformation backend.
 
-The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
+The keyword argument `label` is what `TranscriptionOpt` employs
 and `kwargs` denote extra ones that user extensions may employ in accordance with
 their implementation of `variable_supports`. Errors if such an
 extension has not been written. 
 
 By default only the public supports are returned, the 
-full set can be accessed via `label = All`. Moreover, the supports of infinite 
-variables are returned as a list. However, a n-dimensional array 
-can be obtained via `ndarray = true` which is handy when the variable has multiple 
-infinite parameter dependencies.
+full set can be accessed via `label = All`. Where possible, all the supports
+of infinite variables are returned as an n-dimensional array 
+where each dimension is determined by the each independent group of
+infinite parameters it depends on.
 
 **Example**
 ```julia-repl
@@ -851,7 +849,6 @@ end
     transformation_expression(
         expr::JuMP.AbstractJuMPScalar; 
         [label::Type{<:AbstractSupportLabel} = PublicLabel,
-        ndarray::Bool = false, 
         kwargs...]
         )
 
@@ -860,22 +857,22 @@ to `expr`. Also errors if no such expression can be found in
 the transformation backend (meaning one or more of the underlying variables have not
 been transformed).
 
-The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
+The keyword argument `label` is what `TranscriptionOpt` employs
 and `kwargs` denote extra ones that user extensions may employ in accordance with
 their implementation of [`transformation_expression`](@ref). Errors if such an
 extension has not been written. 
 
 By default only the expressions associated with public supports are returned, the 
-full set can be accessed via `label = All`. Moreover, infinite expressions are 
-returned as a list corresponding to their supports. However, a n-dimensional array 
-can be obtained via `ndarray = true` which is handy when the expression has multiple 
-infinite parameter dependencies. The corresponding supports are obtained via 
+full set can be accessed via `label = All`. Where possible, all the transformed
+expressions are returned as an n-dimensional array 
+where each dimension is determined by the each independent group of
+infinite parameters it depends on. The corresponding supports are obtained via 
 `supports` using the same keyword arguments.
 
 **Example**
 ```julia-repl
 julia> transformation_expression(my_expr) # finite expression
-x(support: 1) - y
+x(0.0) - y
 ```
 """
 function transformation_expression(expr::JuMP.AbstractJuMPScalar; kwargs...)
@@ -917,23 +914,22 @@ end
     supports(
         expr::JuMP.AbstractJuMPScalar; 
         [label::Type{<:AbstractSupportLabel} = PublicLabel,
-        ndarray::Bool = false,
         kwargs...]
         )
 
 Return the support associated with `expr`. Errors if `expr` is
 not associated with the constraint mappings stored in the transformation backend.
 
-The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
+The keyword arguments `label` is what `TranscriptionOpt` employs
 and `kwargs` denote extra ones that user extensions may employ in accordance with
 their implementation of `expression_supports`. Errors if such an
 extension has not been written. 
 
 By default only the public supports are returned, the 
-full set can be accessed via `label = All`. Moreover, the supports of infinite 
-expressions are returned as a list. However, a n-dimensional array 
-can be obtained via `ndarray = true` which is handy when the expression has multiple 
-infinite parameter dependencies.
+full set can be accessed via `label = All`. Where possible, all the supports
+of an infinite expression are returned as an n-dimensional array 
+where each dimension is determined by the each independent group of
+infinite parameters it depends on.
 
 **Example**
 ```julia-repl
@@ -980,7 +976,6 @@ end
     transformation_constraint(
         cref::InfOptConstraintRef; 
         [label::Type{<:AbstractSupportLabel} = PublicLabel, 
-        ndarray::Bool = false,
         kwargs...]
         )
 
@@ -988,22 +983,22 @@ Return the reformulation constraint(s) stored in the transformation backend that
 correspond to `cref`. Errors if no such constraint can be found in
 the transformation backend.
 
-The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
+The keyword argument `label` is what `TranscriptionOpt` employs
 and `kwargs` denote extra ones that user extensions may employ in accordance with
 their implementation of [`transformation_constraint`](@ref). Errors if such an
 extension has not been written. 
 
 By default only the constraints associated with public supports are returned, the 
-full set can be accessed via `label = All`. Moreover, infinite constraints are 
-returned as a list corresponding to their supports. However, a n-dimensional array 
-can be obtained via `ndarray = true` which is handy when the constraint has multiple 
-infinite parameter dependencies. The corresponding supports are obtained via 
+full set can be accessed via `label = All`. Where possible, all the transformed
+cosntraints are returned as an n-dimensional array 
+where each dimension is determined by the each independent group of
+infinite parameters it depends on. The corresponding supports are obtained via 
 `supports` using the same keyword arguments.
 
 **Example**
 ```julia-repl
 julia> transformation_constraint(c1) # finite constraint
-c1 : x(support: 1) - y <= 3.0
+c1 : x(0.0) - y <= 3.0
 ```
 """
 function transformation_constraint(
@@ -1037,22 +1032,21 @@ end
 """
     supports(cref::InfOptConstraintRef; 
              [label::Type{<:AbstractSupportLabel} = PublicLabel,
-             ndarray::Bool = false,
              kwargs...])
 
 Return the support associated with `cref`. Errors if `cref` is
 not associated with the constraint mappings stored in the transformation backend.
 
-The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
+The keyword argument `label` is what `TranscriptionOpt` employs
 and `kwargs` denote extra ones that user extensions may employ in accordance with
 their implementation of `constraint_supports`. Errors if such an
 extension has not been written. 
 
 By default only the public supports are returned, the 
-full set can be accessed via `label = All`. Moreover, the supports of infinite 
-constraints are returned as a list. However, a n-dimensional array 
-can be obtained via `ndarray = true` which is handy when the constraint has multiple 
-infinite parameter dependencies.
+full set can be accessed via `label = All`. Where possible, all the supports
+of the constraint are returned as an n-dimensional array 
+where each dimension is determined by the each independent group of
+infinite parameters it depends on.
 
 **Example**
 ```julia-repl

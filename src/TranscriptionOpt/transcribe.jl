@@ -96,6 +96,18 @@ function _format_infinite_info(
                              info.has_start, start, info.binary, info.integer)
 end
 
+# Set the cutoff for number of infinite parameters to be included in a variable name
+const _MaxNumParamsForPrinting = 4
+
+# Make variable name with infinite parameters values directly if possible
+function _make_var_name(base_name, param_nums, tuple_supp, var_idx)
+    if length(param_nums) <= _MaxNumParamsForPrinting
+        return string(base_name, "(", join(tuple_supp, ", "), ")")
+    else
+        return string(base_name, "[", join(var_idx, ", "), "]")
+    end
+end
+
 """
     transcribe_infinite_variables!(
         backend::TranscriptionBackend,
@@ -125,7 +137,6 @@ function transcribe_infinite_variables!(
         supp_indices = support_index_iterator(backend, group_idxs)
         dims = size(supp_indices)[group_idxs]
         vrefs = Array{JuMP.VariableRef, length(dims)}(undef, dims...)
-        labels = Array{Set{DataType}, length(dims)}(undef, dims...)
         supp_type = typeof(Tuple(ones(length(prefs)), prefs))
         supps = Array{supp_type, length(dims)}(undef, dims...)
         lookup_dict = Dict{Vector{Float64}, JuMP.VariableRef}()
@@ -134,20 +145,19 @@ function transcribe_infinite_variables!(
             supp = index_to_support(backend, i)[param_nums]
             info = _format_infinite_info(var, supp)
             var_idx = i.I[group_idxs]
-            v_name = string(base_name, "[", join(var_idx, ","), "]")
+            tuple_supp = Tuple(supp, prefs)
+            v_name = _make_var_name(base_name, param_nums, tuple_supp, var_idx)
             v = JuMP.ScalarVariable(info)
             jump_vref = JuMP.add_variable(backend.model, v, v_name)
             @inbounds vrefs[var_idx...] = jump_vref
             lookup_dict[supp] = jump_vref
-            @inbounds supps[var_idx...] = Tuple(supp, prefs)
-            @inbounds labels[var_idx...] = index_to_labels(backend, i)
+            @inbounds supps[var_idx...] = tuple_supp
         end
         # save the transcription information
         ivref = InfiniteOpt.GeneralVariableRef(model, idx)
         data = transcription_data(backend)
         data.infvar_lookup[ivref] = lookup_dict
         data.infvar_mappings[ivref] = vrefs
-        data.infvar_support_labels[ivref] = labels
         data.infvar_supports[ivref] = supps
     end
     return
@@ -178,7 +188,6 @@ function _transcribe_derivative_variable(dref, d, backend)
     supp_indices = support_index_iterator(backend, group_idxs)
     dims = size(supp_indices)[group_idxs]
     vrefs = Array{JuMP.VariableRef, length(dims)}(undef, dims...)
-    labels = Array{Set{DataType}, length(dims)}(undef, dims...)
     supp_type = typeof(Tuple(ones(length(prefs)), prefs))
     supps = Array{supp_type, length(dims)}(undef, dims...)
     lookup_dict = Dict{Vector{Float64}, JuMP.VariableRef}()
@@ -187,19 +196,18 @@ function _transcribe_derivative_variable(dref, d, backend)
         supp = index_to_support(backend, i)[param_nums]
         info = _format_derivative_info(d, supp)
         var_idx = i.I[group_idxs]
-        d_name = string(base_name, "[", join(var_idx, ","), "]")
+        tuple_supp = Tuple(supp, prefs)
+        d_name = _make_var_name(base_name, param_nums, tuple_supp, var_idx)
         d_var = JuMP.ScalarVariable(info)
         jump_vref = JuMP.add_variable(backend.model, d_var, d_name)
         @inbounds vrefs[var_idx...] = jump_vref
         lookup_dict[supp] = jump_vref
-        @inbounds supps[var_idx...] = Tuple(supp, prefs)
-        @inbounds labels[var_idx...] = index_to_labels(backend, i)
+        @inbounds supps[var_idx...] = tuple_supp
     end
     # save the transcription information
     data = transcription_data(backend)
     data.infvar_lookup[dref] = lookup_dict
     data.infvar_mappings[dref] = vrefs
-    data.infvar_support_labels[dref] = labels
     data.infvar_supports[dref] = supps
     return
 end
@@ -259,12 +267,11 @@ function _set_semi_infinite_variable_mapping(
     ivref_param_nums = InfiniteOpt._parameter_numbers(ivref)
     eval_supps = var.eval_supports
     group_idxs = var.group_int_idxs
-    prefs = InfiniteOpt.raw_parameter_refs(rvref)
+    prefs = InfiniteOpt.raw_parameter_refs(var)
     # prepare for iterating over its supports
     supp_indices = support_index_iterator(backend, group_idxs)
     dims = size(supp_indices)[group_idxs]
     vrefs = Array{JuMP.VariableRef, length(dims)}(undef, dims...)
-    labels = Array{Set{DataType}, length(dims)}(undef, dims...)
     supp_type = typeof(Tuple(ones(length(prefs)), prefs))
     supps = Array{supp_type, length(dims)}(undef, dims...)
     lookup_dict = Dict{Vector{Float64}, JuMP.VariableRef}()
@@ -272,31 +279,29 @@ function _set_semi_infinite_variable_mapping(
     # map a variable for each support
     for i in supp_indices
         raw_supp = index_to_support(backend, i)
+        var_idx = i.I[group_idxs]
         # ensure this support is valid with the reduced restriction
         if any(!isnan(raw_supp[ivref_param_nums[k]]) && raw_supp[ivref_param_nums[k]] != v for (k, v) in eval_supps)
-            valid_idxs[lin_idx] = false
+            valid_idxs[var_idx...] = false
             continue
         end
         # map to the current transcription variable
         supp = raw_supp[param_nums]
         ivref_supp = [haskey(eval_supps, j) ? eval_supps[j] : raw_supp[k] 
                       for (j, k) in enumerate(ivref_param_nums)]
-        var_idx = i.I[group_idxs]
         jump_vref = lookup_by_support(ivref, backend, ivref_supp)
         @inbounds vrefs[var_idx...] = jump_vref
         lookup_dict[supp] = jump_vref
         @inbounds supps[var_idx...] = Tuple(supp, prefs)
-        @inbounds labels[var_idx...] = index_to_labels(backend, i)
     end
     # truncate vrefs if any supports were skipped because of dependent parameter supps and save
     data = transcription_data(backend)
     if !all(valid_idxs)
         data.infvar_mappings[rvref] = vrefs[valid_idxs]
-        data.infvar_support_labels[rvref] = labels[valid_idxs]
         data.infvar_supports[rvref] = supps[valid_idxs]
+        data.valid_indices[rvref] = valid_idxs
     else
         data.infvar_mappings[rvref] = vrefs
-        data.infvar_support_labels[rvref] = labels
         data.infvar_supports[rvref] = supps
     end
     data.infvar_lookup[rvref] = lookup_dict
@@ -563,7 +568,6 @@ function transcribe_measures!(
         supp_indices = support_index_iterator(backend, group_idxs)
         dims = size(supp_indices)[group_idxs]
         exprs = Array{JuMP.AbstractJuMPScalar, length(dims)}(undef, dims...)
-        labels = Array{Set{DataType}, length(dims)}(undef, dims...)
         supp_type = typeof(Tuple(ones(length(prefs)), prefs))
         supps = Array{supp_type, length(dims)}(undef, dims...)
         lookup_dict = Dict{Vector{Float64}, Int}()
@@ -575,13 +579,11 @@ function transcribe_measures!(
             supp = raw_supp[meas.parameter_nums]
             lookup_dict[supp] = lin_idx
             @inbounds supps[expr_idx...] = Tuple(supp, prefs)
-            @inbounds labels[expr_idx...] = index_to_labels(backend, i)
         end
         # save the transcription information
         data = transcription_data(backend)
         data.measure_lookup[mref] = lookup_dict
         data.measure_mappings[mref] = exprs
-        data.measure_support_labels[mref] = labels
         data.measure_supports[mref] = supps
     end
     return
@@ -765,7 +767,6 @@ function transcribe_constraints!(
         dims = size(supp_indices)[group_idxs]
         crefs = Array{JuMP.ConstraintRef, length(dims)}(undef, dims...)
         supps = Array{Tuple, length(dims)}(undef, dims...)
-        labels = Array{Set{DataType}, length(dims)}(undef, dims...)
         valid_idxs = ones(Bool, dims...)
         # iterate over the support indices for the info constraints
         if object.is_info_constraint
@@ -779,7 +780,6 @@ function transcribe_constraints!(
                     @inbounds crefs[con_idx...] = info_ref
                     @inbounds supps[con_idx...] = Tuple(param_supps[j][i[j]]
                                                         for j in group_idxs)
-                    @inbounds labels[con_idx...] = index_to_labels(backend, i)
                 else
                     valid_idxs[con_idx...] = false
                 end
@@ -798,13 +798,18 @@ function transcribe_constraints!(
                 con_idx = i.I[group_idxs]
                 if _support_in_restrictions(raw_supp, restrict_indices, 
                                             restrict_domains)
-                    new_name = isempty(name) ? "" : string(name, "[", join(con_idx, ","), "]")
+                    new_name = if isempty(name)
+                        ""
+                    elseif isempty(group_idxs)
+                        name
+                    else
+                        string(name, "[", join(con_idx, ", "), "]")
+                    end
                     new_cref = _process_constraint(backend, constr, func, 
                                                    set, raw_supp, new_name) 
                     @inbounds crefs[con_idx...] = new_cref
                     @inbounds supps[con_idx...] = Tuple(param_supps[j][i[j]]
                                                         for j in group_idxs)
-                    @inbounds labels[con_idx...] = index_to_labels(backend, i)
                 else
                     valid_idxs[con_idx...] = false
                 end
@@ -816,11 +821,10 @@ function transcribe_constraints!(
         if !all(valid_idxs)
             data.constr_mappings[cref] = crefs[valid_idxs]
             data.constr_supports[cref] = supps[valid_idxs]
-            data.constr_support_labels[cref] = labels[valid_idxs]
+            data.valid_indices[cref] = valid_idxs
         else
             data.constr_mappings[cref] = crefs
             data.constr_supports[cref] = supps
-            data.constr_support_labels[cref] = labels
         end
     end
     return

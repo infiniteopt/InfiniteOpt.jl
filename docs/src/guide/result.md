@@ -157,7 +157,7 @@ julia> dual(c1)
  1.1930560126841273e-10
  1.1930560126841273e-10
 ```
-`c1` is an infinite constraint and thus we obtain the duals of its transcribed 
+`c1` is an infinite constraint, and thus we obtain the duals of its transcribed 
 versions. The underlying infinite parameter(s) and support values are queried 
 via `parameter_refs` and `supports`:
 ```jldoctest results
@@ -181,9 +181,7 @@ These again all have a 1-to-1 correspondence.
 
 !!! note
     In the case that our variables/constraints depend on multiple infinite 
-    parameter it is typically convenient to add the keyword statement 
-    `ndarray = true` when calling any variable/constraint queries (e.g., `value` 
-    and `dual`). This will reformat the output vector into an n-dimensional array 
+    parameters, an n-dimensional array will typically be returned
     whose dimensions correspond to the supports of the infinite parameters. 
 
 ## Termination Queries
@@ -240,19 +238,11 @@ information. Thus, here the queries are extended to work with the specifics of
 the transformation backend to return the appropriate info.
 
 !!! note 
-    1. Like `supports` the all variable based query methods below also employ the 
-       `label::Type{AbstractSupportLabel} = PublicLabel` keyword argument that by 
-       default will return the desired information associated with public 
-       supports. The full set (e.g., ones corresponding to internal collocation nodes) 
-       is obtained via `label = All`.
-    2. These methods also employ the `ndarray::Bool` keyword argument that will cause the 
-       output to be formatted as an n-dimensional array where the dimensions 
-       correspond to the infinite parameter dependencies. For example, if we have an 
-       infinite variable `y(t, ξ)` and we invoke a query method with `ndarray = true` 
-       then we'll get a matrix whose dimensions correspond to the supports of `t` and 
-       `ξ`, respectively. Also, if `ndarray = true` then `label` correspond to the 
-       intersection of supports labels in contrast to its default of invoking the union 
-       of the labels.
+    Like `supports` the all variable based query methods below also employ the 
+    `label::Type{AbstractSupportLabel} = PublicLabel` keyword argument that by 
+    default will return the desired information associated with public 
+    supports. The full set (e.g., ones corresponding to internal collocation nodes) 
+    is obtained via `label = All`.
 
 First, we should verify that the transformed variable in fact has variable values 
 via [`has_values`](@ref). In our example, we have:
@@ -300,19 +290,11 @@ appropriate versions of [`map_optimizer_index`](@ref InfiniteOpt.map_optimizer_i
 Like variables, a variety of information can be queried about constraints.
 
 !!! note 
-    1. Like `supports`, all the constraint query methods below also employ the 
-       `label::Type{AbstractSupportLabel} = PublicLabel` keyword argument that by 
-       default will return the desired information associated with public 
-       supports. The full set (e.g., ones corresponding to internal collocation nodes) 
-       is obtained via `label = All`.
-    2. These methods also employ the `ndarray::Bool` keyword argument that will cause the 
-       output to be formatted as an n-dimensional array where the dimensions 
-       correspond to the infinite parameter dependencies. For example, if we have an 
-       infinite constraint that depends on `t` and `ξ)`, and we invoke a query method 
-       with `ndarray = true` then we'll get a matrix whose dimensions correspond to 
-       the supports of `t` and `ξ`, respectively. Also, if `ndarray = true` then 
-       `label` correspond to the intersection of supports labels in contrast to its 
-       default of invoking the union of the labels.
+    Like `supports`, all the constraint query methods below also employ the 
+    `label::Type{AbstractSupportLabel} = PublicLabel` keyword argument that by 
+    default will return the desired information associated with public 
+    supports. The full set (e.g., ones corresponding to internal collocation nodes) 
+    is obtained via `label = All`.
 
 First, recall that constraints are stored in the form `function-in-set` where 
 generally `function` contains the variables and coefficients and the set contains 
@@ -438,7 +420,7 @@ julia> report[z]
 ```
 Note that like other query methods, an array of ranges will be provided with
 testing the sensitivity of an infinite constraint RHS in accordance with the
-discretization scheme. Also, keyword arguments (like `ndarray` and `label`) can 
+discretization scheme. Also, keyword arguments (like `label`) can 
 be invoked when indexing the report:
 ```julia-repl
 julia> report[c1, label = All]

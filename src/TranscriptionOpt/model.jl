@@ -15,8 +15,10 @@ mutable struct TranscriptionData
     infvar_lookup::Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, JuMP.VariableRef}}
     infvar_mappings::Dict{InfiniteOpt.GeneralVariableRef, Array{JuMP.VariableRef}}
     infvar_supports::Dict{InfiniteOpt.GeneralVariableRef, Array{Tuple}}
-    infvar_support_labels::Dict{InfiniteOpt.GeneralVariableRef, Array{Set{DataType}}}
     finvar_mappings::Dict{InfiniteOpt.GeneralVariableRef, JuMP.VariableRef}
+
+    # Metadata
+    valid_indices::Dict{Any, Array{Bool}}
 
     # Internal variables (created via internal measure expansions)
     semi_infinite_vars::Vector{InfiniteOpt.SemiInfiniteVariable{InfiniteOpt.GeneralVariableRef}}
@@ -28,15 +30,12 @@ mutable struct TranscriptionData
     measure_lookup::Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}
     measure_mappings::Dict{InfiniteOpt.GeneralVariableRef, Array{JuMP.AbstractJuMPScalar}}
     measure_supports::Dict{InfiniteOpt.GeneralVariableRef, Array{Tuple}}
-    measure_support_labels::Dict{InfiniteOpt.GeneralVariableRef, Array{Set{DataType}}}
 
     # Constraint information
     constr_mappings::Dict{InfiniteOpt.InfOptConstraintRef,
                           Array{JuMP.ConstraintRef}}
     constr_supports::Dict{InfiniteOpt.InfOptConstraintRef,
                           Array{Tuple}}
-    constr_support_labels::Dict{InfiniteOpt.InfOptConstraintRef,
-                                Array{Set{DataType}}}
 
     # Collected Supports
     supports::Tuple
@@ -50,8 +49,9 @@ mutable struct TranscriptionData
             Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, JuMP.VariableRef}}(),
             Dict{InfiniteOpt.GeneralVariableRef, Array{JuMP.VariableRef}}(),
             Dict{InfiniteOpt.GeneralVariableRef, Array{Tuple}}(),
-            Dict{InfiniteOpt.GeneralVariableRef, Array{Set{DataType}}}(),
             Dict{InfiniteOpt.GeneralVariableRef, JuMP.VariableRef}(),
+            # meta data
+            Dict{Any, Array{Bool}}(),
             # internal variables
             Vector{InfiniteOpt.SemiInfiniteVariable{InfiniteOpt.GeneralVariableRef}}(),
             Dict{Tuple{InfiniteOpt.GeneralVariableRef, Dict{Int, Float64}}, InfiniteOpt.GeneralVariableRef}(),
@@ -61,11 +61,9 @@ mutable struct TranscriptionData
             Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}(),
             Dict{InfiniteOpt.GeneralVariableRef, Array{JuMP.AbstractJuMPScalar}}(),
             Dict{InfiniteOpt.GeneralVariableRef, Array{Tuple}}(),
-            Dict{InfiniteOpt.GeneralVariableRef, Array{Set{DataType}}}(),
             # constraint info
             Dict{InfiniteOpt.InfOptConstraintRef, Array{JuMP.ConstraintRef}}(),
             Dict{InfiniteOpt.InfOptConstraintRef, Array{Tuple}}(),
-            Dict{InfiniteOpt.InfOptConstraintRef, Array{Set{DataType}}}(),
             # support storage
             (), 
             (), 
@@ -79,8 +77,8 @@ function Base.empty!(data::TranscriptionData)
     empty!(data.infvar_lookup)
     empty!(data.infvar_mappings)
     empty!(data.infvar_supports)
-    empty!(data.infvar_support_labels)
     empty!(data.finvar_mappings)
+    empty!(data.valid_indices)
     empty!(data.semi_infinite_vars)
     empty!(data.semi_lookup)
     data.last_point_index = 0
@@ -88,10 +86,8 @@ function Base.empty!(data::TranscriptionData)
     empty!(data.measure_lookup)
     empty!(data.measure_mappings)
     empty!(data.measure_supports)
-    empty!(data.measure_support_labels)
     empty!(data.constr_mappings)
     empty!(data.constr_supports)
-    empty!(data.constr_support_labels)
     data.supports = ()
     data.support_labels = ()
     data.has_internal_supports = false
@@ -200,20 +196,67 @@ end
 
 ## truncate a collection according to a label
 # 0-Array
-function _truncate_by_label(arr::Array{T, 0}, labels, label) where {T}
-    return labels[] <:label ? arr : arr[[]]
+function _truncate_by_label(
+    arr::Array{T, 0},
+    labels::Tuple{},
+    label,
+    ::Nothing
+    ) where {T}
+    return arr
 end
 
-# Vector
-function _truncate_by_label(arr::Vector, labels, label)
-    inds = map(s -> any(l -> l <: label, s), labels)
-    return arr[inds]
+# Vector (no valid indices to worry about)
+function _truncate_by_label(
+    arr::Vector,
+    labels::Tuple{Vector{Set{DataType}}},
+    label,
+    ::Nothing
+    )
+    inds = map(s -> any(l -> l <: label, s), labels[1])
+    return all(inds) ? arr : arr[inds]
+end
+
+# Vector (has 1-D valid indices to enforce)
+function _truncate_by_label(
+    arr::Vector,
+    labels::Tuple{Vector{Set{DataType}}},
+    label,
+    valid_idxs::Vector{Bool}
+    )
+    new_labels = (labels[1][valid_idxs], )
+    return _truncate_by_label(arr, new_labels, label, nothing)
+end
+
+# Vector (has N-D valid indices to enforce)
+function _truncate_by_label(
+    arr::Vector,
+    labels::NTuple{N, Vector{Set{DataType}}},
+    label,
+    valid_idxs::Array{Bool, N}
+    ) where {N}
+    label_idx_array = zeros(Bool, size(valid_idxs)...)
+    label_idxs = (map(s -> any(l -> l <: label, s), sets) for sets in labels)
+    label_idx_array[label_idxs...] .= true
+    return arr[label_idx_array[valid_idxs]]
 end
 
 # Array
-function _truncate_by_label(arr::Array{T, N}, labels, label) where {T, N}
-    firsts = (labels[(j == i ? Colon() : 1 for j in 1:N)...] for j in 1:N)
-    return arr[(findall(s -> any(l -> l <: label, s), sets) for sets in firsts)...]
+function _truncate_by_label(
+    arr::Array{T, N},
+    labels::NTuple{N, Vector{Set{DataType}}},
+    label,
+    ::Nothing
+    ) where {T, N}
+    # TODO carefully revise the logic behind the interesection of different axes
+    return arr[(map(s -> any(l -> l <: label, s), sets) for sets in labels)...]
+end
+
+# High-level
+function _truncate_by_label(arr, ref, label, group_idxs, backend)
+    data = backend.data
+    labels = Tuple(data.support_labels[i][1:end-1] for i in group_idxs)
+    valid_idxs = get(data.valid_indices, ref, nothing)
+    return _truncate_by_label(arr, labels, label, valid_idxs)
 end
 
 """
@@ -311,8 +354,8 @@ function transcription_variable(
     if _ignore_label(backend, label)
         return vars
     else 
-        labels = transcription_data(backend).infvar_support_labels[vref]
-        return _truncate_by_label(vars, labels, label)
+        group_idxs = InfiniteOpt.parameter_group_int_indices(vref)
+        return _truncate_by_label(vars, vref, label, group_idxs, backend)
     end
 end
 
@@ -328,19 +371,17 @@ function transcription_variable(
     support_indices = support_index_iterator(backend, group_idxs)
     dims = size(support_indices)[group_idxs]
     vals = Array{Float64, length(dims)}(undef, dims...)
-    labels = Array{Set{DataType}, length(dims)}(undef, dims...)
     # iterate over the indices and compute the values
     for idx in support_indices
         supp = index_to_support(backend, idx)
         val_idx = idx.I[group_idxs]
-        @inbounds labels[val_idx...] = index_to_labels(backend, idx)
         @inbounds vals[val_idx...] = transcription_expression(fref, backend, supp)
     end
     # return the values
     if _ignore_label(backend, label)
         return vals
     else
-        return _truncate_by_label(vals, labels, label)
+        return _truncate_by_label(vals, fref, label, group_idxs, backend)
     end
 end
 
@@ -410,10 +451,10 @@ function InfiniteOpt.variable_supports(
     end
     supps = transcription_data(backend).infvar_supports[vref]
     if _ignore_label(backend, label)
-        return vals
+        return supps
     else
-        labels = transcription_data(backend).infvar_support_labels[vref]
-        return _truncate_by_label(supps, labels, label)
+        group_idxs = InfiniteOpt.parameter_group_int_indices(dvref)
+        return _truncate_by_label(supps, vref, label, group_idxs, backend)
     end
 end
 
@@ -428,19 +469,17 @@ function InfiniteOpt.variable_supports(
     support_indices = support_index_iterator(backend, group_idxs)
     dims = size(support_indices)[group_idxs]
     supps = Array{Tuple, length(dims)}(undef, dims...)
-    labels = Array{Set{DataType}, length(dims)}(undef, dims...)
     param_supps = parameter_supports(backend)
     # iterate over the indices and compute the values
     for idx in support_indices
         val_idx = idx.I[group_idxs]
-        @inbounds labels[val_idx...] = index_to_labels(backend, idx)
         @inbounds supps[val_idx...] = Tuple(param_supps[j][idx[j]] for j in group_idxs)
     end
     # return the values
     if _ignore_label(backend, label)
-        return vals
+        return supps
     else
-        return _truncate_by_label(supps, labels, label)
+        return _truncate_by_label(supps, fref, label, group_idxs, backend)
     end
 end
 
@@ -550,8 +589,8 @@ function transcription_variable(
     if length(exprs) > 1 && _ignore_label(backend, label)
         return exprs
     elseif length(exprs) > 1
-        labels = transcription_data(backend).measure_support_labels[mref]
-        return _truncate_by_label(exprs, labels, label)
+        group_idxs = InfiniteOpt.parameter_group_int_indices(mref)
+        return _truncate_by_label(exprs, mref, label, group_idxs, backend)
     else 
         return first(exprs)
     end
@@ -585,8 +624,8 @@ function InfiniteOpt.variable_supports(
     if length(supps) > 1 && _ignore_label(backend, label)
         return supps
     elseif length(supps) > 1
-        labels = transcription_data(backend).measure_support_labels[mref]
-        return _truncate_by_label(supps, labels, label)
+        group_idxs = InfiniteOpt.parameter_group_int_indices(mref)
+        return _truncate_by_label(supps, mref, label, group_idxs, backend)
     else 
         return first(supps)
     end
@@ -637,17 +676,15 @@ function transcription_expression(
     support_indices = support_index_iterator(backend, group_idxs)
     dims = size(support_indices)[group_idxs]
     exprs = Array{JuMP.AbstractJuMPScalar, length(dims)}(undef, dims...)
-    labels = Array{Set{DataType}, length(dims)}(undef, dims...)
     # iterate over the indices and compute the values
     for idx in support_indices
         supp = index_to_support(backend, idx)
         expr_idx = idx.I[group_idxs]
-        @inbounds labels[expr_idx...] = index_to_labels(backend, idx)
         @inbounds exprs[expr_idx...] = transcription_expression(expr, backend, supp)
     end
     # return the values
     if !_ignore_label(backend, label)
-        exprs = _truncate_by_label(exprs, labels, label)
+        exprs = _truncate_by_label(exprs, nothing, label, group_idxs, backend)
     end
     return length(support_indices) > 1 ? exprs : first(exprs)
 end
@@ -713,18 +750,15 @@ function InfiniteOpt.expression_supports(
     support_indices = support_index_iterator(backend, group_idxs)
     dims = size(support_indices)[group_idxs]
     supps = Array{Tuple, length(dims)}(undef, dims...)
-    labels = Array{Set{DataType}, length(dims)}(undef, dims...)
     param_supps = parameter_supports(backend)
     # iterate over the indices and compute the values
     for idx in support_indices
-        supp = index_to_support(backend, idx)
         expr_idx = idx.I[group_idxs]
-        @inbounds labels[expr_idx...] = index_to_labels(backend, idx)
-        @inbounds supps[expr_idx...] = Tuple(param_supps[j][idx[j]] for j in group_int_idxs)
+        @inbounds supps[expr_idx...] = Tuple(param_supps[j][idx[j]] for j in group_idxs)
     end
     # return the values
     if !_ignore_label(backend, label)
-        supps = _truncate_by_label(supps, labels, label)
+        supps = _truncate_by_label(supps, nothing, label, group_idxs, backend)
     end
     return length(support_indices) > 1 ? supps : first(supps)
 end
@@ -776,8 +810,8 @@ function transcription_constraint(
     if length(constr) > 1 && _ignore_label(backend, label)
         return constr
     elseif length(constr) > 1
-        labels = transcription_data(backend).constr_support_labels[cref]
-        return _truncate_by_label(constr, labels, label)
+        group_idxs = InfiniteOpt.parameter_group_int_indices(cref)
+        return _truncate_by_label(constr, cref, label, group_idxs, backend)
     else 
         return first(constr)
     end
@@ -834,8 +868,8 @@ function InfiniteOpt.constraint_supports(
     if length(supps) > 1 && _ignore_label(backend, label)
         return supps
     elseif length(supps) > 1
-        labels = transcription_data(backend).constr_support_labels[cref]
-        return _truncate_by_label(supps, labels, label)
+        group_idxs = InfiniteOpt.parameter_group_int_indices(cref)
+        return _truncate_by_label(supps, cref, label, group_idxs, backend)
     else 
         return first(supps)
     end
@@ -896,23 +930,5 @@ function index_to_support(
     index::CartesianIndex
     )
     raw_supps = parameter_supports(backend)
-    return [j for i in eachindex(index.I) for j in raw_supps[i][index[i]]]
-end
-
-"""
-    index_to_labels(backend::TranscriptionBackend, index::CartesianIndex)::Set{DataType}
-
-Given a particular support `index` generated via [`support_index_iterator`](@ref)
-using `backend`, return the corresponding support label set from `TranscriptionData.support_labels`.
-"""
-function index_to_labels(
-    backend::TranscriptionBackend,
-    index::CartesianIndex
-    )
-    raw_labels = transcription_data(backend).support_labels
-    labels = Set{DataType}()
-    for (i, j) in enumerate(index.I)
-        union!(labels, raw_labels[i][j])
-    end
-    return labels
+    return Float64[j for i in eachindex(index.I) for j in raw_supps[i][index[i]]]
 end

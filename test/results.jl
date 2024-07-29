@@ -234,7 +234,6 @@ end
     @testset "JuMP.value" begin
         @test value(inf) == [2., 2.]
         @test value(inf, label = All) == [2., 1., 2.]
-        @test value(inf, label = All, ndarray = true) == [2., 1., 2.]
         @test value(d1) == [2., 2.]
         @test value(d1, label = All) == [2., 1., 2.]
         @test value(g) == 1.
@@ -322,7 +321,7 @@ end
     # test map_value
     @testset "map_value" begin
         @test InfiniteOpt.map_value(meas1, tb) == 4.
-        @test InfiniteOpt.map_value(meas2, tb) == [0., -3.]
+        @test InfiniteOpt.map_value(meas2, tb) == [2., -5.]
         @test InfiniteOpt.map_value(3g - 1, tb) == 2.
         @test InfiniteOpt.map_value(inf^2 + g, tb) == [5., 1.]
         @test InfiniteOpt.map_value(zero(AffExpr) + 1, tb) == 1.
@@ -330,10 +329,9 @@ end
     # test value
     @testset "JuMP.value" begin
         @test value(meas1, label = All) == 4.
-        @test value(meas2, label = UserDefined) == [0., -3.]
+        @test value(meas2, label = UserDefined) == [2., -5.]
         @test value(3g - 1) == 2.
         @test value(inf * inf + g - 2) == [3., -1.]
-        @test value(inf * inf + g - 2, ndarray = true) == [3., -1.]
         @test value(zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}) - 42) == -42.
         @test value(sin(g)) == sin(1)
         @test value(GenericNonlinearExpr{GeneralVariableRef}(:sin, Any[0])) == 0
@@ -396,7 +394,6 @@ end
     @testset "JuMP.value" begin
         @test value(c1) == 1.
         @test value(c2, label = UserDefined) == [-1., 0.]
-        @test value(c2, label = UserDefined, ndarray = true) == [-1., 0.]
         @test value(c3) == sin(1)
         @test value(c4) == [sin(-1), sin(0)]
     end
@@ -410,7 +407,6 @@ end
     @testset "JuMP.optimizer_index" begin
         @test isa(optimizer_index(c1), MOI.ConstraintIndex)
         @test isa(optimizer_index(c2, label = All), Vector{<:MOI.ConstraintIndex})
-        @test isa(optimizer_index(c2, label = All, ndarray = true), Vector{<:MOI.ConstraintIndex})
         @test isa(optimizer_index(c3), MOI.ConstraintIndex)
         @test isa(optimizer_index(c4, label = All), Vector{<:MOI.ConstraintIndex})
     end
@@ -428,14 +424,12 @@ end
     @testset "JuMP.dual" begin
         @test dual(c1) == -1.
         @test dual(c2, label = UserDefined) == [0., 1.]
-        @test dual(c2, label = UserDefined, ndarray = true) == [0., 1.]
         @test dual(c3) == 4
         @test dual(c4) == [2, 3]
     end
     # test shadow_price
     @testset "JuMP.shadow_price" begin
         @test shadow_price(c1) == -1.
-        @test shadow_price(c1, ndarray = true) == [-1.]
         @test shadow_price(c2, label = PublicLabel) == [-0., -1.]
         @test shadow_price(c3) == -4
         @test shadow_price(c4) == [-2, -3]
@@ -503,11 +497,9 @@ end
     # test constraint queries
     @test lp_sensitivity_report(m)[c1] == (-Inf, 0)
     @test lp_sensitivity_report(m)[c2, label = All] == [(-Inf, 0), (-Inf, 0)]
-    @test lp_sensitivity_report(m)[c2, ndarray = true] == [(-Inf, 0), (-Inf, 0)]
     # test variable queries
     @test lp_sensitivity_report(m)[g] == (0, 0)
     @test lp_sensitivity_report(m)[inf, label = UserDefined] == [(0, 0), (0, 0)]
-    @test lp_sensitivity_report(m)[inf, ndarray = true] == [(0, 0), (0, 0)]
     # test model not up to date
     set_objective_sense(m, MOI.MIN_SENSE)
     @testset "Not up-to-date" begin 
