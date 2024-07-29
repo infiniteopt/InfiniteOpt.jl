@@ -247,7 +247,6 @@ function _truncate_by_label(
     label,
     ::Nothing
     ) where {T, N}
-    # TODO carefully revise the logic behind the interesection of different axes
     return arr[(map(s -> any(l -> l <: label, s), sets) for sets in labels)...]
 end
 
@@ -715,8 +714,7 @@ end
     InfiniteOpt.transformation_expression(
         expr::JuMP.AbstractJuMPScalar,
         backend::TranscriptionBackend;
-        [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
-        ndarray::Bool = false]
+        [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel]
         )
 
 Proper extension of [`InfiniteOpt.transformation_expression`](@ref) for
