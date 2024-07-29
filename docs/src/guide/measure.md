@@ -364,12 +364,12 @@ julia> supports(t)
 
 julia> transformation_variable(u)  
 3-element Vector{VariableRef}:
- u(support: 1)
- u(support: 2)
- u(support: 3)
+ u(0.0)
+ u(1.0)
+ u(2.0)
 
 julia> objective_function(tmodel) 
-0.5 u(support: 1)² + u(support: 2)² + 0.5 u(support: 3)²
+0.5 u(0.0)² + u(1.0)² + 0.5 u(2.0)²
 ```
 Thus, the integral incorporates the 3 supports generated outside the `integral` 
 declaration.
@@ -405,14 +405,14 @@ julia> supports(t)
 
 julia> transformation_variable(u)  
 5-element Vector{VariableRef}:
- u(support: 1)
- u(support: 2)
- u(support: 3)
- u(support: 4)
- u(support: 5)
+ u(0.0)
+ u(0.42264973081)
+ u(1.0)
+ u(1.57735026919)
+ u(2.0)
 
 julia> objective_function(tmodel) 
-u(support: 2)² + u(support: 4)²
+u(0.42264973081)² + u(1.57735026919)²
 ```
 The supports used in the objective function are different from the supports used 
 in the transcription of `u`. The integral objective function has been transcribed 
@@ -459,11 +459,11 @@ julia> supports(t)
 
 julia> transformation_variable(u)  
 2-element Vector{VariableRef}:
- u(support: 1)
- u(support: 2)
+ u(0.42264973081)
+ u(1.57735026919)
 
 julia> objective_function(tmodel) 
-u(support: 1)² + u(support: 2)²
+u(0.42264973081)² + u(1.57735026919)²
 ```
 Therefore, using quadratures other than `UniTrapezoid()` or `FEGaussLobatto()` 
 requires careful analysis if there are user-defined supports in the problem. 

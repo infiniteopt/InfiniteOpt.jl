@@ -386,19 +386,23 @@ function eval_supports(vref::SemiInfiniteVariableRef)::Dict{Int, Float64}
     return core_object(vref).eval_supports
 end
 
-"""
-    raw_parameter_refs(vref::SemiInfiniteVariableRef)::VectorTuple
+# helper version of raw_parameter_refs
+function raw_parameter_refs(var::SemiInfiniteVariable)
+    orig_prefs = raw_parameter_refs(var.infinite_variable_ref)
+    eval_supps = var.eval_supports
+    delete_indices = [!haskey(eval_supps, i) for i in eachindex(orig_prefs)]
+    return Collections.restricted_copy(orig_prefs, delete_indices)
+end
 
+"""
+    raw_parameter_refs(vref::Union{SemiInfiniteVariableRef, SemiInfiniteVariable})::VectorTuple
 Return the raw [`VectorTuple`](@ref InfiniteOpt.Collections.VectorTuple) of the 
 parameter references that `vref` depends on. This is primarily an internal method 
 where [`parameter_refs`](@ref parameter_refs(vref::SemiInfiniteVariableRef)) 
 is intended as the preferred user function.
 """
 function raw_parameter_refs(vref::SemiInfiniteVariableRef)
-    orig_prefs = raw_parameter_refs(infinite_variable_ref(vref))
-    eval_supps = eval_supports(vref)
-    delete_indices = [!haskey(eval_supps, i) for i in eachindex(orig_prefs)]
-    return Collections.restricted_copy(orig_prefs, delete_indices)
+    return raw_parameter_refs(core_object(vref))
 end
 
 """

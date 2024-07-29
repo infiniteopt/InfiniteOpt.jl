@@ -63,7 +63,6 @@ end
     @testset "transformation_variable" begin
         # test normal usage
         @test transformation_variable(x, label = All) == IOTO.transcription_variable(x, label = All)
-        @test transformation_variable(x, label = All, ndarray = true) == IOTO.transcription_variable(x, label = All, ndarray = true)
         @test transformation_variable(x0) == IOTO.transcription_variable(x0)
         @test transformation_variable(z) == IOTO.transcription_variable(z)
         @test transformation_variable(d1, label = InternalLabel) == IOTO.transcription_variable(d1, label = InternalLabel)
@@ -85,7 +84,6 @@ end
     @testset "supports (Variables)" begin
         # test normal usage
         @test supports(x) == [(0.,), (1.,)]
-        @test supports(x, ndarray = true) == [(0.,), (1.,)]
         @test supports(x, label = All) == [(0.,), (0.5,), (1.,)]
         @test supports(meas1) == () 
         @test supports(d1, label = InternalLabel) == [(0.5,)]
@@ -97,7 +95,6 @@ end
         @test transformation_expression(x, label = All) == IOTO.transcription_variable(x, label = All)
         @test transformation_expression(z) == IOTO.transcription_variable(z)
         @test transformation_expression(x0) == IOTO.transcription_variable(x0)
-        @test transformation_expression(x0, ndarray = true) == IOTO.transcription_variable(x0)
         # test expression without variables 
         expr = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}) + 42
         @test transformation_expression(expr) == zero(AffExpr) + 42
@@ -105,7 +102,6 @@ end
         xt = IOTO.transcription_variable(x, label = All)
         zt = IOTO.transcription_variable(z)
         @test transformation_expression(x^2 + z) == [xt[1]^2 + zt, xt[3]^2 + zt]
-        @test transformation_expression(x^2 + z, ndarray = true) == [xt[1]^2 + zt, xt[3]^2 + zt]
         @test transformation_expression(x^2 + z, label = All) == [xt[1]^2 + zt, xt[2]^2 + zt, xt[3]^2 + zt]
         @test transformation_expression(2z - 3) == 2zt - 3
         @test transformation_expression(2 * f) == [zero(AffExpr), zero(AffExpr) + sin(1) * 2]
@@ -128,7 +124,6 @@ end
         # test normal usage
         @test supports(x) == [(0.,), (1.,)]
         @test supports(2x - z + x0 + 43) == [(0.,), (1.,)]
-        @test supports(2x - z + x0 + 43, ndarray = true) == [(0.,), (1.,)]
         expr = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}) + 42
         @test supports(expr, label = All) == ()
     end
@@ -137,7 +132,6 @@ end
         # test normal usage
         @test transformation_constraint(c1) == IOTO.transcription_constraint(c1)
         @test transformation_constraint(c2, label = All) == IOTO.transcription_constraint(c2, label = All)
-        @test transformation_constraint(c2, label = All, ndarray = true) == IOTO.transcription_constraint(c2, label = All, ndarray = true)
         @test transformation_constraint(c3) == IOTO.transcription_constraint(c3)
         # test deprecation 
         @test (@test_deprecated optimizer_model_constraint(c1)) == transformation_constraint(c1)
@@ -149,7 +143,6 @@ end
         # test normal usage
         @test InfiniteOpt.constraint_supports(c1, tb) == [(0.,), (1.,)]
         @test InfiniteOpt.constraint_supports(c1, tb, label = All) == [(0.,), (0.5,), (1.,)]
-        @test InfiniteOpt.constraint_supports(c1, tb, label = All, ndarray = true) == [(0.,), (0.5,), (1.,)]
         # test fallback
         @test_throws ErrorException InfiniteOpt.constraint_supports(c1, TestBackend())
     end

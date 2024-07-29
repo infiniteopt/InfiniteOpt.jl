@@ -286,12 +286,11 @@ being used. The default backend `TranscriptionOpt` uses the keyword
 arguments:
 - `result::Int = 1`: indexes the solution result to be queried
 - `label::Type{<:AbstractSupportLabel} = PublicLabel`: the label of supports to be returned
-- `ndarray::Bool = false`: indicates whether the output should be formatted as an array
 By default only the values associated with public supports (i.e., `PublicLabel`s) 
-are returned, the full set can be accessed via `label = All`. Moreover, the values 
-of infinite variables are returned as a list. However, a n-dimensional array 
-can be obtained via `ndarray = true` which is handy when the variable has multiple 
-infinite parameter dependencies.
+are returned, the full set can be accessed via `label = All`. Where possible, all the 
+values are returned as an n-dimensional array 
+where each dimension is determined by the each independent group of
+infinite parameters they depend on.
 
 To provide context for the values, it may be helpful to also query the variable's 
 `parameter_refs` and `supports` which will have a one-to-one correspondence with 
@@ -327,12 +326,11 @@ being used. The default backend `TranscriptionOpt` uses the keyword
 arguments:
 - `result::Int = 1`: indexes the solution result to be queried
 - `label::Type{<:AbstractSupportLabel} = PublicLabel`: the label of supports to be returned
-- `ndarray::Bool = false`: indicates whether the output should be formatted as an array
 By default only the values associated with public supports (i.e., `PublicLabel`s) 
-are returned, the full set can be accessed via `label = All`. Moreover, the values 
-of infinite expressions are returned as a list. However, a n-dimensional array 
-can be obtained via `ndarray = true` which is handy when the expression has multiple 
-infinite parameter dependencies.
+are returned, the full set can be accessed via `label = All`. Where possible, all the
+values of infinite expressions are returned as an n-dimensional array 
+where each dimension is determined by the each independent group of
+infinite parameters they depend on.
 
 To provide context for the values, it may be helpful to also query the expression's 
 `parameter_refs` and `supports` which will have a one-to-one correspondence with 
@@ -391,12 +389,11 @@ being used. The default backend `TranscriptionOpt` uses the keyword
 arguments:
 - `result::Int = 1`: indexes the solution result to be queried
 - `label::Type{<:AbstractSupportLabel} = PublicLabel`: the label of supports to be returned
-- `ndarray::Bool = false`: indicates whether the output should be formatted as an array
 By default only the values associated with public supports (i.e., `PublicLabel`s) 
-are returned, the full set can be accessed via `label = All`. Moreover, the values 
-of infinite constraints are returned as a list. However, a n-dimensional array 
-can be obtained via `ndarray = true` which is handy when the constraint has multiple 
-infinite parameter dependencies.
+are returned, the full set can be accessed via `label = All`. Where possible, all the
+values of infinite constraints are returned as an n-dimensional array 
+where each dimension is determined by the each independent group of
+infinite parameters they depend on.
 
 To provide context for the values, it may be helpful to also query the constraint's 
 `parameter_refs` and `supports` which will have a one-to-one correspondence with 
@@ -481,12 +478,11 @@ for (Ref, func, mapper) in (
         being used. The default backend `TranscriptionOpt` uses the keyword 
         arguments:
         - `label::Type{<:AbstractSupportLabel} = PublicLabel`: the label of supports to be returned
-        - `ndarray::Bool = false`: indicates whether the output should be formatted as an array
         By default only the values associated with public supports (i.e., `PublicLabel`s) 
-        are returned, the full set can be accessed via `label = All`. Moreover, the values 
-        of infinite variables/constraints are returned as a list. However, a n-dimensional array 
-        can be obtained via `ndarray = true` which is handy when the constraint has multiple 
-        infinite parameter dependencies.
+        are returned, the full set can be accessed via `label = All`. Where possible, all the
+        values of infinite objects are returned as an n-dimensional array 
+        where each dimension is determined by the each independent group of
+        infinite parameters they depend on.
 
         To provide context for the values, it may be helpful to also query the
         `parameter_refs` and `supports` which will have a one-to-one correspondence with 
@@ -556,12 +552,11 @@ being used. The default backend `TranscriptionOpt` uses the keyword
 arguments:
 - `result::Int = 1`: indexes the solution result to be queried
 - `label::Type{<:AbstractSupportLabel} = PublicLabel`: the label of supports to be returned
-- `ndarray::Bool = false`: indicates whether the output should be formatted as an array
 By default only the values associated with public supports (i.e., `PublicLabel`s) 
-are returned, the full set can be accessed via `label = All`. Moreover, the duals 
-of infinite constraints are returned as a list. However, a n-dimensional array 
-can be obtained via `ndarray = true` which is handy when the constraint has multiple 
-infinite parameter dependencies.
+are returned, the full set can be accessed via `label = All`. Where possible, all the
+duals of infinite cosntraints are returned as an n-dimensional array 
+where each dimension is determined by the each independent group of
+infinite parameters they depend on.
 
 To provide context for the duals, it may be helpful to also query the constraint's 
 `parameter_refs` and `supports` which will have a one-to-one correspondence with 
@@ -608,7 +603,7 @@ constraints. The indexing syntax for these is:
 ```julia
 report[ref::[GeneralVariableRef/InfOptConstraintRef]; 
        [label::Type{<:AbstractSupportLabel} = PublicLabel,
-       ndarray::Bool = false, kwargs...]]
+       kwargs...]]
 ```
 
 This is enabled for new transformation backends by appropriately 

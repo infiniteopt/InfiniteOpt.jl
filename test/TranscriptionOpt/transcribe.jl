@@ -58,19 +58,24 @@
         @test isnan(IOTO._format_infinite_info(var, [0.]).start)
         @test IOTO._format_infinite_info(var, [0.]).integer
     end
+    # test name formatting
+    @testset "_make_var_name" begin
+        @test IOTO._make_var_name("x", [1, 2, 3], (0, [1, 1]), (1, 2)) == "x(0, [1, 1])"
+        @test IOTO._make_var_name("x", [1, 2, 3, 4, 5], (0, [0, 0, 0, 0]), (1, 2)) == "x[1, 2]"
+    end
     # test transcribe_infinite_variables!
     @testset "transcribe_infinite_variables!" begin
         @test isa(IOTO.transcribe_infinite_variables!(tb, m), Nothing)
         @test length(IOTO.transcription_data(tb).infvar_mappings) == 2
         @test IOTO.transcription_variable(x, tb) isa Vector{VariableRef}
-        @test IOTO.transcription_variable(y, tb) isa Vector{VariableRef}
-        @test name(IOTO.transcription_variable(x, tb)[1]) == "x(support: 1)"
-        @test name(IOTO.transcription_variable(y, tb)[3]) == "y(support: 3)"
+        @test IOTO.transcription_variable(y, tb) isa Matrix{VariableRef}
+        @test name(IOTO.transcription_variable(x, tb)[1]) == "x(0.0)"
+        @test name(IOTO.transcription_variable(y, tb)[2, 1]) in ["y(1.0, [0.0, 0.0])", "y(1.0, [1.0, 1.0])"]
         @test has_lower_bound(IOTO.transcription_variable(x)[1])
         @test is_binary(IOTO.transcription_variable(y, tb)[2])
         @test is_fixed(IOTO.transcription_variable(y, tb)[4])
         @test is_integer(IOTO.transcription_variable(x, tb)[2])
-        @test sort!(start_value.(IOTO.transcription_variable(y, tb))) == [0., 1, 2, 3]
+        @test sort!(vec(start_value.(IOTO.transcription_variable(y, tb)))) == [0., 1, 2, 3]
         @test supports(x) == [(0,), (1,)]
         @test length(supports(y)) == 4
     end
@@ -99,14 +104,15 @@
         @test length(IOTO.transcription_data(tb).infvar_mappings) == 6
         @test num_derivatives(m) == 4
         @test IOTO.transcription_variable(dx, tb) isa Vector{VariableRef}
-        @test IOTO.transcription_variable(dy, tb) isa Vector{VariableRef}
+        @test IOTO.transcription_variable(dy, tb) isa Matrix{VariableRef}
         @test IOTO.transcription_variable(dx3, tb) isa Vector{VariableRef}
-        @test name(IOTO.transcription_variable(dx, tb)[1]) == "d/dpar[x(par)](support: 1)"
-        @test name(IOTO.transcription_variable(dx3, tb)[1]) == "d^3/dpar^3[x(par)](support: 1)"
-        @test name(IOTO.transcription_variable(deriv(dx, par), tb)[1]) == "d²/dpar²[x(par)](support: 1)"
-        @test name(IOTO.transcription_variable(dy, tb)[3]) == (Sys.iswindows() ? "d/dpar[y(par, pars)](support: 3)" : "∂/∂par[y(par, pars)](support: 3)")
+        @test name(IOTO.transcription_variable(dx, tb)[1]) == "d/dpar[x(par)](0.0)"
+        @test name(IOTO.transcription_variable(dx3, tb)[1]) == "d^3/dpar^3[x(par)](0.0)"
+        @test name(IOTO.transcription_variable(deriv(dx, par), tb)[1]) == "d²/dpar²[x(par)](0.0)"
+        possible = [Sys.iswindows() ? "d/dpar[y(par, pars)](1.0, [$i, $i])" : "∂/∂par[y(par, pars)](1.0, [$i, $i])" for i in [0.0, 1.0]]
+        @test name(IOTO.transcription_variable(dy, tb)[2, 1]) in possible
         @test has_lower_bound(IOTO.transcription_variable(dx, tb)[1])
-        @test sort!(start_value.(IOTO.transcription_variable(dy, tb))) == [0., 1, 2, 3]
+        @test sort!(vec(start_value.(IOTO.transcription_variable(dy, tb)))) == [0., 1, 2, 3]
         @test supports(dx) == [(0,), (1,)]
         @test length(supports(dy)) == 4
     end
@@ -170,8 +176,8 @@
         @test length(IOTO.transcription_data(tb).finvar_mappings) == 4
         @test IOTO.transcription_variable(x0, tb) == IOTO.lookup_by_support(x, tb, [0.])
         @test IOTO.transcription_variable(y0, tb) == IOTO.lookup_by_support(y, tb, [0., 0., 0.])
-        @test name(IOTO.transcription_variable(x0, tb)) == "x(support: 1)"
-        @test name(IOTO.transcription_variable(y0, tb))[1:end-2] == "y(support: "
+        @test name(IOTO.transcription_variable(x0, tb)) == "x(0.0)"
+        @test name(IOTO.transcription_variable(y0, tb))[1:8] == "y(0.0, ["
         @test lower_bound(IOTO.transcription_variable(x0, tb)) == 0
         @test is_integer(IOTO.transcription_variable(x0, tb))
         @test lower_bound(IOTO.transcription_variable(y0, tb)) == 0
@@ -355,7 +361,7 @@ end
         @test IOTO.transcription_constraint(UpperBoundRef(yf)) == UpperBoundRef(yft)
         @test IOTO.transcription_constraint(BinaryRef(z)) == BinaryRef(zt)
         # test constraint transcriptions 
-        @test IOTO.transcription_constraint(c1) isa Vector{ConstraintRef}
+        @test IOTO.transcription_constraint(c1) isa Matrix{ConstraintRef}
         @test length(IOTO.transcription_constraint(c1)) == 6
         @test constraint_object(IOTO.transcription_constraint(c2)).func == yt[1] - zt^2
         xf = IOTO.lookup_by_support(x, tb, [1., 1., 1.])
@@ -378,13 +384,13 @@ end
         @test supports(BinaryRef(z)) == ()
         # test the constraint supports 
         expected = [([0., 0.], 0.), ([0., 0.], 0.5), ([0., 0.], 1.), ([1., 1.], 0.), ([1., 1.], 0.5), ([1., 1.], 1.)]
-        @test sort(supports(c1)) == expected
+        @test sort(vec(supports(c1))) == expected
         @test supports(c2) == (0.,)
         @test supports(c3) == ([1., 1.], 1.)
         @test supports(c4) == [(0.0,), (0.5,)]
         @test supports(c5) == ()
-        @test sort(supports(c6)) == expected
-        @test sort(supports(c7)) == expected
+        @test sort(vec(supports(c6))) == expected
+        @test sort(vec(supports(c7))) == expected
         @test supports(c8) == ()
     end
 end
@@ -429,7 +435,7 @@ end
     # main test 
     @test IOTO.transcribe_variable_collocation_restictions!(tb, m) isa Nothing
     @test num_constraints(tb.model, count_variable_in_set_constraints = false) == 3 * 3
-    yt = IOTO.transcription_variable(y, label = All, ndarray = true)
+    yt = IOTO.transcription_variable(y, label = All)
     cons = all_constraints(tb.model, include_variable_in_set_constraints = false)
     @test jump_function(constraint_object(first(cons))) == yt[7, 1] - yt[6, 1] 
     # test assertion error
@@ -498,9 +504,9 @@ end
     @test start_value(wt) == 1.
     # test infinite variables
     @test IOTO.transcription_variable(x) isa Vector{VariableRef}
-    @test IOTO.transcription_variable(y) isa Vector{VariableRef}
-    @test name(IOTO.transcription_variable(x)[1]) == "x(support: 1)"
-    @test name(IOTO.transcription_variable(y)[3]) == "y(support: 3)"
+    @test IOTO.transcription_variable(y) isa Matrix{VariableRef}
+    @test name(IOTO.transcription_variable(x)[1]) == "x(0.0)"
+    @test name(IOTO.transcription_variable(y)[3])[1:8] == "y(0.0, ["
     @test has_lower_bound(IOTO.transcription_variable(x)[1])
     @test is_binary(IOTO.transcription_variable(y)[2])
     @test is_fixed(IOTO.transcription_variable(y)[4])
@@ -511,8 +517,8 @@ end
     # test point variables
     @test IOTO.transcription_variable(x0) isa VariableRef
     @test IOTO.transcription_variable(y0) isa VariableRef
-    @test name(IOTO.transcription_variable(x0)) == "x(support: 1)"
-    @test name(IOTO.transcription_variable(y0))[1:end-2] == "y(support: "
+    @test name(IOTO.transcription_variable(x0)) == "x(0.0)"
+    @test name(IOTO.transcription_variable(y0))[1:8] == "y(0.0, ["
     @test has_lower_bound(IOTO.transcription_variable(x0))
     @test is_integer(IOTO.transcription_variable(x0))
     @test has_lower_bound(IOTO.transcription_variable(y0))
@@ -544,8 +550,8 @@ end
     @test constraint_object(IOTO.transcription_constraint(c3)).func == xt[1] - 2wt + xt[2] + zt - d2t[1] - d2t[2]
     @test constraint_object(IOTO.transcription_constraint(c6)).func == [zt, wt]
     @test IOTO.transcription_constraint(c5) isa Vector{ConstraintRef}
-    @test name(IOTO.transcription_constraint(c2)) == "c2(support: 1)"
-    @test name(IOTO.transcription_constraint(c1)) == "c1(support: 1)"
+    @test name(IOTO.transcription_constraint(c2)) == "c2"
+    @test name(IOTO.transcription_constraint(c1)) in ["c1[1, 1]", "c1[1, 2]"]
     @test supports(c1) == (0., [0., 0.])
     @test IOTO.transcription_constraint(c7) isa ConstraintRef
     @test isequal(constraint_object(IOTO.transcription_constraint(c7)).func, gr(zt) - 2.)
@@ -572,6 +578,7 @@ end
     m = InfiniteModel()
     @variable(m, y >= 0)
     @objective(m, Min, y)
+    @constraint(m, y^2 <= 42)
     tb = m.backend
     @test IOTO.build_transcription_backend!(tb, m) isa Nothing 
     @test IOTO.transcription_variable(y) isa VariableRef 

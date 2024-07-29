@@ -49,51 +49,41 @@ end
 
 # Test query helper functions 
 @testset "Query Formatters" begin 
-    # initialize models
-    m = InfiniteModel()
-    @infinite_parameter(m, par in [0, 1], supports = [0, 1])
-    @infinite_parameter(m, pars[1:2] in [0, 1])
-    @variable(m, x, Infinite(par, pars))
-    @variable(m, q, Infinite(pars, par))
-    @variable(m, w, Infinite(par))
-    @variable(m, x0, Point(x, 0, [0, 0]))
-    @variable(m, y)
-    add_supports(par, 0.5, label = InternalLabel)
-    @variable(m, xrv, SemiInfinite(x, par, [1, pars[2]]))
-    tb = m.backend
-    data = IOTO.transcription_data(tb)
-    data.has_internal_supports = true
-    data.supports = ([0., 0.5, 1., NaN], [[0., 0.], [1., 1.], [NaN, NaN]])
-    s1 = Set([UserDefined])
-    s2 = Set([InternalLabel])
-    sd = Set{DataType}()
-    data.support_labels = ([s1, s2, s1, sd], [s1, s1, sd])
-    # test _get_array_type
-    @testset "_get_array_type" begin 
-        @test IOTO._get_array_type(ones(Bool, 2)) == Bool
-    end
-    # test _getparameter_group_int_indices
-    @testset "_getparameter_group_int_indices" begin 
-        @test IOTO._getparameter_group_int_indices(x) == [1, 2]
-        @test IOTO._getparameter_group_int_indices(y) == []
-        @test IOTO._getparameter_group_int_indices(y + x) == [1, 2]
-    end
-    # test make_ndarray
-    @testset "make_ndarray" begin 
-        # test finite variable 
-        @test IOTO.make_ndarray(tb, y, [1], PublicLabel) == [1]
-        # test ordered infinite variable
-        @test IOTO.make_ndarray(tb, x, collect(1:6), All) == [1 4; 2 5; 3 6]
-        @test IOTO.make_ndarray(tb, x, collect(1:6), PublicLabel) == [1 4; 3 6]
-        # test unordered infinite variable 
-        @test IOTO.make_ndarray(tb, q, collect(1:6), All) == [1 2 3; 4 5 6]
-        @test IOTO.make_ndarray(tb, q, collect(1:6), PublicLabel) == [1 3; 4 6]
-        # test infinite variable with single parameter 
-        @test IOTO.make_ndarray(tb, w, collect(1:3), All) == [1, 2, 3]
-        # test expression 
-        @test IOTO.make_ndarray(tb, w + x, collect(1:6), All) == [1 4; 2 5; 3 6]
-        # test error 
-        @test_throws ErrorException IOTO.make_ndarray(tb, q, collect(1:3), All)
+    # test _truncate_by_label
+    @testset "_truncate_by_label" begin
+        # 0-dimensional array
+        a0 = Array{Int, 0}(undef)
+        a0[] = 1
+        l0 = ()
+        @test IOTO._truncate_by_label(a0, l0, PublicLabel, nothing) == a0
+        @test IOTO._truncate_by_label(a0, l0, InternalLabel, nothing) == a0
+        # vector
+        a1 = [1, 2, 3]
+        l1 = ([Set([UserDefined]), Set([UserDefined]), Set([PublicLabel])], )
+        @test IOTO._truncate_by_label(a1, l1, PublicLabel, nothing) === a1
+        @test IOTO._truncate_by_label(a1, l1, UserDefined, nothing) == [1, 2]
+        # matrix
+        a2 = [1 2; 3 4]
+        l2 = ([Set([UserDefined]), Set([UserDefined])], 
+              [Set([UserDefined]), Set([PublicLabel])])
+        @test IOTO._truncate_by_label(a2, l2, PublicLabel, nothing) == a2
+        @test IOTO._truncate_by_label(a2, l2, UserDefined, nothing) == a2[:, [1]]
+        # vector w/ valid indices
+        a1 = [1, 3]
+        l1 = ([Set([UserDefined]), Set([UserDefined]), Set([PublicLabel]), Set{DataType}()], )
+        backend = TranscriptionBackend()
+        backend.data.valid_indices[42] = [true, false, true]
+        backend.data.support_labels = l1
+        @test IOTO._truncate_by_label(a1, 42, PublicLabel, [1], backend) == a1
+        @test IOTO._truncate_by_label(a1, 42, UserDefined, [1], backend) == [1]
+        # vector w/ array valid indices
+        a2 = [1, 2, 4]
+        l2 = ([Set([UserDefined]), Set([UserDefined]), Set{DataType}()], 
+              [Set([UserDefined]), Set([PublicLabel]), Set{DataType}()])
+        backend.data.valid_indices[10] = [true true; false true]
+        backend.data.support_labels = l2
+        @test IOTO._truncate_by_label(a2, 10, PublicLabel, [1, 2], backend) == a2
+        @test IOTO._truncate_by_label(a2, 10, UserDefined, [1, 2], backend) == [1]
     end
 end
 
@@ -117,7 +107,6 @@ end
     data.supports = ([0., 0.5, 1., NaN], [[0., 0.], [1., 1.], [NaN, NaN]])
     s1 = Set([UserDefined])
     s2 = Set([InternalLabel])
-    s3 = union(s1, s2)
     sd = Set{DataType}()
     data.support_labels = ([s1, s2, s1, sd], [s1, s1, sd])
     @variable(tb.model, a)
@@ -140,8 +129,8 @@ end
         # test normal
         data.finvar_mappings[y] = a
         @test IOTO.transcription_variable(y, tb) == a
-        data.finvar_mappings[x0] = b
-        @test IOTO.transcription_variable(x0, tb, ndarray = true, label = All) == b
+        data.finvar_mappings[x0] = a
+        @test IOTO.transcription_variable(x0, tb, label = All) == a
     end
     # test IOTO.transcription_variable (Infinite, semi-infinite, and derivative)
     @testset "IOTO.transcription_variable (Infinite)" begin
@@ -149,29 +138,22 @@ end
         @test_throws ErrorException IOTO.transcription_variable(x, tb)
         @test_throws ErrorException IOTO.transcription_variable(xrv, tb)
         # test normal
-        data.infvar_mappings[x] = [a, b, c, d, e, f]
-        data.infvar_support_labels[x] = [s1, s3, s1, s1, s3, s1]
-        @test IOTO.transcription_variable(x, tb) == [a, b, c, d, e, f]
-        @test IOTO.transcription_variable(x, tb, label = All) == [a, b, c, d, e, f]
-        @test IOTO.transcription_variable(x, tb, label = InternalLabel) == [b, e]
-        data.infvar_mappings[xrv] = [d, e, f]
-        data.infvar_support_labels[xrv] = [s1, s3, s1]
-        @test IOTO.transcription_variable(xrv, tb) == [d, e, f]
-        @test IOTO.transcription_variable(xrv, tb, label = All) == [d, e, f]
-        @test IOTO.transcription_variable(xrv, tb, label = InternalLabel) == [e]
-        # test ndarray 
-        @test IOTO.transcription_variable(x, tb, label = All, ndarray = true) == [a d; b e; c f]
-        @test IOTO.transcription_variable(x, tb, ndarray = true) == [a d; c f]
-        @test_throws ErrorException IOTO.transcription_variable(xrv, tb, ndarray = true)
+        data.infvar_mappings[x] = [a b; c d; e f]
+        @test IOTO.transcription_variable(x, tb) == [a b; e f]
+        @test IOTO.transcription_variable(x, tb, label = All) == [a b; c d; e f]
+        @test isempty(IOTO.transcription_variable(x, tb, label = InternalLabel))
+        data.infvar_mappings[xrv] = [b, d, f]
+        data.valid_indices[xrv] = [false true; false true; false true]
+        @test IOTO.transcription_variable(xrv, tb) == [b, f]
+        @test IOTO.transcription_variable(xrv, tb, label = All) == [b, d, f]
+        @test IOTO.transcription_variable(xrv, tb, label = InternalLabel) == []
     end
     # test IOTO.transcription_variable (Parameter Function)
     @testset "IOTO.transcription_variable (Parameter Function)" begin
         # test normal
         @test IOTO.transcription_variable(f1, tb) == [sin(0), sin(1)]
         @test IOTO.transcription_variable(f1, tb, label = All) == sin.([0, 0.5, 1])
-        # test ndarray 
-        @test IOTO.transcription_variable(f1, tb, label = All, ndarray = true) == sin.([0, 0.5, 1])
-        @test IOTO.transcription_variable(f2, tb, ndarray = true) == ones(2, 2)
+        @test IOTO.transcription_variable(f2, tb) == ones(2, 2)
     end
     # test IOTO.transcription_variable (Fallback)
     @testset "IOTO.transcription_variable (Fallback)" begin
@@ -180,16 +162,16 @@ end
     # test IOTO.transcription_variable (Single argument)
     @testset "IOTO.transcription_variable (Single)" begin
         @test IOTO.transcription_variable(y) == a
-        @test IOTO.transcription_variable(x, label = All) == [a, b, c, d, e, f]
-        @test IOTO.transcription_variable(x0) == b
-        @test IOTO.transcription_variable(f2, ndarray = true) == ones(2, 2)
+        @test IOTO.transcription_variable(x, label = All) == [a b; c d; e f]
+        @test IOTO.transcription_variable(x0) == a
+        @test IOTO.transcription_variable(f2) == ones(2, 2)
     end
     # test transformation_variable extension
     @testset "transformation_variable" begin
         @test transformation_variable(y, tb, label = All) == a
-        @test transformation_variable(x, tb, label = All) == [a, b, c, d, e, f]
-        @test transformation_variable(x, tb) == [a, b, c, d, e, f]
-        @test transformation_variable(x0, tb) == b
+        @test transformation_variable(x, tb, label = All) == [a b; c d; e f]
+        @test transformation_variable(x, tb) == [a b; e f]
+        @test transformation_variable(x0, tb) == a
     end
     # test variable_supports for infinite variable with 2 inputs
     @testset "variable_supports (Backend, Infinite)" begin
@@ -197,49 +179,54 @@ end
         dvref = dispatch_variable_ref(x)
         delete!(data.infvar_mappings, x)
         @test_throws ErrorException InfiniteOpt.variable_supports(dvref, tb)
-        data.infvar_mappings[x] = [a, b, c, d, e, f]
-        # test supports are empty
-        lookups = Dict{Vector{Float64}, Int}([0, 0, 0] => 1, [0.5, 0, 0] => 2, [1, 0, 0] => 3,
-                                             [0, 1, 1] => 4, [0.5, 1, 1] => 5, [1, 1, 1] => 6)
-        data.infvar_lookup[x] = lookups
-        expected = [(0., [0., 0.]), (0.5, [0., 0.]), (1., [0., 0.]), 
-                    (0., [1., 1.]), (0.5, [1., 1.]), (1., [1., 1.])]
-        @test InfiniteOpt.variable_supports(dvref, tb) == expected
+        data.infvar_mappings[x] = [a b; c d; e f]
+        x_supps = [(0.0, [0.0, 0.0]) (0.0, [1., 1.]);
+                 (0.5, [0.0, 0.0]) (0.5, [1., 1.]);
+                 (1.0, [0.0, 0.0]) (1.0, [1., 1.])]
+        data.infvar_supports[x] = x_supps
         # test normal
-        @test InfiniteOpt.variable_supports(dvref, tb, label = All) == expected
-        @test InfiniteOpt.variable_supports(dvref, tb, label = InternalLabel) == expected[[2, 5]]
-        # test ndarray 
-        expected = permutedims([(0., [0., 0.]) (0.5, [0., 0.]) (1., [0., 0.]); 
-                                (0., [1., 1.]) (0.5, [1., 1.]) (1., [1., 1.])], (2, 1))
-        @test InfiniteOpt.variable_supports(dvref, tb, ndarray = true) == expected[[1, 3], :]
-        @test InfiniteOpt.variable_supports(dvref, tb, ndarray = true, label = All) == expected
+        @test InfiniteOpt.variable_supports(dvref, tb) == x_supps[[1, 3], :]
+        @test InfiniteOpt.variable_supports(dvref, tb, label = All) == x_supps
+        @test isempty(InfiniteOpt.variable_supports(dvref, tb, label = InternalLabel))
         # test with semi-infinite variable
-        lookups = Dict{Vector{Float64}, Int}([0, 1] => 1, [0.5, 1] => 2, [1, 1] => 3)
-        data.infvar_lookup[xrv] = lookups
+        data.infvar_supports[xrv] = [(0., 1.), (0.5, 1.), (1., 1.)]
         dvref = dispatch_variable_ref(xrv)
-        expected = [(0., 1.), (0.5, 1.), (1., 1.)]
-        @test InfiniteOpt.variable_supports(dvref, tb) == expected
-        @test InfiniteOpt.variable_supports(dvref, tb, label = InternalLabel) == [expected[2]]
+        @test InfiniteOpt.variable_supports(dvref, tb) == data.infvar_supports[xrv][[1, 3]]
+        @test InfiniteOpt.variable_supports(dvref, tb, label = All) == data.infvar_supports[xrv]
     end
     # test variable_supports for infinite parameter functions with 2 inputs
     @testset "variable_supports (Backend, Parameter Function)" begin
-        # test normal
         df1 = dispatch_variable_ref(f1)
         @test InfiniteOpt.variable_supports(df1, tb) == [(0.,), (1.,)]
         @test InfiniteOpt.variable_supports(df1, tb, label = All) == [(0.,), (0.5,), (1.,)]
-        # test ndarray 
         df2 = dispatch_variable_ref(f2)
-        @test InfiniteOpt.variable_supports(df1, tb, label = All, ndarray = true) == [(0.,), (0.5,), (1.,)]
-        @test InfiniteOpt.variable_supports(df2, tb, ndarray = true) isa Array
+        @test InfiniteOpt.variable_supports(df2, tb) == data.infvar_supports[x][[1, 3], :]
+        @test InfiniteOpt.variable_supports(df2, tb, label = All) == data.infvar_supports[x]
     end
     # test supports for infinite variable
     @testset "supports (Infinite)" begin
-        @test supports(x, label = InternalLabel) == [(0.5, [0., 0.]), (0.5, [1., 1.])]
-        @test supports(xrv) == [(0., 1.), (0.5, 1.), (1., 1.)]
+        @test supports(x) == data.infvar_supports[x][[1, 3], :]
+        @test supports(xrv) == [(0., 1.), (1., 1.)]
         @test supports(f1, label = All) == [(0.,), (0.5,), (1.,)]
     end
     # test lookup_by_support (infinite vars)
     @testset "lookup_by_support (Infinite)" begin
+        # setup
+        lookups = Dict{Vector{Float64}, VariableRef}(
+            [0, 0, 0] => a,
+            [0.5, 0, 0] => c,
+            [1, 0, 0] => e,
+            [0, 1, 1] => b,
+            [0.5, 1, 1] => d,
+            [1, 1, 1] => f
+            )
+        data.infvar_lookup[x] = lookups
+        lookups = Dict{Vector{Float64}, VariableRef}(
+            [0, 1] => b,
+            [0.5, 1] => d,
+            [1, 1] => f
+            )
+        data.infvar_lookup[xrv] = lookups
         # test errors
         @variable(m, x2, Infinite(par))
         @test_throws ErrorException IOTO.lookup_by_support(x2, tb, [0.])
@@ -247,9 +234,9 @@ end
         @test_throws ErrorException IOTO.lookup_by_support(xrv, tb, [0., 0., 0.])
         # test normal
         @test IOTO.lookup_by_support(x, tb, [0., 0., 0.]) == a
-        @test IOTO.lookup_by_support(x, tb, [0., 1., 1.]) == d
+        @test IOTO.lookup_by_support(x, tb, [0., 1., 1.]) == b
         @test IOTO.lookup_by_support(x, tb, [1., 1., 1.]) == f
-        @test IOTO.lookup_by_support(xrv, tb, [0., 1.]) == d
+        @test IOTO.lookup_by_support(xrv, tb, [0., 1.]) == b
         @test IOTO.lookup_by_support(xrv, tb, [1., 1.]) == f
     end
     # test lookup_by_support (infinite parameter functions)
@@ -263,7 +250,7 @@ end
         @variable(m, z2)
         @test_throws ErrorException IOTO.lookup_by_support(z2, tb, [0.])
         # test normal
-        @test IOTO.lookup_by_support(x0, tb, [0., 0., 0.]) == b
+        @test IOTO.lookup_by_support(x0, tb, [0., 0., 0.]) == a
         @test IOTO.lookup_by_support(y, tb, [0., 0., 1.]) == a
     end
     # test internal_semi_infinite_variable
@@ -308,17 +295,13 @@ end
         @test_throws ErrorException IOTO.transcription_variable(meas1, tb)
         @test_throws ErrorException IOTO.transcription_variable(meas2, tb)
         # test normal
-        data.measure_mappings[meas1] = [-2 * zero(AffExpr)]
-        data.measure_support_labels[meas1] = [s1]
+        
+        data.measure_mappings[meas1] = fill(-2 * zero(AffExpr))
         data.measure_mappings[meas2] = [a^2 + c^2 - 2a, b^2 + d^2 - 2a]
-        data.measure_support_labels[meas2] = [s1, s2]
         @test IOTO.transcription_variable(meas1, tb) == -2 * zero(AffExpr)
         expected = [a^2 + c^2 - 2a, b^2 + d^2 - 2a]
         @test IOTO.transcription_variable(meas2, tb) == [expected[1]]
         @test IOTO.transcription_variable(meas2, tb, label = All) == expected
-        # test ndarray 
-        @test IOTO.transcription_variable(meas2, tb, ndarray = true) == [expected[1]]
-        @test IOTO.transcription_variable(meas2, tb, label = All, ndarray = true) == expected
     end
     # test lookup_by_support
     @testset "lookup_by_support" begin
@@ -326,8 +309,9 @@ end
         @test_throws ErrorException IOTO.lookup_by_support(meas1, tb, Float64[])
         @test_throws ErrorException IOTO.lookup_by_support(meas2, tb, [0.])
         # test normal
+        expected = [a^2 + c^2 - 2a, b^2 + d^2 - 2a]
         data.measure_lookup[meas1] = Dict(Float64[] => 1)
-        data.measure_lookup[meas2] = Dict{Vector{Float64}, Int}([0] => 1, [1] => 2)
+        data.measure_lookup[meas2] = Dict([0.] => 1, [1.] => 2)
         @test IOTO.lookup_by_support(meas1, tb, Float64[]) == -2 * zero(AffExpr)
         @test IOTO.lookup_by_support(meas2, tb, [1.]) == b^2 + d^2 - 2a
     end
@@ -337,18 +321,15 @@ end
         dvref = dispatch_variable_ref(meas1)
         delete!(data.measure_mappings, meas1)
         @test_throws ErrorException InfiniteOpt.variable_supports(dvref, tb)
-        data.measure_mappings[meas1] = [-2 * zero(AffExpr)]
-        # test supports are empty
+        data.measure_mappings[meas1] = fill(-2 * zero(AffExpr))
+        data.measure_supports[meas1] = fill(())
+        data.measure_supports[meas2] = [(0.,), (1.,)]
+        # test normal
         @test InfiniteOpt.variable_supports(dvref, tb) == ()
         dvref2 = dispatch_variable_ref(meas2)
         @test InfiniteOpt.variable_supports(dvref2, tb, label = All) == [(0.,), (1.,)]
-        # test normal
         @test InfiniteOpt.variable_supports(dvref, tb) == ()
         @test InfiniteOpt.variable_supports(dvref2, tb) == [(0.,)]
-        # test ndarray 
-        @test InfiniteOpt.variable_supports(dvref, tb, ndarray = true) == [()]
-        @test InfiniteOpt.variable_supports(dvref2, tb, ndarray = true) == [(0.,)]
-        @test InfiniteOpt.variable_supports(dvref2, tb, label = All, ndarray = true) == [(0.,), (1.,)]
     end
 end
 
@@ -360,33 +341,8 @@ end
     @infinite_parameter(m, par in [0, 1], supports = [0, 1], 
                         derivative_method = OrthogonalCollocation(3))
     @variable(m, y, Infinite(par))
-    d1 = @deriv(y, par)
+    d1 = deriv(y, par)
     tb = m.backend
-    # test _temp_parameter_ref
-    @testset "_temp_parameter_ref" begin 
-        @test IOTO._temp_parameter_ref(m, index(par)) == dispatch_variable_ref(par)
-        @test IOTO._temp_parameter_ref(m, index(pars[1]).object_index) == dispatch_variable_ref(pars[1])
-    end
-    # test _collected_supports
-    @testset "_collected_supports" begin 
-        # independent parameters
-        expected = Float64[0., 1., NaN]
-        @test isequal(IOTO._collected_supports(dispatch_variable_ref(par)), expected)
-        # dependent parameters
-        expected = sort!([Float64[0., 0.], Float64[1., 1.], Float64[NaN, NaN]])
-        @test isequal(sort!(IOTO._collected_supports(dispatch_variable_ref(pars[1]))), expected)
-    end
-    # test _collected_support_labels
-    @testset "_collected_support_labels" begin 
-        # independent parameters
-        supps = Float64[0., 1., NaN]
-        expected = [Set([UserDefined]), Set([UserDefined]), Set{DataType}()]
-        @test isequal(IOTO._collected_support_labels(dispatch_variable_ref(par), supps), expected)
-        # dependent parameters
-        supps = [Float64[0., 0.], Float64[1., 1.], Float64[NaN, NaN]]
-        expected = [Set([UniformGrid]), Set([UniformGrid]), Set{DataType}()]
-        @test isequal(IOTO._collected_support_labels(dispatch_variable_ref(pars[1]), supps), expected)
-    end
     # test set_parameter_supports
     @testset "set_parameter_supports" begin 
         add_supports(par, 0.6, label = InternalLabel)
@@ -421,20 +377,13 @@ end
         @test IOTO.index_to_support(tb, first(CartesianIndices((1:2, 1:5)))) isa Vector
         @test isnan(IOTO.index_to_support(tb, last(IOTO.support_index_iterator(tb, [1])))[3])
     end
-    # test index_to_labels
-    @testset "index_to_labels" begin 
-        idxs = CartesianIndices((1:2, 1:5))
-        @test IOTO.index_to_labels(tb, first(idxs)) == Set([UserDefined, UniformGrid])
-        @test IOTO.index_to_labels(tb, idxs[3]) == Set([UniformGrid, InternalGaussLobatto])
-        @test IOTO.index_to_labels(tb, last(IOTO.support_index_iterator(tb, Int[]))) == Set{DataType}()
-    end
 end
 
 # Test the expression mappings
 @testset "Expression Queries" begin
     # initialize tbe needed info
     m = InfiniteModel()
-    @infinite_parameter(m, pars[1:2] in [0, 1])
+    @infinite_parameter(m, pars[1:2] in [0, 1], supports = [0])
     @infinite_parameter(m, par in [0, 1], supports = [0])
     @variable(m, x, Infinite(par, pars))
     @finite_parameter(m, finpar == 42)
@@ -451,21 +400,14 @@ end
     @variable(tb.model, d)
     # transcribe the variables and measures
     data = IOTO.transcription_data(tb)
-    data.has_internal_supports = true
-    s1 = Set([UserDefined])
-    s2 = Set([InternalLabel])
     data.finvar_mappings[y] = a
-    data.finvar_mappings[x0] = b
-    data.infvar_mappings[x] = [b, c, d]
-    data.infvar_support_labels[x] = [s1, s2, s1]
-    data.measure_mappings[meas1] = [-2 * zero(AffExpr)]
-    data.measure_support_labels[meas1] = [s1]
+    data.finvar_mappings[x0] = a
+    data.infvar_mappings[x] = reshape([a, b], :, 1)
+    data.measure_mappings[meas1] = fill(-2 * zero(AffExpr))
     data.measure_mappings[meas2] = [a^2 + c^2 - 2a, b^2 + d^2 - 2a]
-    data.measure_support_labels[meas2] = [s1, s2]
-    lookups = Dict{Vector{Float64}, Int}([0, 0, 0] => 1, [0, 0, 1] => 2, [1, 1, 1] => 3)
-    data.infvar_lookup[x] = lookups
+    data.infvar_lookup[x] = Dict([0, 0, 0] => a, [1, 0, 0] => b)
     data.measure_lookup[meas1] = Dict(Float64[] => 1)
-    data.measure_lookup[meas2] = Dict{Vector{Float64}, Int}([0] => 1, [1] => 2)
+    data.measure_lookup[meas2] = Dict([0] => 1, [1] => 2)
     @test IOTO.set_parameter_supports(tb, m) isa Nothing
     # test IOTO.transcription_expression in accordance with the methods defined in transcribe.jl
     @testset "IOTO.transcription_expression (Fallback)" begin
@@ -473,28 +415,27 @@ end
     end
     # test transcription expression for infinite variables with 3 args
     @testset "IOTO.transcription_expression (Infinite Variable)" begin
-        @test IOTO.transcription_expression(x, tb, [0., 1., 0.]) == c
+        @test IOTO.transcription_expression(x, tb, [0., 0., 0.]) == a
         @test IOTO.transcription_expression(meas1, tb, [0., 0., 1.]) == -2 * zero(AffExpr)
-        @test IOTO.transcription_expression(f, tb, [0., 1., 0.]) == 1
+        @test IOTO.transcription_expression(f, tb, [0., 0., 1.]) == 1
     end
     # test transcription expression for semi_infinite variables with 3 args
     @testset "IOTO.transcription_expression (Semi-Infinite Variable)" begin
         # semi_infinite of parameter function 
         rv = add_variable(m, build_variable(error, f, Dict(1=>1.)), 
                           add_support = false)
-        @test IOTO.transcription_expression(rv, tb, [0., 1., 0.]) == 1
+        @test IOTO.transcription_expression(rv, tb, [0., 0., 1.]) == 1
         # semi_infinite of infinite variable
         rv = add_variable(m, build_variable(error, x, Dict(1=>1.)), 
                           add_support = false)
-        data.infvar_mappings[rv] = [b, c]
-        lookups = Dict{Vector{Float64}, Int}([0, 0] => 1, [1, 0] => 2)
-        data.infvar_lookup[rv] = lookups
-        @test IOTO.transcription_expression(rv, tb, [1., 0., 0.]) == c
+        data.infvar_mappings[rv] = [b]
+        data.infvar_lookup[rv] = Dict([0, 0] => b)
+        @test IOTO.transcription_expression(rv, tb, [0., 0., 1.]) == b
     end
     # test transcription expression for finite variables with 3 args
     @testset "IOTO.transcription_expression (Finite Variable)" begin
-        @test IOTO.transcription_expression(x0, tb, [0., 1., 0.]) == b
-        @test IOTO.transcription_expression(y, tb, [0., 0., 1.]) == a
+        @test IOTO.transcription_expression(x0, tb, [0., 0., 1.]) == a
+        @test IOTO.transcription_expression(y, tb, [0., 0., 0.]) == a
     end
     # test transcription expression for infinite parameters with 3 args
     @testset "IOTO.transcription_expression (Infinite Parameter)" begin
@@ -507,73 +448,66 @@ end
     end
     # test transcription expression for AffExprs with 3 args
     @testset "IOTO.transcription_expression (AffExpr)" begin
-        @test IOTO.transcription_expression(x0 - y + 2x - 2.3, tb, [1., 1., 1.]) == b - a + 2d - 2.3
+        @test IOTO.transcription_expression(x0 - 2y + 2x - 2.3, tb, [0., 0., 1.]) == -a + 2b - 2.3
     end
     # test transcription expression for QuadExprs with 3 args
     @testset "IOTO.transcription_expression (QuadExpr)" begin
         # test normal
         expr = meas2 - 3y^2 - x0 - 2.3
-        expected = b^2 + d^2 - 2a - 3a^2 - b - 2.3
-        @test IOTO.transcription_expression(expr, tb, [1., 1., 1.]) == expected
+        expected = b^2 + d^2 - 2a - 3a^2 - a - 2.3
+        @test IOTO.transcription_expression(expr, tb, [0., 0., 1.]) == expected
         # test becomes a nonlinear expression
         expr = meas2 * x0
-        expected = +((-2.0 * a + b * b + d * d) * b, 0.0)
-        @test isequal(IOTO.transcription_expression(expr, tb, [1., 1., 1.]), expected)
+        expected = +((-2.0 * a + b * b + d * d) * a, 0.0)
+        @test isequal(IOTO.transcription_expression(expr, tb, [0., 0., 1.]), expected)
     end
-    # test transcription expression for NonlinearExprs with 3 args
-    @testset "IOTO.transcription_expression (NonlinearExpr)" begin
-        @test isequal(IOTO.transcription_expression(sin(y), tb, [1., 1., 1.]), sin(a))
+    # test transcription expression for GenericNonlinearExprs with 3 args
+    @testset "IOTO.transcription_expression (GenericNonlinearExpr)" begin
+        @test isequal(IOTO.transcription_expression(sin(y), tb, [0., 0., 1.]), sin(a))
     end
     # test transcription expression for numbers with 3 args
     @testset "IOTO.transcription_expression (Real)" begin
         expected = zero(AffExpr) + 42
-        @test IOTO.transcription_expression(42, tb, [1., 1., 1.]) == expected
+        @test IOTO.transcription_expression(42, tb, [0., 0., 1.]) == expected
     end
     # test transcription expression for Exprs with 2 args
     @testset "IOTO.transcription_expression (Expr 2 Args)" begin
         # test infinite expr
         expr = meas2 - 3y^2 - x0 - 2.3
-        expected = [-2a^2 + c^2 - 2a - b - 2.3, -3a^2 + b^2 + d^2 - 2a - b - 2.3]
+        expected = [-2a^2 + c^2 - 2a - a - 2.3, -3a^2 + b^2 + d^2 - 2a - a - 2.3]
         @test IOTO.transcription_expression(expr, tb, label = All) == expected
-        @test IOTO.transcription_expression(expr, tb, label = All, ndarray = true) == expected
-        expected = [-2a^2 + c^2 - 2a - b - 2.3]
-        @test IOTO.transcription_expression(expr, tb) == expected
-        @test IOTO.transcription_expression(expr, tb, ndarray = true) == expected
+        @test IOTO.transcription_expression(expr, tb) == expected[1:1]
         # test finite expr 
         expr = 2x0 -y 
-        expected = 2b- a 
+        expected = 2a- a 
         @test IOTO.transcription_expression(expr, tb) == expected
-        @test IOTO.transcription_expression(expr, tb, ndarray = true) == [expected]
         # test NonlinearExpr 
-        @test isequal(IOTO.transcription_expression(sin(x0), tb), sin(b))
+        @test isequal(IOTO.transcription_expression(sin(x0), tb), sin(a))
     end
     # test transcription expression for variables with 2 args
     @testset "IOTO.transcription_expression (Variable 2 Args)" begin
-        @test IOTO.transcription_expression(x0, tb) == b 
-        @test IOTO.transcription_expression(x, tb) == [b, d] 
-        @test IOTO.transcription_expression(x, tb, label = All) == [b, c, d] 
+        @test IOTO.transcription_expression(x0, tb) == a
+        @test IOTO.transcription_expression(x, tb) == reshape([a], :, 1)
+        @test IOTO.transcription_expression(x, tb, label = All) == reshape([a, b], :, 1) 
     end
     # test transcription expression with 1 argument
     @testset "IOTO.transcription_expression (1 Arg)" begin
-        @test IOTO.transcription_expression(x0) == b 
-        @test IOTO.transcription_expression(x0 - y) == b - a 
+        @test IOTO.transcription_expression(x0) == a
+        @test IOTO.transcription_expression(x0 - 2y) == a - 2a 
         @test IOTO.transcription_expression(zero(QuadExpr) + 2) == zero(AffExpr) + 2
     end
     # test transformation_expression
     @testset "transformation_expression" begin
-        @test transformation_expression(x0) == b 
-        @test transformation_expression(x0 - y) == b - a 
+        @test transformation_expression(x0) == a
+        @test transformation_expression(x0 - 2y) == a - 2a 
         @test transformation_expression(zero(QuadExpr) + 2) == zero(AffExpr) + 2
     end
     # test expression_supports
     @testset "expression_supports" begin 
         @test supports(x0) == ()
         @test supports(x0 - y) == ()
-        @test supports(x0 - y, ndarray = true) == [()]
         @test supports(meas2 + y) == [(0.,)]
-        @test supports(meas2 + y, ndarray = true) == [(0.,)]
         @test supports(meas2 + y, label = All) == [(0.,), (1.,)]
-        @test supports(meas2 + y, label = All, ndarray = true) == [(0.,), (1.,)]
     end
 end
 
@@ -608,23 +542,18 @@ end
         @test_throws ErrorException IOTO.transcription_constraint(c1, tb)
         # test normal
         data.constr_mappings[c1] = [tc1, tc2]
-        data.constr_support_labels[c1] = [s1, s2]
         @test IOTO.transcription_constraint(c1, tb, label = All) == [tc1, tc2]
         @test IOTO.transcription_constraint(c1, tb) == [tc1]
-        @test IOTO.transcription_constraint(c1, tb, label = All, ndarray = true) == [tc1, tc2]
-        @test IOTO.transcription_constraint(c1, tb, ndarray = true) == [tc1]
+        @test IOTO.transcription_constraint(c1, tb, label = All) == [tc1, tc2]
         # test error
         @test_throws ErrorException IOTO.transcription_constraint(c2, tb)
         # test normal
-        data.constr_mappings[c2] = [tc3]
-        data.constr_support_labels[c2] = [s1]
+        data.constr_mappings[c2] = fill(tc3)
         @test IOTO.transcription_constraint(c2, tb) == tc3
-        @test IOTO.transcription_constraint(c2, tb, ndarray = true) == [tc3]
         # test error
         @test_throws ErrorException IOTO.transcription_constraint(c3, tb)
         # test normal
-        data.constr_mappings[c3] = [tc4]
-        data.constr_support_labels[c3] = [s1]
+        data.constr_mappings[c3] = fill(tc4)
         @test IOTO.transcription_constraint(c3, tb) == tc4
     end
     # test IOTO.transcription_constraint (Single argument)
@@ -648,17 +577,13 @@ end
         data.constr_supports[c1] = [(0.,), (1.,)]
         @test InfiniteOpt.constraint_supports(c1, tb) == [(0.,)]
         @test InfiniteOpt.constraint_supports(c1, tb, label = All) == [(0.,), (1.,)]
-        @test InfiniteOpt.constraint_supports(c1, tb, ndarray = true) == [(0.,)]
-        @test InfiniteOpt.constraint_supports(c1, tb, label = All, ndarray = true) == [(0.,), (1.,)]
         # test finite 
-        data.constr_supports[c3] = [()]
+        data.constr_supports[c3] = fill(())
         @test InfiniteOpt.constraint_supports(c3, tb) == ()
-        @test InfiniteOpt.constraint_supports(c3, tb, ndarray = true) == [()]
     end
     # test supports
     @testset "supports" begin
         @test supports(c1, label = All) == [(0.,), (1.,)]
-        @test supports(c1, label = All, ndarray = true) == [(0.,), (1.,)]
         @test supports(c1, label = InternalLabel) == [(1.,)]
         @test supports(c3) == ()
     end

@@ -178,10 +178,10 @@ optimize!(model)
 # retrieve our values using `value`.
 
 # Get the results:
-r_opt = value(r, ndarray = true) * 100 # make the population fractions into percentages
-s_opt = value(s, ndarray = true) * 100
-i_opt = value(i, ndarray = true) * 100
-e_opt = value(e, ndarray = true) * 100
+r_opt = value(r) * 100 # make the population fractions into percentages
+s_opt = value(s) * 100
+i_opt = value(i) * 100
+e_opt = value(e) * 100
 u_opt = value(u)
 obj_opt = objective_value(model)
 ts = value(t)

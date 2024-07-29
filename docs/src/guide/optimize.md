@@ -127,16 +127,16 @@ Thus, using the going example we get:
 ```jldoctest optimize
 julia> transformation_variable(y) # infinite variable
 10-element Vector{VariableRef}:
- y(support: 1)
- y(support: 2)
- y(support: 3)
- y(support: 4)
- y(support: 5)
- y(support: 6)
- y(support: 7)
- y(support: 8)
- y(support: 9)
- y(support: 10)
+ y(0.0)
+ y(1.11111111111)
+ y(2.22222222222)
+ y(3.33333333333)
+ y(4.44444444444)
+ y(5.55555555556)
+ y(6.66666666667)
+ y(7.77777777778)
+ y(8.88888888889)
+ y(10.0)
 
 julia> transformation_variable(z) # finite variable
 z
@@ -148,48 +148,40 @@ Thus, using going example we get:
 ```jldoctest optimize
 julia> transformation_constraint(c1) # infinite constraint
 10-element Vector{ConstraintRef}:
- c1(support: 1) : z - y(support: 1) ≥ 0
- c1(support: 2) : z - y(support: 2) ≥ 0
- c1(support: 3) : z - y(support: 3) ≥ 0
- c1(support: 4) : z - y(support: 4) ≥ 0
- c1(support: 5) : z - y(support: 5) ≥ 0
- c1(support: 6) : z - y(support: 6) ≥ 0
- c1(support: 7) : z - y(support: 7) ≥ 0
- c1(support: 8) : z - y(support: 8) ≥ 0
- c1(support: 9) : z - y(support: 9) ≥ 0
- c1(support: 10) : z - y(support: 10) ≥ 0
+ c1[1] : z - y(0.0) ≥ 0
+ c1[2] : z - y(1.11111111111) ≥ 0
+ c1[3] : z - y(2.22222222222) ≥ 0
+ c1[4] : z - y(3.33333333333) ≥ 0
+ c1[5] : z - y(4.44444444444) ≥ 0
+ c1[6] : z - y(5.55555555556) ≥ 0
+ c1[7] : z - y(6.66666666667) ≥ 0
+ c1[8] : z - y(7.77777777778) ≥ 0
+ c1[9] : z - y(8.88888888889) ≥ 0
+ c1[10] : z - y(10.0) ≥ 0
 ```
 We can also query the expressions via 
 [`transformation_expression`](@ref transformation_expression(::JuMP.AbstractJuMPScalar)):
 ```jldoctest optimize
 julia> transformation_expression(z - y^2 + 3) # infinite expression
 10-element Vector{AbstractJuMPScalar}:
- -y(support: 1)² + z + 3
- -y(support: 2)² + z + 3
- -y(support: 3)² + z + 3
- -y(support: 4)² + z + 3
- -y(support: 5)² + z + 3
- -y(support: 6)² + z + 3
- -y(support: 7)² + z + 3
- -y(support: 8)² + z + 3
- -y(support: 9)² + z + 3
- -y(support: 10)² + z + 3
+ -y(0.0)² + z + 3
+ -y(1.11111111111)² + z + 3
+ -y(2.22222222222)² + z + 3
+ -y(3.33333333333)² + z + 3
+ -y(4.44444444444)² + z + 3
+ -y(5.55555555556)² + z + 3
+ -y(6.66666666667)² + z + 3
+ -y(7.77777777778)² + z + 3
+ -y(8.88888888889)² + z + 3
+ -y(10.0)² + z + 3
 ```
 
 !!! note 
-    1. Like `supports` the `transformation_[obj]` methods also employ the 
-       `label::Type{AbstractSupportLabel} = PublicLabel` keyword argument that by 
-       default will return variables/expressions/constraints associated with public 
-       supports. The full set (e.g., ones corresponding to internal collocation nodes) 
-       is obtained via `label = All`.
-    2. These methods also employ the `ndarray::Bool` keyword argument that will cause the 
-       output to be formatted as an n-dimensional array where the dimensions 
-       correspond to the infinite parameter dependencies. For example, if we have an 
-       infinite variable `y(t, ξ)`, and we invoke a query method with `ndarray = true` 
-       then we'll get a matrix whose dimensions correspond to the supports of `t` and 
-       `ξ`, respectively. Also, if `ndarray = true` then `label` correspond to the 
-       intersection of supports labels in contrast to its default of invoking the union 
-       of the labels.
+    Like `supports` the `transformation_[obj]` methods also employ the 
+   `label::Type{AbstractSupportLabel} = PublicLabel` keyword argument that by 
+   default will return variables/expressions/constraints associated with public 
+   supports. The full set (e.g., ones corresponding to internal collocation nodes) 
+   is obtained via `label = All`.
 
 The purpose of this `transformation_backend` abstraction is to readily enable user-defined 
 reformulation extensions (e.g., using polynomial chaos expansion theory). However, 

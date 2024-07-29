@@ -80,23 +80,22 @@ CachingOptimizer state: NO_OPTIMIZER
 Solver name: No optimizer attached.
 
 julia> print(trans_model)
-Min 2 z + y(support: 1) + y(support: 2) + y(support: 3)
+Min 2 z + y(0.0) + y(5.0) + y(10.0)
 Subject to
- initial(support: 1) : y(support: 1) = 1
- constr(support: 1) : y(support: 1)² - z ≤ 42
- constr(support: 2) : y(support: 2)² - z ≤ 42
- constr(support: 3) : y(support: 3)² - z ≤ 42
- y(support: 1) ≥ 0
- y(support: 2) ≥ 0
- y(support: 3) ≥ 0
+ initial : y(0.0) = 1
+ constr[1] : y(0.0)² - z ≤ 42
+ constr[2] : y(5.0)² - z ≤ 42
+ constr[3] : y(10.0)² - z ≤ 42
+ y(0.0) ≥ 0
+ y(5.0) ≥ 0
+ y(10.0) ≥ 0
  z binary
 ```
 
 Thus, we have a transcribed `JuMP` model. To be precise, data on the mapping between 
 the transcribed variables/constraints and their infinite counterparts is also generated 
 as part of the `TranscriptionBackend` that `trans_model` is part of. Notice, that 
-multiple finite variables have been introduced to discretize `y(t)` at supports 1, 2, 
-and 3 which correspond to 0, 5, and 10 as can be queried by `supports`:
+multiple finite variables have been introduced to discretize `y(t)` at supports 0, 5, and 10 which we can can also query via `supports`:
 ```jldoctest transcribe
 julia> supports(y)
 3-element Vector{Tuple}:
@@ -111,9 +110,9 @@ the infinite model can be determined via [`transformation_variable`](@ref):
 ```jldoctest transcribe
 julia> transformation_variable(y)
 3-element Vector{VariableRef}:
- y(support: 1)
- y(support: 2)
- y(support: 3)
+ y(0.0)
+ y(5.0)
+ y(10.0)
 
 julia> transformation_variable(z)
 z
@@ -123,13 +122,13 @@ can be queried via [`transformation_constraint`](@ref) and the associated suppor
 and infinite parameters can be found via `supports` and `parameter_refs`:
 ```jldoctest transcribe
 julia> transformation_constraint(initial)
-initial(support: 1) : y(support: 1) = 1
+initial : y(0.0) = 1
 
 julia> transformation_constraint(constr)
 3-element Vector{ConstraintRef}:
- constr(support: 1) : y(support: 1)² - z ≤ 42
- constr(support: 2) : y(support: 2)² - z ≤ 42
- constr(support: 3) : y(support: 3)² - z ≤ 42
+ constr[1] : y(0.0)² - z ≤ 42
+ constr[2] : y(5.0)² - z ≤ 42
+ constr[3] : y(10.0)² - z ≤ 42
 
 julia> supports(constr)
 3-element Vector{Tuple}:
@@ -307,78 +306,43 @@ julia> build_transformation_backend!(inf_model)
 julia> trans_model = transformation_model(inf_model);
 
 julia> print(trans_model)
-Min y(support: 1)² + y(support: 2)² + y(support: 3)²
+Min y(0.0)² + y(5.0)² + y(10.0)²
 Subject to
- y(support: 1) = 1
- g(support: 1) = 0
- g(support: 4) = 0
- g(support: 7) = 0
- g(support: 10) = 0
- ∂/∂t[g(t, x)](support: 1) + ∂/∂t[g(t, x)](support: 4) + ∂/∂t[g(t, x)](support: 7) + ∂/∂t[g(t, x)](support: 10) = 42
- ∂/∂t[g(t, x)](support: 2) + ∂/∂t[g(t, x)](support: 5) + ∂/∂t[g(t, x)](support: 8) + ∂/∂t[g(t, x)](support: 11) = 42
- ∂/∂t[g(t, x)](support: 3) + ∂/∂t[g(t, x)](support: 6) + ∂/∂t[g(t, x)](support: 9) + ∂/∂t[g(t, x)](support: 12) = 42
- g(support: 1) - g(support: 2) + 5 ∂/∂t[g(t, x)](support: 2) = 0
- g(support: 2) - g(support: 3) + 5 ∂/∂t[g(t, x)](support: 3) = 0
- g(support: 4) - g(support: 5) + 5 ∂/∂t[g(t, x)](support: 5) = 0
- g(support: 5) - g(support: 6) + 5 ∂/∂t[g(t, x)](support: 6) = 0
- g(support: 7) - g(support: 8) + 5 ∂/∂t[g(t, x)](support: 8) = 0
- g(support: 8) - g(support: 9) + 5 ∂/∂t[g(t, x)](support: 9) = 0
- g(support: 10) - g(support: 11) + 5 ∂/∂t[g(t, x)](support: 11) = 0
- g(support: 11) - g(support: 12) + 5 ∂/∂t[g(t, x)](support: 12) = 0
- y(support: 1)² + 3 g(support: 1) ≤ 2
- y(support: 2)² + 3 g(support: 2) ≤ 2
- y(support: 3)² + 3 g(support: 3) ≤ 2
- y(support: 1)² + 3 g(support: 4) ≤ 2
- y(support: 2)² + 3 g(support: 5) ≤ 2
- y(support: 3)² + 3 g(support: 6) ≤ 2
- y(support: 1)² + 3 g(support: 7) ≤ 2
- y(support: 2)² + 3 g(support: 8) ≤ 2
- y(support: 3)² + 3 g(support: 9) ≤ 2
- y(support: 1)² + 3 g(support: 10) ≤ 2
- y(support: 2)² + 3 g(support: 11) ≤ 2
- y(support: 3)² + 3 g(support: 12) ≤ 2
+ y(0.0) = 1
+ g(0.0, [-1.0, -1.0]) = 0
+ g(0.0, [1.0, -1.0]) = 0
+ g(0.0, [-1.0, 1.0]) = 0
+ g(0.0, [1.0, 1.0]) = 0
+ d/dt[g(t, x)](0.0, [-1.0, -1.0]) + d/dt[g(t, x)](0.0, [1.0, -1.0]) + d/dt[g(t, x)](0.0, [-1.0, 1.0]) + d/dt[g(t, x)](0.0, [1.0, 1.0]) = 42
+ d/dt[g(t, x)](5.0, [-1.0, -1.0]) + d/dt[g(t, x)](5.0, [1.0, -1.0]) + d/dt[g(t, x)](5.0, [-1.0, 1.0]) + d/dt[g(t, x)](5.0, [1.0, 1.0]) = 42
+ d/dt[g(t, x)](10.0, [-1.0, -1.0]) + d/dt[g(t, x)](10.0, [1.0, -1.0]) + d/dt[g(t, x)](10.0, [-1.0, 1.0]) + d/dt[g(t, x)](10.0, [1.0, 1.0]) = 42
+ g(0.0, [-1.0, -1.0]) - g(5.0, [-1.0, -1.0]) + 5 d/dt[g(t, x)](5.0, [-1.0, -1.0]) = 0
+ g(5.0, [-1.0, -1.0]) - g(10.0, [-1.0, -1.0]) + 5 d/dt[g(t, x)](10.0, [-1.0, -1.0]) = 0
+ g(0.0, [1.0, -1.0]) - g(5.0, [1.0, -1.0]) + 5 d/dt[g(t, x)](5.0, [1.0, -1.0]) = 0
+ g(5.0, [1.0, -1.0]) - g(10.0, [1.0, -1.0]) + 5 d/dt[g(t, x)](10.0, [1.0, -1.0]) = 0
+ g(0.0, [-1.0, 1.0]) - g(5.0, [-1.0, 1.0]) + 5 d/dt[g(t, x)](5.0, [-1.0, 1.0]) = 0
+ g(5.0, [-1.0, 1.0]) - g(10.0, [-1.0, 1.0]) + 5 d/dt[g(t, x)](10.0, [-1.0, 1.0]) = 0
+ g(0.0, [1.0, 1.0]) - g(5.0, [1.0, 1.0]) + 5 d/dt[g(t, x)](5.0, [1.0, 1.0]) = 0
+ g(5.0, [1.0, 1.0]) - g(10.0, [1.0, 1.0]) + 5 d/dt[g(t, x)](10.0, [1.0, 1.0]) = 0
+ y(0.0)² + 3 g(0.0, [-1.0, -1.0]) ≤ 2
+ y(5.0)² + 3 g(5.0, [-1.0, -1.0]) ≤ 2
+ y(10.0)² + 3 g(10.0, [-1.0, -1.0]) ≤ 2
+ y(0.0)² + 3 g(0.0, [1.0, -1.0]) ≤ 2
+ y(5.0)² + 3 g(5.0, [1.0, -1.0]) ≤ 2
+ y(10.0)² + 3 g(10.0, [1.0, -1.0]) ≤ 2
+ y(0.0)² + 3 g(0.0, [-1.0, 1.0]) ≤ 2
+ y(5.0)² + 3 g(5.0, [-1.0, 1.0]) ≤ 2
+ y(10.0)² + 3 g(10.0, [-1.0, 1.0]) ≤ 2
+ y(0.0)² + 3 g(0.0, [1.0, 1.0]) ≤ 2
+ y(5.0)² + 3 g(5.0, [1.0, 1.0]) ≤ 2
+ y(10.0)² + 3 g(10.0, [1.0, 1.0]) ≤ 2
 ```
 This precisely matches what we found analytically. Note that the unique support 
-combinations are determined automatically and are represented visually as 
-`support: #`. The precise support values can be looked up via `supports`:
-```jldoctest trans_example
-julia> supports(y)
-3-element Vector{Tuple}:
- (0.0,)
- (5.0,)
- (10.0,)
-
-julia> supports(g)
-12-element Vector{Tuple}:
- (0.0, [-1.0, -1.0])
- (5.0, [-1.0, -1.0])
- (10.0, [-1.0, -1.0])
- (0.0, [1.0, -1.0])
- (5.0, [1.0, -1.0])
- (10.0, [1.0, -1.0])
- (0.0, [-1.0, 1.0])
- (5.0, [-1.0, 1.0])
- (10.0, [-1.0, 1.0])
- (0.0, [1.0, 1.0])
- (5.0, [1.0, 1.0])
- (10.0, [1.0, 1.0])
-
-julia> supports(g, ndarray = true) # format it as an n-dimensional array (t by x[1] by x[2])
-3×2×2 Array{Tuple, 3}:
-[:, :, 1] =
- (0.0, [-1.0, -1.0])   (0.0, [1.0, -1.0])
- (5.0, [-1.0, -1.0])   (5.0, [1.0, -1.0])
- (10.0, [-1.0, -1.0])  (10.0, [1.0, -1.0])
-
-[:, :, 2] =
- (0.0, [-1.0, 1.0])   (0.0, [1.0, 1.0])
- (5.0, [-1.0, 1.0])   (5.0, [1.0, 1.0])
- (10.0, [-1.0, 1.0])  (10.0, [1.0, 1.0])
-```
+combinations are determined automatically.
 
 ## TranscriptionOpt
 `InfiniteOpt.TranscriptionOpt` is a sub-module which principally implements 
-[]`TranscriptionBackend`](@ref)s and its related access/modification methods. Thus, 
+[`TranscriptionBackend`](@ref)s and its related access/modification methods. Thus, 
 this section will detail what these are and how they work.
 
 ### TranscriptionBackends
@@ -438,17 +402,17 @@ yet.
 
 Next we can retrieve the `JuMP` variable(s) for a particular `InfiniteOpt` 
 variable via [`transformation_variable`](@ref). For finite variables, this will 
-be a one to one mapping, and for infinite variables a list of supported variables 
-will be returned in the order of the supports. Following the initial example in 
+be a one to one mapping, and for infinite variables an array will be returned that corresponds
+to the underlying supports. Following the initial example in 
 the basic usage section, this is done:
 ```jldoctest transcribe
 julia> build_transformation_backend!(inf_model); backend = transformation_backend(inf_model);
 
 julia> transformation_variable(y, backend)
 3-element Vector{VariableRef}:
- y(support: 1)
- y(support: 2)
- y(support: 3)
+ y(0.0)
+ y(5.0)
+ y(10.0)
 
 julia> transformation_variable(z, backend)
 z
@@ -468,23 +432,14 @@ julia> supports(y)
 ```
 
 !!! note 
-    1. Note that like `supports`, the `transformation_[obj]` methods also employ the 
-       `label::Type{AbstractSupportLabel} = PublicLabel` keyword argument that by 
-       default will return variables/expressions/constraints associated with public 
-       supports. The full set (e.g., ones corresponding to internal collocation nodes) 
-       is obtained via `label = All`. 
-    2. These methods also employ the `ndarray::Bool` keyword argument that will cause the 
-       output to be formatted as an n-dimensional array where the dimensions 
-       correspond to the infinite parameter dependencies. For example, if we have an 
-       infinite variable `y(t, ξ)`, and we invoke a query method with `ndarray = true` 
-       then we'll get a matrix whose dimensions correspond to the supports of `t` and 
-       `ξ`, respectively. Also, if `ndarray = true` then `label` correspond to the 
-       intersection of supports labels in contrast to its default of invoking the union 
-       of the labels.
+    Note that like `supports`, the `transformation_[obj]` methods also employ the 
+    `label::Type{AbstractSupportLabel} = PublicLabel` keyword argument that by 
+    default will return variables/expressions/constraints associated with public 
+    supports. The full set (e.g., ones corresponding to internal collocation nodes) 
+    is obtained via `label = All`. 
 
 Likewise, [`transformation_constraint`](@ref transformation_constraint(::InfOptConstraintRef)) and 
-[`supports`](@ref supports(::InfOptConstraintRef)) can be used with constraints to find their transcribed  
-equivalents in the `JuMP` model and determine their supports.
+[`supports`](@ref supports(::InfOptConstraintRef)) can be used with constraints to find their transcribed equivalents in the `JuMP` model and determine their supports.
 
 We can also do this with measures and expressions:
 ```jldoctest transcribe
@@ -494,16 +449,16 @@ support_sum{t}[y(t)²]
 julia> build_transformation_backend!(inf_model)
 
 julia> transformation_variable(meas)
-y(support: 1)² + y(support: 2)² + y(support: 3)²
+y(0.0)² + y(5.0)² + y(10.0)²
 
 julia> supports(meas)
 ()
 
 julia> transformation_expression(y^2 + z - 42)
 3-element Vector{AbstractJuMPScalar}:
- y(support: 1)² + z - 42
- y(support: 2)² + z - 42
- y(support: 3)² + z - 42
+ y(0.0)² + z - 42
+ y(5.0)² + z - 42
+ y(10.0)² + z - 42
 
 julia> supports(y^2 + z - 42)
 3-element Vector{Tuple}:
