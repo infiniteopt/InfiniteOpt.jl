@@ -487,8 +487,8 @@ end
     # test transcription expression for variables with 2 args
     @testset "IOTO.transcription_expression (Variable 2 Args)" begin
         @test IOTO.transcription_expression(x0, tb) == a
-        @test IOTO.transcription_expression(x, tb) == [a;;] 
-        @test IOTO.transcription_expression(x, tb, label = All) == [a; b;;] 
+        @test IOTO.transcription_expression(x, tb) == reshape([a], :, 1)
+        @test IOTO.transcription_expression(x, tb, label = All) == reshape([a, b], :, 1) 
     end
     # test transcription expression with 1 argument
     @testset "IOTO.transcription_expression (1 Arg)" begin

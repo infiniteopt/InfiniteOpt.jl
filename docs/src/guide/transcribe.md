@@ -108,6 +108,7 @@ except the initial condition which naturally is only invoked for the first suppo
 point. Furthermore, the transcription variable(s) of any variable associated with 
 the infinite model can be determined via [`transformation_variable`](@ref):
 ```jldoctest transcribe
+julia> transformation_variable(y)
 3-element Vector{VariableRef}:
  y(0.0)
  y(5.0)
