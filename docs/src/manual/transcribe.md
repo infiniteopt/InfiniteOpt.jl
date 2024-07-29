@@ -47,6 +47,4 @@ InfiniteOpt.TranscriptionOpt.parameter_supports(::InfiniteOpt.TranscriptionOpt.T
 ```@docs
 InfiniteOpt.TranscriptionOpt.support_index_iterator
 InfiniteOpt.TranscriptionOpt.index_to_support
-InfiniteOpt.TranscriptionOpt.index_to_labels
-InfiniteOpt.TranscriptionOpt.make_ndarray
 ```
