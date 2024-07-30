@@ -70,14 +70,14 @@
         @test IOTO.transcription_variable(x, tb) isa Vector{VariableRef}
         @test IOTO.transcription_variable(y, tb) isa Matrix{VariableRef}
         @test name(IOTO.transcription_variable(x, tb)[1]) == "x(0.0)"
-        @test name(IOTO.transcription_variable(y, tb)[2, 1]) in ["y(1.0, [0.0, 0.0])", "y(1.0, [1.0, 1.0])"]
+        @test name(IOTO.transcription_variable(y, tb)[2, 1]) == "y(1.0, [0.0, 0.0])"
         @test has_lower_bound(IOTO.transcription_variable(x)[1])
         @test is_binary(IOTO.transcription_variable(y, tb)[2])
         @test is_fixed(IOTO.transcription_variable(y, tb)[4])
         @test is_integer(IOTO.transcription_variable(x, tb)[2])
-        @test sort!(vec(start_value.(IOTO.transcription_variable(y, tb)))) == [0., 1, 2, 3]
+        @test start_value.(IOTO.transcription_variable(y, tb)) == [0. 2; 1 3]
         @test supports(x) == [(0,), (1,)]
-        @test length(supports(y)) == 4
+        @test supports(y) == [(0, [0, 0]) (0, [1, 1]); (1, [0, 0]) (1, [1, 1])]
     end
     # test _format_derivative_info
     @testset "_format_derivative_info" begin
@@ -109,12 +109,12 @@
         @test name(IOTO.transcription_variable(dx, tb)[1]) == "d/dpar[x(par)](0.0)"
         @test name(IOTO.transcription_variable(dx3, tb)[1]) == "d^3/dpar^3[x(par)](0.0)"
         @test name(IOTO.transcription_variable(deriv(dx, par), tb)[1]) == "d²/dpar²[x(par)](0.0)"
-        possible = [Sys.iswindows() ? "d/dpar[y(par, pars)](1.0, [$i, $i])" : "∂/∂par[y(par, pars)](1.0, [$i, $i])" for i in [0.0, 1.0]]
-        @test name(IOTO.transcription_variable(dy, tb)[2, 1]) in possible
+        possible = Sys.iswindows() ? "d/dpar[y(par, pars)](1.0, [0.0, 0.0])" : "∂/∂par[y(par, pars)](1.0, [0.0, 0.0])"
+        @test name(IOTO.transcription_variable(dy, tb)[2, 1]) == possible
         @test has_lower_bound(IOTO.transcription_variable(dx, tb)[1])
-        @test sort!(vec(start_value.(IOTO.transcription_variable(dy, tb)))) == [0., 1, 2, 3]
+        @test start_value.(IOTO.transcription_variable(dy, tb)) == [0. 2; 1 3]
         @test supports(dx) == [(0,), (1,)]
-        @test length(supports(dy)) == 4
+        @test supports(dy) == [(0, [0, 0]) (0, [1, 1]); (1, [0, 0]) (1, [1, 1])]
     end
     # test _set_semi_infinite_variable_mapping
     @testset "_set_semi_infinite_variable_mapping" begin 
@@ -177,7 +177,7 @@
         @test IOTO.transcription_variable(x0, tb) == IOTO.lookup_by_support(x, tb, [0.])
         @test IOTO.transcription_variable(y0, tb) == IOTO.lookup_by_support(y, tb, [0., 0., 0.])
         @test name(IOTO.transcription_variable(x0, tb)) == "x(0.0)"
-        @test name(IOTO.transcription_variable(y0, tb))[1:8] == "y(0.0, ["
+        @test name(IOTO.transcription_variable(y0, tb)) == "y(0.0, [0.0, 0.0])"
         @test lower_bound(IOTO.transcription_variable(x0, tb)) == 0
         @test is_integer(IOTO.transcription_variable(x0, tb))
         @test lower_bound(IOTO.transcription_variable(y0, tb)) == 0
@@ -219,7 +219,7 @@ end
         @test IOTO.transcription_variable(meas4) isa AffExpr
         @test supports(meas1) == ()
         @test supports(meas2) == ()
-        @test sort!(supports(meas3)) == [(0.,), (1., )]
+        @test supports(meas3) == [(0.,), (1., )]
     end
     # test transcribe_objective!
     @testset "transcribe_objective!" begin 
@@ -375,22 +375,22 @@ end
         @test length(IOTO.transcription_constraint(c7)) == 6
         @test IOTO.transcription_constraint(c8) isa ConstraintRef
         # test the info constraint supports 
-        expected = [([0., 0.], 0.5), ([0., 0.], 1.), ([1., 1.], 0.), ([1., 1.], 0.5), ([1., 1.], 1.)]
-        @test sort(supports(LowerBoundRef(x))) == expected
-        @test sort(supports(UpperBoundRef(x))) == expected
-        @test sort(supports(IntegerRef(x))) == expected
+        expected = [([1.0, 1.0], 0.0), ([0.0, 0.0], 0.5), ([1.0, 1.0], 0.5), ([0.0, 0.0], 1.0), ([1.0, 1.0], 1.0)]
+        @test supports(LowerBoundRef(x)) == expected
+        @test supports(UpperBoundRef(x)) == expected
+        @test supports(IntegerRef(x)) == expected
         @test supports(FixRef(x0)) == ()
         @test supports(UpperBoundRef(yf)) == ()
         @test supports(BinaryRef(z)) == ()
         # test the constraint supports 
-        expected = [([0., 0.], 0.), ([0., 0.], 0.5), ([0., 0.], 1.), ([1., 1.], 0.), ([1., 1.], 0.5), ([1., 1.], 1.)]
-        @test sort(vec(supports(c1))) == expected
+        expected = [([0., 0.], 0.) ([0., 0.], 0.5) ([0., 0.], 1.); ([1., 1.], 0.) ([1., 1.], 0.5) ([1., 1.], 1.)]
+        @test supports(c1) == expected
         @test supports(c2) == (0.,)
         @test supports(c3) == ([1., 1.], 1.)
         @test supports(c4) == [(0.0,), (0.5,)]
         @test supports(c5) == ()
-        @test sort(vec(supports(c6))) == expected
-        @test sort(vec(supports(c7))) == expected
+        @test supports(c6) == expected
+        @test supports(c7) == expected
         @test supports(c8) == ()
     end
 end
@@ -506,19 +506,19 @@ end
     @test IOTO.transcription_variable(x) isa Vector{VariableRef}
     @test IOTO.transcription_variable(y) isa Matrix{VariableRef}
     @test name(IOTO.transcription_variable(x)[1]) == "x(0.0)"
-    @test name(IOTO.transcription_variable(y)[3])[1:8] == "y(0.0, ["
+    @test name(IOTO.transcription_variable(y)[1, 2]) == "y(0.0, [1.0, 1.0])"
     @test has_lower_bound(IOTO.transcription_variable(x)[1])
     @test is_binary(IOTO.transcription_variable(y)[2])
     @test is_fixed(IOTO.transcription_variable(y)[4])
     @test is_integer(IOTO.transcription_variable(x)[2])
     @test start_value(IOTO.transcription_variable(y)[1]) == 0.
     @test supports(x) == [(0.,), (1.,)]
-    @test length(supports(y)) == 4
+    @test supports(y) == [(0.0, [0.0, 0.0]) (0.0, [1.0, 1.0]); (1.0, [0.0, 0.0]) (1.0, [1.0, 1.0])]
     # test point variables
     @test IOTO.transcription_variable(x0) isa VariableRef
     @test IOTO.transcription_variable(y0) isa VariableRef
     @test name(IOTO.transcription_variable(x0)) == "x(0.0)"
-    @test name(IOTO.transcription_variable(y0))[1:8] == "y(0.0, ["
+    @test name(IOTO.transcription_variable(y0)) == "y(0.0, [0.0, 0.0])"
     @test has_lower_bound(IOTO.transcription_variable(x0))
     @test is_integer(IOTO.transcription_variable(x0))
     @test has_lower_bound(IOTO.transcription_variable(y0))
@@ -551,7 +551,7 @@ end
     @test constraint_object(IOTO.transcription_constraint(c6)).func == [zt, wt]
     @test IOTO.transcription_constraint(c5) isa Vector{ConstraintRef}
     @test name(IOTO.transcription_constraint(c2)) == "c2"
-    @test name(IOTO.transcription_constraint(c1)) in ["c1[1, 1]", "c1[1, 2]"]
+    @test name(IOTO.transcription_constraint(c1)) == "c1[1, 1]"
     @test supports(c1) == (0., [0., 0.])
     @test IOTO.transcription_constraint(c7) isa ConstraintRef
     @test isequal(constraint_object(IOTO.transcription_constraint(c7)).func, gr(zt) - 2.)
