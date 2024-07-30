@@ -182,7 +182,7 @@ end
         @test build_parameter(error, domain, supports = supps).domain == domain
         @test build_parameter(error, domain, supports = supps).supports == supps_dict
         @test_throws ErrorException build_parameter(error, domain, bob = 42)
-        warn = "Ignoring num_supports since supports is not empty."
+        warn = "Ignoring `num_supports` since `supports` is not empty."
         @test_logs (:warn, warn) build_parameter(error, domain,
                                             supports = [0, 1], num_supports = 2)
         repeated_supps = [1, 1]

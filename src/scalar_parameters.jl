@@ -205,7 +205,7 @@ function build_parameter(
     if !isempty(supports)
         supports = round.(supports, sigdigits = sig_digits)
         _check_supports_in_bounds(_error, supports, domain)
-        num_supports == 0 || @warn("Ignoring num_supports since supports is not empty.")
+        num_supports == 0 || @warn("Ignoring `num_supports` since `supports` is not empty.")
     elseif num_supports != 0
         supports, label = generate_support_values(domain, num_supports = num_supports,
                                                   sig_digits = sig_digits)
