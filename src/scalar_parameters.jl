@@ -154,16 +154,34 @@ end
 # Define the default derivative evaluation method 
 const DefaultDerivativeMethod = FiniteDifference()
 
-# Check that supports don't violate the domain bounds
-function _check_supports_in_bounds(
+# Check supports and format them
+function _process_scalar_supports(
     _error::Function,
-    supports::Union{<:Real, Vector{<:Real}},
-    domain::AbstractInfiniteDomain
-    )
-    if !supports_in_domain(supports, domain)
+    supports::Union{T, Vector{T}, UnitRange{T}, StepRange{T}},
+    domain::InfiniteScalarDomain,
+    sig_digits::Int
+    ) where {T <: Real}
+    supps = round.(supports, sigdigits = sig_digits)
+    if !supports_in_domain(supps, domain)
         _error("Supports violate the domain bounds.")
     end
-    return
+    return supps
+end
+function _process_scalar_supports(
+    _error::Function,
+    supports::Base.Generator,
+    domain::InfiniteScalarDomain,
+    sig_digits::Int
+    )
+    return _process_scalar_supports(_error, collect(supports), domain, sig_digits)
+end
+function _process_scalar_supports(
+    _error::Function,
+    supports::Base.Generator,
+    domain::InfiniteScalarDomain,
+    sig_digits::Int
+    )
+    return _process_scalar_supports(_error, collect(supports), domain, sig_digits)
 end
 
 """
@@ -201,17 +219,20 @@ function build_parameter(
     end
     domain = round_domain(domain, sig_digits)
     label = UserDefined
-    length_supports = length(supports)
     if !isempty(supports)
+        supps = _process_scalar_supports(_error, supports, domain, sig_digits)
         supports = round.(supports, sigdigits = sig_digits)
         _check_supports_in_bounds(_error, supports, domain)
         num_supports == 0 || @warn("Ignoring `num_supports` since `supports` is not empty.")
     elseif num_supports != 0
-        supports, label = generate_support_values(domain, num_supports = num_supports,
+        supps, label = generate_support_values(domain, num_supports = num_supports,
                                                   sig_digits = sig_digits)
+    else
+        supps = supports
     end
+    length_supports = length(supps)
     supports_dict = DataStructures.SortedDict{Float64, Set{DataType}}(
-                                            i => Set([label]) for i in supports)
+                                            i => Set([label]) for i in supps)
     if length_supports != 0 && (length(supports_dict) != length_supports)
         @warn("Support points are not unique, eliminating redundant points.")
     end
