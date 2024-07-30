@@ -190,7 +190,7 @@ end
 
 Delete the concrete `AbstractDataObject` associated with `vref`.
 """
-function _delete_data_object(vref::DispatchVariableRef)::Nothing
+function _delete_data_object(vref::DispatchVariableRef)
     delete!(_data_dictionary(vref), JuMP.index(vref))
     return
 end
@@ -228,7 +228,7 @@ Extend `JuMP.set_name` to set the name of `vref`. It relies on `JuMP.set_name`
 being defined for the underlying `DispatchVariableRef`, otherwise an 
 `ArgumentError` is thrown.
 """
-function JuMP.set_name(vref::GeneralVariableRef, name::String)::Nothing
+function JuMP.set_name(vref::GeneralVariableRef, name::String)
     return JuMP.set_name(dispatch_variable_ref(vref), name)
 end
 
@@ -378,7 +378,7 @@ Extend `JuMP.delete` to delete `vref` and its dependencies. It relies on
 `JuMP.delete` being defined for the underlying `DispatchVariableRef`, otherwise 
 an `ArgumentError` is thrown.
 """
-function JuMP.delete(model::InfiniteModel, vref::GeneralVariableRef)::Nothing
+function JuMP.delete(model::InfiniteModel, vref::GeneralVariableRef)
     return JuMP.delete(model, dispatch_variable_ref(vref))
 end
 
@@ -391,7 +391,7 @@ their dependencies. An `ArgumentError` is thrown if `prefs` are not dependent
 infinite parameters.
 """
 function JuMP.delete(model::InfiniteModel,
-                     prefs::AbstractArray{<:GeneralVariableRef})::Nothing
+                     prefs::AbstractArray{<:GeneralVariableRef})
     return JuMP.delete(model, dispatch_variable_ref.(prefs))
 end
 
@@ -503,7 +503,7 @@ by a measure. An `ArgumentError` is thrown if `pref` is not an infinite paramete
 function set_infinite_domain(
     pref::GeneralVariableRef,
     domain::InfiniteScalarDomain
-    )::Nothing
+    )
     return set_infinite_domain(dispatch_variable_ref(pref), domain)
 end
 
@@ -521,7 +521,7 @@ parameters.
 function set_infinite_domain(
     prefs::AbstractArray{<:GeneralVariableRef},
     domain::InfiniteArrayDomain
-    )::Nothing
+    )
     return set_infinite_domain(dispatch_variable_ref.(prefs), domain)
 end
 
@@ -542,8 +542,11 @@ function set_supports(pref, supports; kwargs...)
 end
 
 """
-    set_supports(pref::GeneralVariableRef, supports::Union{Real, Vector{<:Real}};
-                 [force::Bool = false])::Nothing
+    set_supports(
+        pref::GeneralVariableRef,
+        supports::Union{Real, Vector{<:Real}, UnitRange{<:Real}, StepRange{<:Real}, NTuple, Base.Generator};
+        [force::Bool = false]
+        )::Nothing
 
 Set the support points associated with a single infinite
 parameter `pref`. An `ArgumentError` is thrown if `pref` is not an independent
@@ -551,10 +554,10 @@ infinite parameter.
 """
 function set_supports(
     pref::GeneralVariableRef,
-    supports::Union{Real, Vector{<:Real}};
+    supports;
     force::Bool = false, 
     label::Type{<:AbstractSupportLabel} = UserDefined
-    )::Nothing
+    )
     return set_supports(dispatch_variable_ref(pref), supports,
                         force = force, label = label)
 end
@@ -575,7 +578,7 @@ function set_supports(
     supports::Union{Array{<:Real, 2}, Vector{<:AbstractArray{<:Real}}};
     label::Type{<:AbstractSupportLabel} = UserDefined, 
     force::Bool = false
-    )::Nothing
+    )
     return set_supports(dispatch_variable_ref.(prefs), supports, label = label,
                         force = force)
 end
@@ -587,8 +590,10 @@ function add_supports(pref, supports; kwargs...)
 end
 
 """
-    add_supports(pref::GeneralVariableRef,
-                 supports::Union{Real, Vector{<:Real}})::Nothing
+    add_supports(
+        pref::GeneralVariableRef,
+        supports::Union{Real, Vector{<:Real}, UnitRange{<:Real}, StepRange{<:Real}, NTuple, Base.Generator}
+        )::Nothing
 
 Add the support points `supports` to a single infinite
 parameter `pref`. An `ArgumentError` is thrown if `pref` is not an independent
@@ -596,10 +601,10 @@ infinite parameter.
 """
 function add_supports(
     pref::GeneralVariableRef,
-    supports::Union{Real, Vector{<:Real}};
+    supports;
     check::Bool = true, 
     label::Type{<:AbstractSupportLabel} = UserDefined
-    )::Nothing
+    )
     return add_supports(dispatch_variable_ref(pref), supports,
                         check = check, label = label)
 end
@@ -619,7 +624,7 @@ function add_supports(
     supports::Union{Array{<:Real, 2}, Vector{<:AbstractArray{<:Real}}};
     label::Type{<:AbstractSupportLabel} = UserDefined, 
     check::Bool = true
-    )::Nothing
+    )
     return add_supports(dispatch_variable_ref.(prefs), supports, label = label,
                         check = check)
 end
@@ -638,7 +643,7 @@ set the value of `vref`. It relies on `JuMP.set_value`
 being defined for the underlying `DispatchVariableRef`, otherwise an
 `ArgumentError` is thrown.
 """
-function JuMP.set_value(vref::GeneralVariableRef, value::Real)::Nothing
+function JuMP.set_value(vref::GeneralVariableRef, value::Real)
     return JuMP.set_value(dispatch_variable_ref(vref), value)
 end
 
@@ -659,7 +664,7 @@ An `ArgumentError` is thrown if `pref` is not an infinite parameter.
 function set_derivative_method(
     pref::GeneralVariableRef,
     method::AbstractDerivativeMethod
-    )::Nothing
+    )
     return set_derivative_method(dispatch_variable_ref(pref), method)
 end
 
@@ -674,7 +679,7 @@ for op = (:_set_has_generative_supports, :_set_has_internal_supports,
             throw(ArgumentError(str))
         end
         # define the dispatch version
-        function $op(vref::GeneralVariableRef, status::Bool)::Nothing
+        function $op(vref::GeneralVariableRef, status::Bool)
             return $op(dispatch_variable_ref(vref), status)
         end
     end
@@ -740,7 +745,7 @@ Set the start value function of `vref`. It relies on `set_start_value_function`
 being defined for the underlying `DispatchVariableRef`, otherwise an
 `ArgumentError` is thrown.
 """
-function set_start_value_function(vref::GeneralVariableRef, start)::Nothing
+function set_start_value_function(vref::GeneralVariableRef, start)
     return set_start_value_function(dispatch_variable_ref(vref), start)
 end
 
@@ -852,7 +857,7 @@ for op = (:set_lower_bound, :set_upper_bound, :set_start_value)
         `ArgumentError` is thrown. See the underlying docstrings for more
         information.
         """
-        function JuMP.$op(vref::GeneralVariableRef, value::Real)::Nothing
+        function JuMP.$op(vref::GeneralVariableRef, value::Real)
             return JuMP.$op(dispatch_variable_ref(vref), value)
         end
     end

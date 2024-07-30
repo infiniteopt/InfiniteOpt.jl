@@ -87,17 +87,32 @@ end
         # fallback 
         @test_throws ErrorException InfiniteOpt._make_array_domain(error, domain2, inds1)
     end
-    # test _process_supports
-    @testset "_process_supports" begin
+    # test _process_array_supports
+    @testset "_process_array_supports" begin
         # single support
         supps = OrderedDict([0., 0.] => Set([UserDefined]))
-        @test InfiniteOpt._process_supports(error, [0, 0], domain1, 2) == supps
-        @test_throws ErrorException InfiniteOpt._process_supports(error, [2, 2], domain1, 2)
+        @test InfiniteOpt._process_array_supports(error, [0, 0], domain1, 2) == supps
+        @test_throws ErrorException InfiniteOpt._process_array_supports(error, [2, 2], domain1, 2)
         # multiple supports 
         supps = OrderedDict([0., 0.] => Set([UserDefined]), [1., 1.] => Set([UserDefined]))
-        @test InfiniteOpt._process_supports(error, [[0, 1], [0, 1]], domain1, 2) == supps
-        @test_throws ErrorException InfiniteOpt._process_supports(error, [[0, 0], [1]], domain1, 2)
-        @test_throws ErrorException InfiniteOpt._process_supports(error, [[0, 2], [0, 2]], domain1, 2)
+        @test InfiniteOpt._process_array_supports(error, [[0, 1], [0, 1]], domain1, 2) == supps
+        @test_throws ErrorException InfiniteOpt._process_array_supports(error, [[0, 0], [1]], domain1, 2)
+        @test_throws ErrorException InfiniteOpt._process_array_supports(error, [[0, 2], [0, 2]], domain1, 2)
+        # non-vector supports
+        @test InfiniteOpt._process_array_supports(error, [(0, 1), (0, 1)], domain1, 2) == supps
+        @test InfiniteOpt._process_array_supports(error, [0:1, 0:1], domain1, 2) == supps
+        @test InfiniteOpt._process_array_supports(error, [0:1:1, 0:1:1], domain1, 2) == supps
+        @test InfiniteOpt._process_array_supports(error, [(i for i in 0:1), (i for i in 0:1)], domain1, 2) == supps
+        # single matrix input
+        mat = [0 1; 0 1]
+        @test InfiniteOpt._process_array_supports(error, [mat, mat], domain1, 2) == supps
+        @test_throws ErrorException InfiniteOpt._process_array_supports(error, [mat, zeros(2, 2)], domain1, 2)
+        mat = [0 1; 0 1; 0 1]
+        @test_throws ErrorException InfiniteOpt._process_array_supports(error, [mat, mat], domain1, 2)
+        mat = ones(2, 1) * 4
+        @test_throws ErrorException InfiniteOpt._process_array_supports(error, [mat, mat], domain1, 2)
+        # fallback
+        @test_throws ErrorException InfiniteOpt._process_array_supports(error, ["a", "b"], domain1, 2)
     end
     # test _process_derivative_methods
     @testset "_process_derivative_methods" begin
@@ -212,7 +227,7 @@ end
         # test explicit build with some args
         prefs = [GeneralVariableRef(m, 3, DependentParameterIndex, i) for i in 1:2]
         expected = convert(JuMPC.SparseAxisArray, prefs)
-        @test all(isequal.(@infinite_parameter(m, c[1:2] in sdomain1, supports = 0, 
+        @test all(isequal.(@infinite_parameter(m, c[1:2] in sdomain1, supports = 0:1, 
                                   base_name = "z", 
                                   container = SparseAxisArray), expected))
         @test name.(prefs) == ["z[1]", "z[2]"]
@@ -232,7 +247,8 @@ end
         # test anonymous with domain keyword
         prefs = [GeneralVariableRef(m, 6, DependentParameterIndex, i) for i in 1:2]
         @test isequal(@infinite_parameter(m, [1:2], domain = sdomain2, 
-                                  derivative_method = TestMethod()), prefs)
+                                  derivative_method = TestMethod(), supports = ones(2, 1)), prefs)
+        @test supports(prefs) == ones(2, 1)
         # test anonymous with dist keyword and base_name
         prefs = [GeneralVariableRef(m, 7, DependentParameterIndex, i) for i in 1:2]
         @test isequal(@infinite_parameter(m, [1:2],

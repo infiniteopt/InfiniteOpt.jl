@@ -156,23 +156,46 @@ end
 
 ## Process the supports format via dispatch
 # Vector{<:Real}
-function _process_supports(
+function _process_array_supports(
     _error::Function, 
     supps::Vector{<:Real},
     domain,
     sig_digits
     )
+    supps = round.(supps, sigdigits = sig_digits)
     if !supports_in_domain(reshape(supps, length(supps), 1), domain) 
         _error("Support violates the infinite domain.")
     end
-    supps = round.(supps, sigdigits = sig_digits)
     return DataStructures.OrderedDict{Vector{Float64}, Set{DataType}}(
         supps => Set([UserDefined])
         )
 end
 
+# Vector{Matrix{<:Real}}
+function _process_array_supports(
+    _error::Function, 
+    vect_supps::Vector{<:Matrix{<:Real}},
+    domain,
+    sig_digits
+    )
+    supps = first(vect_supps)
+    if any(arr != supps for arr in vect_supps)
+        _error("Cannot specify a matrix of supports for individual infinite parameters.")
+    elseif size(supps, 1) != length(vect_supps)
+        _error("Matrix of supports does not match the dimension of infinite parameters. " * 
+               "Ensure the number of rows is equal to the number of parameters.")
+    end
+    rounded_supps = round.(supps, sigdigits = sig_digits)
+    if !supports_in_domain(rounded_supps, domain) 
+        _error("Supports violate the infinite domain.")
+    end
+    return DataStructures.OrderedDict{Vector{Float64}, Set{DataType}}(
+        s => Set([UserDefined]) for s in eachcol(rounded_supps)
+        )
+end
+
 # Vector{Vector{<:Real}}
-function _process_supports(
+function _process_array_supports(
     _error::Function, 
     vect_supps::Vector{<:Vector{<:Real}},
     domain,
@@ -183,13 +206,33 @@ function _process_supports(
         _error("Inconsistent support dimensions.")
     end
     supps = permutedims(reduce(hcat, vect_supps))
+    supps = round.(supps, sigdigits = sig_digits)
     if !supports_in_domain(supps, domain) 
         _error("Supports violate the infinite domain.")
     end
-    supps = round.(supps, sigdigits = sig_digits)
     return DataStructures.OrderedDict{Vector{Float64}, Set{DataType}}(
         s => Set([UserDefined]) for s in eachcol(supps)
         )
+end
+
+# Vector of other collections
+function _process_array_supports(
+    _error::Function, 
+    vect_supps::Vector{<:Union{UnitRange{T}, StepRange{T}, StepRangeLen{T}, NTuple{N, T}, Base.Generator}},
+    domain,
+    sig_digits
+    ) where {N, T <: Real}
+    return _process_array_supports(_error, collect.(vect_supps), domain, sig_digits)
+end
+
+# Fallback
+function _process_array_supports(
+    _error::Function, 
+    vect_supps,
+    domain,
+    sig_digits
+    )
+    error("Unrecognized support input. Please consult the docs.")
 end
 
 ## Use dispatch to make the formatting of the derivative method vector 
@@ -222,7 +265,7 @@ function _build_parameters(
     orig_inds::Collections.ContainerIndices;
     num_supports::Int = 0,
     sig_digits::Int = DefaultSigDigits,
-    supports::Union{Vector{<:Real}, Vector{<:Vector{<:Real}}} = Float64[],
+    supports = Float64[],
     derivative_method::Vector = [],
     extra_kwargs...
     )
@@ -235,7 +278,7 @@ function _build_parameters(
     domain = round_domain(domain, sig_digits)
     # we have supports
     if !isempty(supports)
-        supp_dict = _process_supports(_error, supports, domain, sig_digits)
+        supp_dict = _process_array_supports(_error, supports, domain, sig_digits)
     # we want to generate supports
     elseif !iszero(num_supports)
         supps, label = generate_support_values(
@@ -257,10 +300,11 @@ function _build_parameters(
 end
 
 """
-    add_parameters(model::InfiniteModel,
-                   params::DependentParameters,
-                   names::Vector{String}
-                   )::Vector{GeneralVariableRef}
+    add_parameters(
+        model::InfiniteModel,
+        params::DependentParameters,
+        names::Vector{String}
+        )::Vector{GeneralVariableRef}
 
 Add `params` to `model` and return an appropriate container of the dependent
 infinite parameter references. This is intended as an internal method for use
@@ -988,8 +1032,10 @@ function significant_digits(pref::DependentParameterRef)
 end
 
 """
-    num_supports(pref::DependentParameterRef; 
-                 [label::Type{<:AbstractSupportLabel} = PublicLabel])::Int
+    num_supports(
+        pref::DependentParameterRef; 
+        [label::Type{<:AbstractSupportLabel} = PublicLabel]
+        )::Int
 
 Return the number of support points associated with a single dependent infinite
 parameter `pref`. Specify a subset of supports via `label` to only count the
@@ -1018,8 +1064,10 @@ function num_supports(
 end
 
 """
-    num_supports(prefs::AbstractArray{<:DependentParameterRef};
-                 [label::Type{<:AbstractSupportLabel} = PublicLabel])::Int
+    num_supports(
+        prefs::AbstractArray{<:DependentParameterRef};
+        [label::Type{<:AbstractSupportLabel} = PublicLabel]
+        )::Int
 
 Return the number of support points associated with dependent infinite
 parameters `prefs`. Errors if not all from the same underlying object.
@@ -1072,8 +1120,10 @@ function has_supports(prefs::AbstractArray{<:DependentParameterRef})
 end
 
 """
-    supports(pref::DependentParameterRef; 
-             [label::Type{<:AbstractSupportLabel} = PublicLabel])::Vector{Float64}
+    supports(
+        pref::DependentParameterRef; 
+        [label::Type{<:AbstractSupportLabel} = PublicLabel]
+        )::Vector{Float64}
 
 Return the support points associated with `pref`. A subset of supports can be
 returned via `label` to return just the supports associated with `label`. By 
@@ -1103,9 +1153,10 @@ function supports(
 end
 
 """
-    supports(prefs::AbstractArray{<:DependentParameterRef};
-             [label::Type{<:AbstractSupportLabel} = PublicLabel]
-             )::Union{Vector{<:AbstractArray{<:Real}}, Array{Float64, 2}}
+    supports(
+        prefs::AbstractArray{<:DependentParameterRef};
+        [label::Type{<:AbstractSupportLabel} = PublicLabel]
+        )::Union{Vector{<:AbstractArray{<:Real}}, Array{Float64, 2}}
 
 Return the support points associated with `prefs`. Errors if not all of the
 infinite dependent parameters are from the same object. This will return a
@@ -1204,10 +1255,12 @@ function _make_support_matrix(
 end
 
 """
-    set_supports(prefs::AbstractArray{<:DependentParameterRef},
-                 supports::Vector{<:AbstractArray{<:Real}};
-                 [force::Bool = false,
-                 label::Type{<:AbstractSupportLabel} = UserDefined])::Nothing
+    set_supports(
+        prefs::AbstractArray{<:DependentParameterRef},
+        supports::Vector{<:AbstractArray{<:Real}};
+        [force::Bool = false,
+        label::Type{<:AbstractSupportLabel} = UserDefined]
+        )::Nothing
 
 Specify the support points for `prefs`. Errors if the supports violate the domain
 of the infinite domain, if the dimensions don't match up properly,
@@ -1217,10 +1270,12 @@ supports and `force = false`. Note that it is strongly preferred to use
 `add_supports` if possible to avoid destroying measure dependencies.
 
 ```julia
-    set_supports(prefs::Vector{DependentParameterRef},
-                 supports::Array{<:Real, 2};
-                 [force::Bool = false,
-                 label::Type{<:AbstractSupportLabel} = UserDefined])::Nothing
+    set_supports(
+        prefs::Vector{DependentParameterRef},
+        supports::Array{<:Real, 2};
+        [force::Bool = false,
+        label::Type{<:AbstractSupportLabel} = UserDefined]
+        )::Nothing
 ```
 Specify the supports for a vector `prefs` of dependent infinite parameters.
 Here rows of `supports` correspond to `prefs` and the columns correspond to the
@@ -1260,6 +1315,7 @@ function set_supports(
     label::Type{<:AbstractSupportLabel} = UserDefined
     )
     domain = infinite_domain(prefs) # this does a check on prefs
+    supports = round.(supports, sigdigits = significant_digits(first(prefs)))
     if has_supports(prefs) && !force
         error("Unable set supports for $prefs since they already have supports." *
               " Consider using `add_supports` or use `force = true` to " *
@@ -1267,7 +1323,6 @@ function set_supports(
     elseif !supports_in_domain(supports, domain)
         error("Supports violate the domain of the infinite domain.")
     end
-    supports = round.(supports, sigdigits = significant_digits(first(prefs)))
     _update_parameter_supports(prefs, supports, label)
     return
 end
@@ -1278,9 +1333,11 @@ function set_supports(pref::DependentParameterRef, supports; kwargs...)
 end
 
 """
-    add_supports(prefs::AbstractArray{<:DependentParameterRef},
-                 supports::Vector{<:AbstractArray{<:Real}};
-                 [label::Type{<:AbstractSupportLabel} = UserDefined])::Nothing
+    add_supports(
+        prefs::AbstractArray{<:DependentParameterRef},
+        supports::Vector{<:AbstractArray{<:Real}};
+        [label::Type{<:AbstractSupportLabel} = UserDefined]
+        )::Nothing
 
 Add additional support points for `prefs`. Errors if the supports violate the domain
 of the infinite domain, if the dimensions don't match up properly,
@@ -1288,9 +1345,11 @@ if `prefs` and `supports` have different indices, or not all of the `prefs` are
 from the same dependent infinite parameter container.
 
 ```julia
-    add_supports(prefs::Vector{DependentParameterRef},
-                 supports::Array{<:Real, 2};
-                 [label::Type{<:AbstractSupportLabel} = UserDefined])::Nothing
+    add_supports(
+        prefs::Vector{DependentParameterRef},
+        supports::Array{<:Real, 2};
+        [label::Type{<:AbstractSupportLabel} = UserDefined]
+        )::Nothing
 ```
 Specify the supports for a vector `prefs` of dependent infinite parameters.
 Here rows of `supports` correspond to `prefs` and the columns correspond to the
@@ -1335,10 +1394,10 @@ function add_supports(
     check::Bool = true
     )
     domain = infinite_domain(prefs) # this does a check on prefs
+    supports = round.(supports, sigdigits = significant_digits(first(prefs)))
     if check && !supports_in_domain(supports, domain)
         error("Supports violate the domain of the infinite domain.")
     end
-    supports = round.(supports, sigdigits = significant_digits(first(prefs)))
     current_supports = _parameter_supports(first(prefs))
     added_new_support = false
     for i in 1:size(supports, 2)
@@ -1370,8 +1429,10 @@ function add_supports(pref::DependentParameterRef, supports; kwargs...)
 end
 
 """
-    delete_supports(prefs::AbstractArray{<:DependentParameterRef};
-                    [label::Type{<:AbstractSupportLabel} = All])::Nothing
+    delete_supports(
+        prefs::AbstractArray{<:DependentParameterRef};
+        [label::Type{<:AbstractSupportLabel} = All]
+        )::Nothing
 
 Delete the support points for `prefs`. Errors if any of the parameters are
 used by a measure or if not all belong to the same set of dependent parameters.
