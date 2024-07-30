@@ -158,19 +158,22 @@ end
 # Test parameter definition methods
 @testset "Definition" begin
     # _check_supports_in_bounds
-    @testset "_check_supports_in_bounds" begin
+    @testset "_process_scalar_supports" begin
         domain = IntervalDomain(0, 1)
-        @test isa(InfiniteOpt._check_supports_in_bounds(error, 0, domain), Nothing)
-        @test_throws ErrorException InfiniteOpt._check_supports_in_bounds(error,
-                                                                        -1, domain)
-        @test_throws ErrorException InfiniteOpt._check_supports_in_bounds(error,
-                                                                         2, domain)
+        @test InfiniteOpt._process_scalar_supports(error, 0, domain, 8) == 0
+        @test_throws ErrorException InfiniteOpt._process_scalar_supports(error, -1, domain, 8)
+        @test_throws ErrorException InfiniteOpt._process_scalar_supports(error, 2, domain, 8)
+        @test_throws ErrorException InfiniteOpt._process_scalar_supports(error, "2", domain, 8)
+        @test InfiniteOpt._process_scalar_supports(error, [0.5, 1], domain, 8) == [0.5, 1]
+        @test InfiniteOpt._process_scalar_supports(error, 0:1, domain, 8) == [0, 1]
+        @test InfiniteOpt._process_scalar_supports(error, 0:0.5:1, domain, 8) == [0, 0.5, 1]
+        @test InfiniteOpt._process_scalar_supports(error, (0, 0.5), domain, 8) == [0.0, 0.5]
+        @test InfiniteOpt._process_scalar_supports(error, (i for i in (0, 1)), domain, 8) == [0, 1]
+        @test_throws ErrorException InfiniteOpt._process_scalar_supports(error, (0, 2), domain, 8)
         domain = UniDistributionDomain(Uniform())
-        @test isa(InfiniteOpt._check_supports_in_bounds(error, 0, domain), Nothing)
-        @test_throws ErrorException InfiniteOpt._check_supports_in_bounds(error,
-                                                                        -1, domain)
-        @test_throws ErrorException InfiniteOpt._check_supports_in_bounds(error,
-                                                                         2, domain)
+        @test InfiniteOpt._process_scalar_supports(error, 0, domain, 8) == 0
+        @test_throws ErrorException InfiniteOpt._process_scalar_supports(error, -1, domain, 8)
+        @test_throws ErrorException InfiniteOpt._process_scalar_supports(error, 2, domain, 8)
     end
     # build_independent_parameter
     @testset "build_parameter (IndependentParameter)" begin
@@ -182,7 +185,7 @@ end
         @test build_parameter(error, domain, supports = supps).domain == domain
         @test build_parameter(error, domain, supports = supps).supports == supps_dict
         @test_throws ErrorException build_parameter(error, domain, bob = 42)
-        warn = "Ignoring num_supports since supports is not empty."
+        warn = "Ignoring `num_supports` since `supports` is not empty."
         @test_logs (:warn, warn) build_parameter(error, domain,
                                             supports = [0, 1], num_supports = 2)
         repeated_supps = [1, 1]
@@ -193,6 +196,7 @@ end
         domain = UniDistributionDomain(Normal())
         @test length(build_parameter(error, domain, num_supports = 5).supports) == 5
         @test build_parameter(error, domain, derivative_method = method).derivative_method == method
+        @test collect(keys(build_parameter(error, domain, supports = -1:0.5:1).supports)) == [-1, -0.5, 0, 0.5, 1]
     end
     # build_finite_parameter
     @testset "build_parameter (FiniteParameter)" begin
@@ -847,7 +851,7 @@ end
     @testset "set_supports" begin
         @test_throws ArgumentError set_supports(bad, [0, 1])
         @test isa(set_supports(pref_disp, [0, 1], force = true), Nothing)
-        @test isa(set_supports(pref, [0, 1], force = true), Nothing)
+        @test isa(set_supports(pref, (0, 1), force = true), Nothing)
         @test supports(pref) == [0., 1.]
         @test_throws ErrorException set_supports(pref, [2, 3])
         warn = "Support points are not unique, eliminating redundant points."
@@ -859,7 +863,7 @@ end
     @testset "add_supports" begin
         @test_throws ArgumentError add_supports(bad, 0.5)
         @test isa(add_supports(pref_disp, 0.25), Nothing)
-        @test isa(add_supports(pref, 0.5), Nothing)
+        @test isa(add_supports(pref, (i for i in [0.5])), Nothing)
         @test supports(pref) == [0.25, 0.5, 1.]
         @test isa(add_supports(pref, [0, 0.25, 1], check = false), Nothing)
         @test supports(pref) == [0, 0.25, 0.5, 1.]
