@@ -348,7 +348,7 @@ end
         add_supports(par, 0.6, label = InternalLabel)
         @test IOTO.set_parameter_supports(tb, m) isa Nothing 
         expected = ([[0., 0.], [1., 1.], [NaN, NaN]], [0., 0.3, 0.6, 0.8, 1., NaN])
-        @test isequal(sort.(IOTO.transcription_data(tb).supports), expected)
+        @test isequal(IOTO.transcription_data(tb).supports, expected)
         @test IOTO.has_internal_supports(tb)
         expected = ([Set([UniformGrid]), Set([UniformGrid]), Set{DataType}()], 
                     [Set([UserDefined]), Set([InternalGaussLobatto]), 
@@ -361,7 +361,7 @@ end
     # test parameter_supports
     @testset "parameter_supports" begin 
     expected = ([[0., 0.], [1., 1.], [NaN, NaN]], [0., 0.3, 0.6, 0.8, 1., NaN])
-        @test isequal(sort.(IOTO.parameter_supports(tb)), expected)
+        @test isequal(IOTO.parameter_supports(tb), expected)
     end
     # test support_index_iterator with 1 argument
     @testset "support_index_iterator (1 Arg)" begin 
