@@ -166,7 +166,9 @@ function _process_supports(
         _error("Support violates the infinite domain.")
     end
     supps = round.(supps, sigdigits = sig_digits)
-    return Dict{Vector{Float64}, Set{DataType}}(supps => Set([UserDefined]))
+    return DataStructures.OrderedDict{Vector{Float64}, Set{DataType}}(
+        supps => Set([UserDefined])
+        )
 end
 
 # Vector{Vector{<:Real}}
@@ -185,8 +187,9 @@ function _process_supports(
         _error("Supports violate the infinite domain.")
     end
     supps = round.(supps, sigdigits = sig_digits)
-    return Dict{Vector{Float64}, Set{DataType}}(s => Set([UserDefined]) 
-                                                for s in eachcol(supps))
+    return DataStructures.OrderedDict{Vector{Float64}, Set{DataType}}(
+        s => Set([UserDefined]) for s in eachcol(supps)
+        )
 end
 
 ## Use dispatch to make the formatting of the derivative method vector 
@@ -235,14 +238,17 @@ function _build_parameters(
         supp_dict = _process_supports(_error, supports, domain, sig_digits)
     # we want to generate supports
     elseif !iszero(num_supports)
-        supps, label = generate_support_values(domain, 
-                                               num_supports = num_supports,
-                                               sig_digits = sig_digits)
-        supp_dict = Dict{Vector{Float64}, Set{DataType}}(s => Set([label]) 
-                                                         for s in eachcol(supps))
+        supps, label = generate_support_values(
+            domain, 
+            num_supports = num_supports,
+            sig_digits = sig_digits
+            )
+        supp_dict = DataStructures.OrderedDict{Vector{Float64}, Set{DataType}}(
+            s => Set([label]) for s in eachcol(supps)
+            )
     # no supports are specified
     else
-        supp_dict = Dict{Vector{Float64}, Set{DataType}}()
+        supp_dict = DataStructures.OrderedDict{Vector{Float64}, Set{DataType}}()
     end
     # check the derivative methods
     methods = _process_derivative_methods(_error, derivative_method, domains)
@@ -351,32 +357,27 @@ end
 #                           PARAMETER DEPENDENCIES
 ################################################################################
 # Extend _infinite_variable_dependencies
-function _infinite_variable_dependencies(pref::DependentParameterRef
-    )::Vector{InfiniteVariableIndex}
+function _infinite_variable_dependencies(pref::DependentParameterRef)
     return _data_object(pref).infinite_var_indices
 end
 
 # Extend _parameter_function_dependencies
-function _parameter_function_dependencies(pref::DependentParameterRef
-    )::Vector{ParameterFunctionIndex}
+function _parameter_function_dependencies(pref::DependentParameterRef)
     return _data_object(pref).parameter_func_indices
 end
 
 # Extend _measure_dependencies
-function _measure_dependencies(pref::DependentParameterRef
-    )::Vector{MeasureIndex}
+function _measure_dependencies(pref::DependentParameterRef)
     return _data_object(pref).measure_indices[_param_index(pref)]
 end
 
 # Extend _constraint_dependencies
-function _constraint_dependencies(pref::DependentParameterRef
-    )::Vector{InfOptConstraintIndex}
+function _constraint_dependencies(pref::DependentParameterRef)
     return _data_object(pref).constraint_indices[_param_index(pref)]
 end
 
 # Extend _derivative_dependencies
-function _derivative_dependencies(pref::DependentParameterRef
-    )::Vector{DerivativeIndex}
+function _derivative_dependencies(pref::DependentParameterRef)
     return _data_object(pref).derivative_indices[_param_index(pref)]
 end
 
@@ -741,8 +742,7 @@ function _update_parameter_domain(
     pref::DependentParameterRef,
     new_domain::InfiniteArrayDomain
     )
-    old_params = core_object(pref)
-    new_supports = Dict{Vector{Float64}, Set{DataType}}()
+    new_supports = DataStructures.OrderedDict{Vector{Float64}, Set{DataType}}()
     sig_figs = significant_digits(pref)
     methods = _derivative_methods(pref)
     new_params = DependentParameters(new_domain, new_supports, sig_figs, methods)
@@ -790,8 +790,10 @@ function set_infinite_domain(
               "a measure.")
     end
     param_idx = _param_index(pref)
-    new_domain = CollectionDomain([i != param_idx ? collection_domains(old_domain)[i] : domain
-                             for i in eachindex(collection_domains(old_domain))])
+    new_domain = CollectionDomain(
+        [i != param_idx ? collection_domains(old_domain)[i] : domain
+        for i in eachindex(collection_domains(old_domain))]
+        )
     _update_parameter_domain(pref, new_domain)
     return
 end
@@ -1168,8 +1170,9 @@ function _update_parameter_supports(
     label::Type{<:AbstractSupportLabel}
     )
     domain = _parameter_domain(first(prefs))
-    new_supps = Dict{Vector{Float64}, Set{DataType}}(s => Set([label]) 
-                                                     for s in eachcol(supports))
+    new_supps = DataStructures.OrderedDict{Vector{Float64}, Set{DataType}}(
+        s => Set([label]) for s in eachcol(supports)
+        )
     sig_figs = significant_digits(first(prefs))
     methods = _derivative_methods(first(prefs))
     new_params = DependentParameters(domain, new_supps, sig_figs, methods)
@@ -1438,9 +1441,11 @@ function generate_and_add_supports!(
     domain::InfiniteArrayDomain;
     num_supports::Int = DefaultNumSupports
     )
-    new_supps, label = generate_supports(domain,
-                                         num_supports = num_supports,
-                                    sig_digits = significant_digits(first(prefs)))
+    new_supps, label = generate_supports(
+        domain,
+        num_supports = num_supports,
+        sig_digits = significant_digits(first(prefs))
+        )
     add_supports(Collections.vectorize(prefs), new_supps, check = false, 
                  label = label)
     return
@@ -1453,9 +1458,11 @@ function generate_and_add_supports!(
     method::Type{<:AbstractSupportLabel};
     num_supports::Int = DefaultNumSupports
     )
-    new_supps, label = generate_supports(domain, method,
-                                         num_supports = num_supports,
-                                    sig_digits = significant_digits(first(prefs)))
+    new_supps, label = generate_supports(
+        domain, method,
+        num_supports = num_supports,
+        sig_digits = significant_digits(first(prefs))
+        )
     add_supports(Collections.vectorize(prefs), new_supps, check = false, 
                  label = label)
     return

@@ -6,7 +6,7 @@
     idx = DependentParameterIndex(obj_idx, 1)
     domain = CollectionDomain([IntervalDomain(0, 1), IntervalDomain(0, 1)])
     methods = [InfiniteOpt.DefaultDerivativeMethod for i = 1:2]
-    params = DependentParameters(domain, Dict{Vector{Float64}, Set{DataType}}(), 5, methods)
+    params = DependentParameters(domain, OrderedDict{Vector{Float64}, Set{DataType}}(), 5, methods)
     object = MultiParameterData(params, 1, 1:2, ["p1", "p2"])
     pref = DependentParameterRef(m, idx)
     gvref = GeneralVariableRef(m, 1, DependentParameterIndex, 1)
@@ -90,11 +90,11 @@ end
     # test _process_supports
     @testset "_process_supports" begin
         # single support
-        supps = Dict([0., 0.] => Set([UserDefined]))
+        supps = OrderedDict([0., 0.] => Set([UserDefined]))
         @test InfiniteOpt._process_supports(error, [0, 0], domain1, 2) == supps
         @test_throws ErrorException InfiniteOpt._process_supports(error, [2, 2], domain1, 2)
         # multiple supports 
-        supps = Dict([0., 0.] => Set([UserDefined]), [1., 1.] => Set([UserDefined]))
+        supps = OrderedDict([0., 0.] => Set([UserDefined]), [1., 1.] => Set([UserDefined]))
         @test InfiniteOpt._process_supports(error, [[0, 1], [0, 1]], domain1, 2) == supps
         @test_throws ErrorException InfiniteOpt._process_supports(error, [[0, 0], [1]], domain1, 2)
         @test_throws ErrorException InfiniteOpt._process_supports(error, [[0, 2], [0, 2]], domain1, 2)
@@ -119,13 +119,13 @@ end
         @test_throws ErrorException InfiniteOpt._build_parameters(error, [domain1, domain1], inds1, derivative_method = [2, 2])
         # test vector 
         @test InfiniteOpt._build_parameters(error, [domain1, domain1], inds1).domain isa CollectionDomain
-        @test InfiniteOpt._build_parameters(error, [domain1, domain1], inds1).supports == Dict{Vector{Float64}, Set{DataType}}()
-        @test InfiniteOpt._build_parameters(error, [domain1, domain1],  inds1, supports = [0, 0]).supports == Dict([0., 0.] => Set([UserDefined]))
+        @test InfiniteOpt._build_parameters(error, [domain1, domain1], inds1).supports == OrderedDict{Vector{Float64}, Set{DataType}}()
+        @test InfiniteOpt._build_parameters(error, [domain1, domain1],  inds1, supports = [0, 0]).supports == OrderedDict([0., 0.] => Set([UserDefined]))
         @test InfiniteOpt._build_parameters(error, [domain1, domain1], inds1).sig_digits isa Int 
         @test InfiniteOpt._build_parameters(error, [domain1, domain1], inds1).derivative_methods == [method, method]
         # test array 
         @test InfiniteOpt._build_parameters(error, [domain3 for i in 1:4], inds2).domain == domain3 
-        @test InfiniteOpt._build_parameters(error, [domain3 for i in 1:4], inds2, supports = [[0, 1] for i in 1:4]).supports == Dict(zeros(4) => Set([UserDefined]), ones(4) => Set([UserDefined]))
+        @test InfiniteOpt._build_parameters(error, [domain3 for i in 1:4], inds2, supports = [[0, 1] for i in 1:4]).supports == OrderedDict(zeros(4) => Set([UserDefined]), ones(4) => Set([UserDefined]))
         @test length(InfiniteOpt._build_parameters(error, [domain3 for i in 1:4], inds2, num_supports = 2).supports) == 2
         @test InfiniteOpt._build_parameters(error, [domain3 for i in 1:4], inds2, sig_digits = 3).sig_digits == 3
         @test InfiniteOpt._build_parameters(error, [domain3 for i in 1:4], inds2, derivative_method = [TestMethod() for i in 1:4]).derivative_methods isa Vector{TestMethod} 
@@ -208,7 +208,7 @@ end
         expected = JuMPC.DenseAxisArray(prefs, 3:4)
         @test isequal(@infinite_parameter(m, b[3:4] in domain2, supports = 0), expected)
         @test name.(prefs) == ["b[3]", "b[4]"]
-        @test core_object(prefs[1]).supports == Dict{Vector{Float64}, Set{DataType}}(zeros(2) => Set([UserDefined]))
+        @test core_object(prefs[1]).supports == OrderedDict{Vector{Float64}, Set{DataType}}(zeros(2) => Set([UserDefined]))
         # test explicit build with some args
         prefs = [GeneralVariableRef(m, 3, DependentParameterIndex, i) for i in 1:2]
         expected = convert(JuMPC.SparseAxisArray, prefs)
@@ -426,7 +426,7 @@ end
     data = InfiniteOpt._data_object(first(prefs))
     domain = CollectionDomain([IntervalDomain(0, 2), IntervalDomain(0, 2)])
     methods = [InfiniteOpt.DefaultDerivativeMethod for i = 1:2]
-    params = DependentParameters(domain, Dict{Vector{Float64}, Set{DataType}}(), 10, methods)
+    params = DependentParameters(domain, OrderedDict{Vector{Float64}, Set{DataType}}(), 10, methods)
     bad_idx = DependentParameterIndex(DependentParametersIndex(-1), 2)
     bad_pref = DependentParameterRef(m, bad_idx)
     # test _parameter_number
@@ -460,7 +460,7 @@ end
         @test InfiniteOpt._adaptive_data_update(prefs[1], params, data) isa Nothing
         # test with different data 
         domain = MultiDistributionDomain(MvNormal([0, 0], LinearAlgebra.Diagonal(map(abs2, [1, 1]))))
-        ps = DependentParameters(domain, Dict{Vector{Float64}, Set{DataType}}(), 10, methods)
+        ps = DependentParameters(domain, OrderedDict{Vector{Float64}, Set{DataType}}(), 10, methods)
         @test InfiniteOpt._adaptive_data_update(prefs[2], ps, data) isa Nothing
         @test core_object(prefs[2]) == ps
     end

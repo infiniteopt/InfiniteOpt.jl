@@ -165,14 +165,14 @@ end
     # test DependentParameters
     @test DependentParameters <: InfOptParameter
     @test DependentParameters(CollectionDomain([IntervalDomain(0, 1)]),
-                              Dict(zeros(1) => Set([All])), 6, [method]).domain isa CollectionDomain
+                              OrderedDict(zeros(1) => Set([All])), 6, [method]).domain isa CollectionDomain
     # test ScalarParameterData
     @test ScalarParameterData <: AbstractDataObject
     @test ScalarParameterData(FiniteParameter(42), 1, 1, "bob").name == "bob"
     # test MultiParameterData
     @test MultiParameterData <: AbstractDataObject
     params = DependentParameters(CollectionDomain([IntervalDomain(0, 1)]),
-                                 Dict(zeros(1) => Set([All])), 6, [method])
+                                 OrderedDict(zeros(1) => Set([All])), 6, [method])
     @test MultiParameterData(params, 1, 1:1, ["par[1]"]) isa MultiParameterData
 end
 
