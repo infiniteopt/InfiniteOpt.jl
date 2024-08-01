@@ -73,9 +73,38 @@ function _data_object(cref::InfOptConstraintRef)
     return object
 end
 
-# Return the core constraint object
-function _core_constraint_object(cref::InfOptConstraintRef)
+"""
+    JuMP.constraint_object(cref::InfOptConstraintRef)::JuMP.AbstractConstraint
+
+Extend `JuMP.constraint_object` to return the constraint object associated with 
+`cref`.
+
+**Example**
+```julia-repl
+julia> @infinite_parameter(model, t in [0, 10]);
+
+julia> @variable(model, x <= 1);
+
+julia> cref = UpperBoundRef(x);
+
+julia> obj = constraint_object(cref)
+ScalarConstraint{GeneralVariableRef,MathOptInterface.LessThan{Float64}}(x,
+MathOptInterface.LessThan{Float64}(1.0))
+```
+"""
+function JuMP.constraint_object(cref::InfOptConstraintRef)
     return _data_object(cref).constraint
+end
+
+"""
+    core_object(cref::InfOptConstraintRef)::JuMP.AbstractConstraint
+
+Return the core underlying constraint object for `cref`.
+This is intended for the developer API. For general usage,
+[`JuMP.constraint_object`](@ref) should be used instead.
+"""
+function core_object(cref::InfOptConstraintRef)
+    return JuMP.constraint_object(cref::InfOptConstraintRef)
 end
 
 ## Set helper methods for adapting data_objects with parametric changes 
@@ -95,25 +124,29 @@ function _adaptive_data_update(
     c::C1, 
     data::ConstraintData{C2}
     )  where {C1, C2}
-    new_data = ConstraintData(c, data.object_nums, data.name, 
+    new_data = ConstraintData(c, data.group_int_idxs, data.name, 
                               data.measure_indices, data.is_info_constraint)
     _data_dictionary(cref)[JuMP.index(cref)] = new_data
     return
 end
 
 # Update the core constraint object
-function _set_core_constraint_object(
+function _set_core_object(
     cref::InfOptConstraintRef,
     constr::JuMP.AbstractConstraint
     )
     _adaptive_data_update(cref, constr, _data_object(cref))
-    set_optimizer_model_ready(JuMP.owner_model(cref), false)
+    set_transformation_backend_ready(JuMP.owner_model(cref), false)
     return
 end
 
-# Extend _object_numbers
-function _object_numbers(cref::InfOptConstraintRef)
-    return _data_object(cref).object_nums
+"""
+    parameter_group_int_indices(cref::InfOptConstraintRef)::Vector{Int}
+
+Return the list of infinite parameter group integer indices used by `cref`.
+"""
+function parameter_group_int_indices(cref::InfOptConstraintRef)
+    return _data_object(cref).group_int_idxs
 end
 
 # Extend _measure_dependencies
@@ -121,8 +154,17 @@ function _measure_dependencies(cref::InfOptConstraintRef)
     return _data_object(cref).measure_indices
 end
 
-# Return if this constraint is an info constraint
-function _is_info_constraint(cref::InfOptConstraintRef)
+"""
+    is_variable_domain_constraint(cref::InfOptConstraintRef)::Bool
+
+Returns a `Bool` whether `cref` was created based on a variable's
+domain. For instance, it could be the upper bound of a variable
+`y(t)` which is normally queried via `UpperBoundRef`. This is
+intended as a helper function for developers of new
+transformation backends which typically ignore these constraints,
+since they are taken care of when the variables are processed.
+"""
+function is_variable_domain_constraint(cref::InfOptConstraintRef)
     return _data_object(cref).is_info_constraint
 end
 
@@ -289,21 +331,26 @@ function JuMP.add_constraint(
     is_info_constr::Bool = false
     )
     # gather the unique list of variable references for testing and mapping
-    vrefs = _all_function_variables(JuMP.jump_function(c))
+    vrefs = all_expression_variables(JuMP.jump_function(c))
     # test in the model
     for vref in vrefs
         JuMP.check_belongs_to_model(vref, model)
     end
-    # get the parameter object numbers
-    object_nums = sort!(_object_numbers(vrefs))
+    # get the parameter group integer indices
+    group_int_idxs = sort!(parameter_group_int_indices(vrefs))
     # add the constaint to the model
-    constr_object = ConstraintData(c, object_nums, name, MeasureIndex[],
-                                   is_info_constr)
+    constr_object = ConstraintData(
+        c,
+        group_int_idxs,
+        name,
+        MeasureIndex[],
+        is_info_constr
+        )
     cindex = _add_data_object(model, constr_object)
     cref = InfOptConstraintRef(model, cindex)
     # update the variable mappings and model status
     _update_var_constr_mapping(vrefs, cref)
-    set_optimizer_model_ready(model, false)
+    set_transformation_backend_ready(model, false)
     # clear out the name dictionary 
     model.name_to_constr = nothing
     # return the constraint reference
@@ -347,31 +394,6 @@ function JuMP.is_valid(
     )
     return (model === JuMP.owner_model(cref) &&
             JuMP.index(cref) in keys(_data_dictionary(cref)))
-end
-
-"""
-    JuMP.constraint_object(cref::InfOptConstraintRef)::JuMP.AbstractConstraint
-
-Extend `JuMP.constraint_object` to return the constraint object associated with 
-`cref`.
-
-**Example**
-```julia-repl
-julia> @infinite_parameter(model, t in [0, 10]);
-
-julia> @variable(model, x <= 1);
-
-julia> cref = UpperBoundRef(x);
-
-julia> obj = constraint_object(cref)
-ScalarConstraint{GeneralVariableRef,MathOptInterface.LessThan{Float64}}(x,
-MathOptInterface.LessThan{Float64}(1.0))
-```
-"""
-function JuMP.constraint_object(
-    cref::InfOptConstraintRef
-    )
-    return _core_constraint_object(cref)
 end
 
 """
@@ -458,7 +480,7 @@ function JuMP.set_normalized_rhs(
     _enforce_rhs_set(JuMP.moi_set(old_constr))
     new_set = _set_set_value(JuMP.moi_set(old_constr), value)
     new_constr = JuMP.ScalarConstraint(JuMP.jump_function(old_constr), new_set)
-    _set_core_constraint_object(cref, new_constr)
+    _set_core_object(cref, new_constr)
     return
 end
 
@@ -524,7 +546,7 @@ function JuMP.set_normalized_coefficient(
     new_func = _set_variable_coefficient!(JuMP.jump_function(old_constr),
                                           variable, value) # checks valid
     new_constr = JuMP.ScalarConstraint(new_func, JuMP.moi_set(old_constr))
-    _set_core_constraint_object(cref, new_constr)
+    _set_core_object(cref, new_constr)
     return
 end
 
@@ -542,13 +564,6 @@ function JuMP.normalized_coefficient(
     constr = JuMP.constraint_object(cref)
     func = JuMP.jump_function(constr)
     return _affine_coefficient(func, variable) # checks valid
-end
-
-# Return the appropriate constraint reference given the index and model
-function _make_constraint_ref(model::InfiniteModel,
-    index::InfOptConstraintIndex
-    )
-    return InfOptConstraintRef(model, index)
 end
 
 """
@@ -587,7 +602,7 @@ function JuMP.constraint_by_name(
     elseif index == InfOptConstraintIndex(-1)
         error("Multiple constraints have the name $name.")
     else
-        return _make_constraint_ref(model, index)
+        return InfOptConstraintRef(model, index)
     end
 end
 
@@ -692,7 +707,7 @@ function JuMP.all_constraints(
     for (index, object) in model.constraints
         if isa(JuMP.jump_function(object.constraint), function_type) &&
            isa(JuMP.moi_set(object.constraint), set_type)
-            constr_list[counter] = _make_constraint_ref(model, index)
+            constr_list[counter] = InfOptConstraintRef(model, index)
             counter += 1
         end
     end
@@ -714,7 +729,7 @@ end
 
 # All the constraints
 function JuMP.all_constraints(model::InfiniteModel)
-    return [_make_constraint_ref(model, idx) for (idx, _) in model.constraints]
+    return [InfOptConstraintRef(model, idx) for (idx, _) in model.constraints]
 end
 
 """
@@ -758,8 +773,10 @@ julia> parameter_refs(cref)
 """
 function parameter_refs(cref::InfOptConstraintRef)
     model = JuMP.owner_model(cref)
-    obj_indices = _param_object_indices(model)[_object_numbers(cref)]
-    return Tuple(_make_param_tuple_element(model, idx) for idx in obj_indices)
+    prefs = parameter_refs(model)
+    group_int_idxs = parameter_group_int_indices(cref)
+    length(prefs) == length(group_int_idxs) && return prefs
+    return prefs[group_int_idxs]
 end
 
 ################################################################################
@@ -832,7 +849,7 @@ function set_domain_restrictions(
     # set the new restrictions
     model.constraint_restrictions[JuMP.index(cref)] = restrictions
     # update status
-    set_optimizer_model_ready(JuMP.owner_model(cref), false)
+    set_transformation_backend_ready(JuMP.owner_model(cref), false)
     return
 end
 
@@ -897,8 +914,8 @@ function add_domain_restrictions(
     else 
         model.constraint_restrictions[JuMP.index(cref)] = new_restrictions
     end
-    # update the optimizer model status
-    set_optimizer_model_ready(JuMP.owner_model(cref), false)
+    # update the backend status
+    set_transformation_backend_ready(JuMP.owner_model(cref), false)
     return
 end
 
@@ -923,7 +940,7 @@ function delete_domain_restrictions(cref::InfOptConstraintRef)
     # delete the restrictions if there are any
     delete!(JuMP.owner_model(cref).constraint_restrictions, JuMP.index(cref))
     # update status
-    set_optimizer_model_ready(JuMP.owner_model(cref), false)
+    set_transformation_backend_ready(JuMP.owner_model(cref), false)
     return
 end
 
@@ -956,8 +973,8 @@ function JuMP.delete(model::InfiniteModel, cref::InfOptConstraintRef)
     # check valid reference
     @assert JuMP.is_valid(model, cref) "Invalid constraint reference."
     # update variable dependencies
-    constr = _core_constraint_object(cref)
-    all_vrefs = _all_function_variables(JuMP.jump_function(constr))
+    constr = JuMP.constraint_object(cref)
+    all_vrefs = all_expression_variables(JuMP.jump_function(constr))
     for vref in all_vrefs
         filter!(e -> e != JuMP.index(cref), _constraint_dependencies(vref))
     end
@@ -965,7 +982,7 @@ function JuMP.delete(model::InfiniteModel, cref::InfOptConstraintRef)
     delete_domain_restrictions(cref)
     # delete constraint information
     _delete_data_object(cref)
-    # reset optimizer model status
-    set_optimizer_model_ready(model, false)
+    # reset transformation backend status
+    set_transformation_backend_ready(model, false)
     return
 end

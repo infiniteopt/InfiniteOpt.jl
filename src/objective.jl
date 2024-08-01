@@ -93,16 +93,16 @@ function JuMP.set_objective_function(
     func::JuMP.AbstractJuMPScalar
     )::Nothing
     # gather the unique list of variable references for testing and mapping
-    new_vrefs = _all_function_variables(func)
+    new_vrefs = all_expression_variables(func)
     # test in the model
     for vref in new_vrefs
         JuMP.check_belongs_to_model(vref, model)
     end
-    if !isempty(_object_numbers(new_vrefs))
+    if !isempty(parameter_group_int_indices(new_vrefs))
         error("Objective function cannot contain infinite parameters/variables.")
     end
     # delete old mappings
-    old_vrefs = _all_function_variables(JuMP.objective_function(model))
+    old_vrefs = all_expression_variables(JuMP.objective_function(model))
     for vref in old_vrefs
         _data_object(vref).in_objective = false
     end
@@ -116,7 +116,7 @@ function JuMP.set_objective_function(
             model.objective_has_measures = true
         end
     end
-    set_optimizer_model_ready(model, false)
+    set_transformation_backend_ready(model, false)
     return
 end
 
@@ -136,13 +136,13 @@ julia> objective_function(model)
 """
 function JuMP.set_objective_function(model::InfiniteModel, func::Real)::Nothing
     # delete old mappings
-    old_vrefs = _all_function_variables(JuMP.objective_function(model))
+    old_vrefs = all_expression_variables(JuMP.objective_function(model))
     for vref in old_vrefs
         _data_object(vref).in_objective = false
     end
     # update function
     model.objective_function = JuMP.GenericAffExpr{Float64, GeneralVariableRef}(func)
-    set_optimizer_model_ready(model, false)
+    set_transformation_backend_ready(model, false)
     return
 end
 
@@ -166,7 +166,7 @@ function JuMP.set_objective_sense(
     sense::MOI.OptimizationSense
     )::Nothing
     model.objective_sense = sense
-    set_optimizer_model_ready(model, false)
+    set_transformation_backend_ready(model, false)
     return
 end
 

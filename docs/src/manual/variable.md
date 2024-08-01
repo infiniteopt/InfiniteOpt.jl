@@ -88,12 +88,16 @@ parameter_refs(::InfiniteVariableRef)
 parameter_list(::InfiniteVariableRef)
 raw_parameter_refs(::InfiniteVariableRef)
 is_used(::Union{InfiniteVariableRef, DerivativeRef})
+used_by_derivative(::Union{DerivativeRef, InfiniteVariableRef})
 used_by_point_variable(::Union{InfiniteVariableRef, DerivativeRef})
 used_by_semi_infinite_variable(::Union{InfiniteVariableRef, DerivativeRef})
+parameter_group_int_indices(::InfiniteVariableRef)
+core_object(::InfiniteVariableRef)
 ```
 
 ### Semi-Infinite
 ```@docs
+JuMP.has_lower_bound(::SemiInfiniteVariableRef)
 JuMP.lower_bound(::SemiInfiniteVariableRef)
 JuMP.LowerBoundRef(::SemiInfiniteVariableRef)
 JuMP.has_upper_bound(::SemiInfiniteVariableRef)
@@ -112,6 +116,10 @@ parameter_refs(::SemiInfiniteVariableRef)
 parameter_list(::SemiInfiniteVariableRef)
 raw_parameter_refs(::SemiInfiniteVariableRef)
 eval_supports(::SemiInfiniteVariableRef)
+is_used(::SemiInfiniteVariableRef)
+used_by_derivative(::SemiInfiniteVariableRef)
+parameter_group_int_indices(::SemiInfiniteVariableRef)
+core_object(::SemiInfiniteVariableRef)
 ```
 
 ### Point
@@ -119,6 +127,12 @@ eval_supports(::SemiInfiniteVariableRef)
 infinite_variable_ref(::PointVariableRef)
 parameter_values(::PointVariableRef)
 raw_parameter_values(::PointVariableRef)
+core_object(::PointVariableRef)
+```
+
+### Finite
+```@docs
+core_object(::FiniteVariableRef)
 ```
 
 ## Modification

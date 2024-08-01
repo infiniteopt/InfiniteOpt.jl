@@ -99,9 +99,12 @@ measure_data
 is_analytic
 parameter_refs(::MeasureRef)
 is_used(::MeasureRef)
+used_by_derivative(::MeasureRef)
 used_by_constraint(::MeasureRef)
 used_by_measure(::MeasureRef)
 used_by_objective(::MeasureRef)
+core_object(::MeasureRef)
+parameter_group_int_indices(::MeasureRef)
 ```
 
 ## Modification
@@ -119,7 +122,7 @@ InfiniteOpt.analytic_expansion
 InfiniteOpt.expand_measures
 make_point_variable_ref
 make_semi_infinite_variable_ref
-add_point_variable(::JuMP.Model, ::Any, ::Any, ::Any)
-add_semi_infinite_variable(::JuMP.Model, ::Any, ::Any)
+add_point_variable(::AbstractTransformationBackend, ::Any, ::Any)
+add_semi_infinite_variable(::AbstractTransformationBackend, ::Any)
 internal_semi_infinite_variable
 ```

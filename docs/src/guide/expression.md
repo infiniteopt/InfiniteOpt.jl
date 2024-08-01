@@ -18,20 +18,17 @@ Expressions in `InfiniteOpt` (also called functions) refer to mathematical
 statements involving variables and numbers. Thus, these comprise the
 mathematical expressions used that are used in measures, objectives, and
 constraints. Programmatically, `InfiniteOpt` simply extends `JuMP` expression
-types and methods principally pertaining to affine and quadratic mathematical
-expressions. A natively supported abstraction for general nonlinear expressions
-is planned for development since that of `JuMP` is not readily extendable.
+types and methods.
 
 ## [Parameter Functions](@id par_func_docs)
-As described further below, InfiniteOpt.jl only supports affine and quadratic
-expressions in its current rendition. However, there several use cases where we
-might want to provide a more complex known function of infinite parameter(s) (e.g.,
+Rather than construct an explicit symbolic expression, we
+might want to provide a more complex function of infinite parameter(s) (e.g.,
 nonlinear setpoint tracking). Thus, we provide parameter function objects
-that given a particular realization of infinite parameters will output a scalar
-value. Note that this can be interpreted as an infinite variable that is
-constrained to a particular known function. This is accomplished via
+that wrap arbitrary Julia functions that take infinite parameters as input and output 
+a scalar value. Mathematically, these can can be interpreted infinite variables
+constrained to a particular known function. These are created via
 [`@parameter_function`](@ref) or [`parameter_function`](@ref) and is exemplified
-by defining a parameter function `f(t)` that uses `sin(t)`:
+below by defining a parameter function `f(t)` that uses `sin(t)`:
 ```jldoctest param_func
 julia> using InfiniteOpt;
 
@@ -42,7 +39,7 @@ julia> @infinite_parameter(model, t in [0, 10]);
 julia> @parameter_function(model, f == sin(t))
 f(t)
 ```
-Here we created a parameter function object, added it to `model`, and
+Here, we created a parameter function object, added it to `model`, and
 then created a Julia variable `f` that serves as a `GeneralVariableRef` that points
 to it. From here we can treat `f` as a normal infinite variable and use it with
 measures, derivatives, and constraints. For example, we can do the following:
@@ -59,7 +56,7 @@ julia> @constraint(model, y - f <= 0)
 y(t) - f(t) ≤ 0, ∀ t ∈ [0, 10]
 ```
 We can also define parameter functions that depend on multiple infinite
-parameters even use an anonymous function if preferred:
+parameters and even use an anonymous Julia function if desired:
 ```jldoctest param_func
 julia> @infinite_parameter(model, x[1:2] in [-1, 1]);
 
@@ -77,9 +74,8 @@ julia> @parameter_function(model, pfunc_alt[i = 1:3] == t -> mysin(t, as[i], b =
  pfunc_alt[2](t)
  pfunc_alt[3](t)
 ```
-The main recommended use case for [`parameter_function`](@ref) is that it is
-amenable to define complex anonymous functions via a do-block which is useful
-for applications like defining a time-varied setpoint:
+The use of [`parameter_function`](@ref) is convenient for enabling do-block syntax which 
+often handy. For instance, when defining a time-varied setpoint for optimal control:
 ```jldoctest param_func
 julia> setpoint = parameter_function(t, name = "setpoint") do t_supp
                     if t_supp <= 5
@@ -95,7 +91,7 @@ functions: [`@parameter_function`](@ref) and [`parameter_function`](@ref).
 
 Beyond this, there are a number of query and modification methods that can be
 employed for parameter functions and these are detailed in the
-[technical manual](@ref par_func_manual) Section below.
+[technical manual](@ref par_func_manual).
 
 ## Variable Hierarchy
 Expressions employ variable reference types inherited from
@@ -110,13 +106,10 @@ green and the concrete types are shown blue.
 In consistently with `JuMP` expression support, [`GeneralVariableRef`](@ref)
 exists as a variable reference type that is able to represent any of the above
 concrete subtypes of [`DispatchVariableRef`](@ref). This allows the expression
-containers to be homogeneous in variable type. This is a paradigm shift from
-previous versions of `InfiniteOpt` that used the hierarchy of types directly
-to construct expressions. This behavior led to stability and performance
-limitations and thus a has been discontinued.
+containers to be homogeneous in variable type which provides improved performance.
 
-However, the variable hierarchy is still used to create for variable methods.
-To accomplish this appropriate `GeneralVariableRef` dispatch methods are implemented
+However, the variable hierarchy is used for variable methods.
+To accomplish this, appropriate `GeneralVariableRef` dispatch methods are implemented
 (which are detailed in User Methods section at the bottom of this page) that
 utilize [`dispatch_variable_ref`](@ref) to create the appropriate concrete
 subtype of `DispatchVariableRef` and call the appropriate underlying method.

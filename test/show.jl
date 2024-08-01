@@ -14,6 +14,8 @@
     d2 = @deriv(inf, pars[1], par1)
     d3 = @deriv(z, pars[2])
     set_name(d3, "d3")
+    d4 = @deriv(x, par1^2)
+    d5 = @deriv(x, par1^3)
     @objective(m, Min, 2 + y)
     @constraint(m, c1, x + y - 2 <= 0)
     ac1 = @constraint(m, x + y - 2 <= 0)
@@ -389,11 +391,11 @@
         @test InfiniteOpt.variable_string(MIME("text/latex"), bad_ref) == "noname"
         # test normal one
         dref = dispatch_variable_ref(d1)
-        d_re = InfiniteOpt._math_symbol(MIME("text/plain"), :partial)
-        @test InfiniteOpt.variable_string(MIME("text/plain"), dref) == "$d_re/$(d_re)par1[x(par1)]"
-        @test InfiniteOpt.variable_string(MIME("text/latex"), dref) == "\\frac{\\partial}{\\partial par1}\\left[x(par1)\\right]"
+        @test InfiniteOpt.variable_string(MIME("text/plain"), dref) == "d/dpar1[x(par1)]"
+        @test InfiniteOpt.variable_string(MIME("text/latex"), dref) == "\\frac{d}{d par1}\\left[x(par1)\\right]"
         # test nested one
         dref = dispatch_variable_ref(d2)
+        d_re = InfiniteOpt._math_symbol(MIME("text/plain"), :partial)
         expected = "$d_re/$(d_re)par1[$d_re/$(d_re)pars[1][inf(pars, par1, pars3)]]"
         @test InfiniteOpt.variable_string(MIME("text/plain"), dref) == expected
         expected = "\\frac{\\partial}{\\partial par1}\\left[\\frac{\\partial}{\\partial pars_{1}}\\left[inf(pars, par1, pars3)\\right]\\right]"
@@ -402,6 +404,14 @@
         dref = dispatch_variable_ref(d3)
         @test InfiniteOpt.variable_string(MIME("text/plain"), dref) == "d3(pars)"
         @test InfiniteOpt.variable_string(MIME("text/latex"), dref) == "d3(pars)"
+        # test 2nd derivative
+        dref = dispatch_variable_ref(d4)
+        @test InfiniteOpt.variable_string(MIME("text/plain"), dref) == "d²/dpar1²[x(par1)]"
+        @test InfiniteOpt.variable_string(MIME("text/latex"), dref) == "\\frac{d^{2}}{d par1^{2}}\\left[x(par1)\\right]"
+        # test 3rd derivative
+        dref = dispatch_variable_ref(d5)
+        @test InfiniteOpt.variable_string(MIME("text/plain"), dref) == "d^3/dpar1^3[x(par1)]"
+        @test InfiniteOpt.variable_string(MIME("text/latex"), dref) == "\\frac{d^{3}}{d par1^{3}}\\left[x(par1)\\right]"
     end
     # _make_str_value (Number)
     @testset "_make_str_value (Number)" begin
@@ -438,8 +448,7 @@
         @test InfiniteOpt.variable_string(MIME("text/latex"), dvref) == "z0"
         # test with derivative
         dvref = dispatch_variable_ref(@variable(m, variable_type = Point(d1, 0)))
-        d_re = InfiniteOpt._math_symbol(MIME("text/plain"), :partial)
-        @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "$(d_re)/$(d_re)par1[x(par1)](0)"
+        @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "d/dpar1[x(par1)](0)"
         # test named derivative
         dvref = dispatch_variable_ref(@variable(m, variable_type = Point(d3, [0, 0])))
         @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "d3([0, 0])"
@@ -464,8 +473,7 @@
         var = build_variable(error, d1, eval_supps, check = false)
         rv = @variable(m, variable_type = SemiInfinite(d1, 0))
         dvref = dispatch_variable_ref(rv)
-        d_re = InfiniteOpt._math_symbol(MIME("text/plain"), :partial)
-        @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "$(d_re)/$(d_re)par1[x(par1)](0)"
+        @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "d/dpar1[x(par1)](0)"
     end
     # test variable_string (Fallback)
     @testset "variable_string (Fallback)" begin
@@ -478,8 +486,7 @@
         @test JuMP.function_string(MIME("text/latex"), dispatch_variable_ref(inf)) == "inf(pars, par1, pars3)"
         @test JuMP.function_string(MIME("text/plain"), y) == "y"
         @test JuMP.function_string(MIME("text/latex"), inf) == "inf(pars, par1, pars3)"
-        d_re = InfiniteOpt._math_symbol(MIME("text/plain"), :partial)
-        @test JuMP.function_string(MIME("text/plain"), d1) == "$d_re/$(d_re)par1[x(par1)]"
+        @test JuMP.function_string(MIME("text/plain"), d1) == "d/dpar1[x(par1)]"
     end
     # test restrict_string
     @testset "restrict_string" begin
@@ -752,98 +759,82 @@ end
     # test show_backend_summary
     @testset "JuMP.show_backend_summary" begin
         # test without optimizer
-        str = "Optimizer model backend information: \nModel mode: AUTOMATIC\n" *
-              "CachingOptimizer state: NO_OPTIMIZER\nSolver name: No optimizer" *
-              " attached."
+        str = "Transformation backend information: \n  Backend type: TranscriptionBackend\n  " * 
+              "Solver name: No optimizer attached.\n  Transformation built and up-to-date: false\n"
         io_test(show_backend_summary, str, m)
         # test with optimizer
-        set_optimizer(optimizer_model(m), mockoptimizer)
-        str = "Optimizer model backend information: \nModel mode: AUTOMATIC\n" *
-              "CachingOptimizer state: EMPTY_OPTIMIZER\nSolver name: Mock"
+        set_optimizer(m, mockoptimizer)
+        str = "Transformation backend information: \n  Backend type: TranscriptionBackend\n  " *
+              "Solver name: Mock\n  Transformation built and up-to-date: false\n"
         io_test(show_backend_summary, str, m)
+        # test fallback
+        str = "  Backend type: TestBackend\n"
+        io_test(show_backend_summary, str, InfiniteModel(), TestBackend())
     end
     # test show_objective_function_summary
     @testset "JuMP.show_objective_function_summary" begin
-        str = "Objective function type: GenericAffExpr{Float64,GeneralVariableRef}\n"
-        str2 = "Objective function type: GenericAffExpr{Float64, GeneralVariableRef}\n"
+        str = "  Objective function type: GenericAffExpr{Float64,GeneralVariableRef}\n"
+        str2 = "  Objective function type: GenericAffExpr{Float64, GeneralVariableRef}\n"
         io_test(show_objective_function_summary, [str, str2], m)
     end
     # test show_constraints_summary
     @testset "JuMP.show_constraints_summary" begin
         # test the main function
-        str = "`GenericAffExpr{Float64,GeneralVariableRef}`-in-`MathOptInter" *
+        str = "  `GenericAffExpr{Float64,GeneralVariableRef}`-in-`MathOptInter" *
               "face.LessThan{Float64}`: 2 constraints\n"
-        str2 = "`GenericAffExpr{Float64, GeneralVariableRef}`-in-`MathOptInter" *
+        str2 = "  `GenericAffExpr{Float64, GeneralVariableRef}`-in-`MathOptInter" *
               "face.LessThan{Float64}`: 2 constraints\n"
         io_test(show_constraints_summary, [str, str2], m)
     end
     # test show_objective_function_summary
     @testset "Base.show (InfiniteModel)" begin
         # test minimization
-        str = "An InfiniteOpt Model\nMinimization problem with:\nFinite " *
-              "Parameters: 0\nInfinite Parameters: 3\nVariables: 3" *
-              "\nDerivatives: 0\nMeasures: 0" *
-              "\nObjective function type: GenericAffExpr{Float64,General" *
-              "VariableRef}\n`GenericAffExpr{Float64,GeneralVariableRef}`-in-" *
-              "`MathOptInterface.LessThan{Float64}`: 2 constraints" *
-              "\nNames registered in the model: c1, c3, par1, " *
-              "pars, x, y, z\nOptimizer model backend information: \nModel " *
-              "mode: AUTOMATIC\nCachingOptimizer state: EMPTY_OPTIMIZER\n" *
-              "Solver name: Mock"
-        str2 = "An InfiniteOpt Model\nMinimization problem with:\nFinite " *
-              "Parameters: 0\nInfinite Parameters: 3\nVariables: 3" *
-              "\nDerivatives: 0\nMeasures: 0" *
-              "\nObjective function type: GenericAffExpr{Float64, General" *
-              "VariableRef}\n`GenericAffExpr{Float64, GeneralVariableRef}`-in-" *
-              "`MathOptInterface.LessThan{Float64}`: 2 constraints" *
-              "\nNames registered in the model: c1, c3, par1, " *
-              "pars, x, y, z\nOptimizer model backend information: \nModel " *
-              "mode: AUTOMATIC\nCachingOptimizer state: EMPTY_OPTIMIZER\n" *
-              "Solver name: Mock"
+        str = "An InfiniteOpt Model\nMinimization problem with:\n  Finite parameters: 0\n  " * 
+              "Infinite parameters: 3\n  Variables: 3\n  Derivatives: 0\n  Measures: 0\n  " * 
+              "Objective function type: GenericAffExpr{Float64, GeneralVariableRef}\n  " * 
+              "`GenericAffExpr{Float64, GeneralVariableRef}`-in-`MathOptInterface.LessThan{Float64}`: " * 
+              "2 constraints\nNames registered in the model: c1, c3, par1, pars, x, y, z\n" * 
+              "Transformation backend information: \n  Backend type: TranscriptionBackend\n  " * 
+              "Solver name: Mock\n  Transformation built and up-to-date: false\n"
+        str2 = "An InfiniteOpt Model\nMinimization problem with:\n  Finite parameters: 0\n  " * 
+              "Infinite parameters: 3\n  Variables: 3\n  Derivatives: 0\n  Measures: 0\n  " * 
+              "Objective function type: GenericAffExpr{Float64,GeneralVariableRef}\n  " * 
+              "`GenericAffExpr{Float64,GeneralVariableRef}`-in-`MathOptInterface.LessThan{Float64}`: " * 
+              "2 constraints\nNames registered in the model: c1, c3, par1, pars, x, y, z\n" * 
+              "Transformation backend information: \n  Backend type: TranscriptionBackend\n  " * 
+              "Solver name: Mock\n  Transformation built and up-to-date: false\n"
         show_test(MIME("text/plain"), m, [str, str2], repl=:show)
         # test maximization
         set_objective_sense(m, MOI.MAX_SENSE)
-        str = "An InfiniteOpt Model\nMaximization problem with:\nFinite " *
-              "Parameters: 0\nInfinite Parameters: 3\nVariables: 3" *
-              "\nDerivatives: 0\nMeasures: 0" *
-              "\nObjective function type: GenericAffExpr{Float64,General" *
-              "VariableRef}\n`GenericAffExpr{Float64,GeneralVariableRef}`-in-" *
-              "`MathOptInterface.LessThan{Float64}`: 2 constraints" *
-              "\nNames registered in the model: c1, c3, par1, " *
-              "pars, x, y, z\nOptimizer model backend information: \nModel " *
-              "mode: AUTOMATIC\nCachingOptimizer state: EMPTY_OPTIMIZER\n" *
-              "Solver name: Mock"
-        str2 = "An InfiniteOpt Model\nMaximization problem with:\nFinite " *
-              "Parameters: 0\nInfinite Parameters: 3\nVariables: 3" *
-              "\nDerivatives: 0\nMeasures: 0" *
-              "\nObjective function type: GenericAffExpr{Float64, General" *
-              "VariableRef}\n`GenericAffExpr{Float64, GeneralVariableRef}`-in-" *
-              "`MathOptInterface.LessThan{Float64}`: 2 constraints" *
-              "\nNames registered in the model: c1, c3, par1, " *
-              "pars, x, y, z\nOptimizer model backend information: \nModel " *
-              "mode: AUTOMATIC\nCachingOptimizer state: EMPTY_OPTIMIZER\n" *
-              "Solver name: Mock"
+        str = "An InfiniteOpt Model\nMaximization problem with:\n  Finite parameters: 0\n  " * 
+              "Infinite parameters: 3\n  Variables: 3\n  Derivatives: 0\n  Measures: 0\n  " * 
+              "Objective function type: GenericAffExpr{Float64, GeneralVariableRef}\n  " * 
+              "`GenericAffExpr{Float64, GeneralVariableRef}`-in-`MathOptInterface.LessThan{Float64}`: " * 
+              "2 constraints\nNames registered in the model: c1, c3, par1, pars, x, y, z\n" * 
+              "Transformation backend information: \n  Backend type: TranscriptionBackend\n  " * 
+              "Solver name: Mock\n  Transformation built and up-to-date: false\n"
+        str2 = "An InfiniteOpt Model\nMaximization problem with:\n  Finite parameters: 0\n  " * 
+              "Infinite parameters: 3\n  Variables: 3\n  Derivatives: 0\n  Measures: 0\n  " * 
+              "Objective function type: GenericAffExpr{Float64,GeneralVariableRef}\n  " * 
+              "`GenericAffExpr{Float64,GeneralVariableRef}`-in-`MathOptInterface.LessThan{Float64}`: " * 
+              "2 constraints\nNames registered in the model: c1, c3, par1, pars, x, y, z\n" * 
+              "Transformation backend information: \n  Backend type: TranscriptionBackend\n  " * 
+              "Solver name: Mock\n  Transformation built and up-to-date: false\n"
         show_test(MIME("text/plain"), m, [str, str2], repl=:show)
         # test feasibility
         set_objective_sense(m, MOI.FEASIBILITY_SENSE)
-        str = "An InfiniteOpt Model\nFeasibility problem with:\nFinite " *
-              "Parameters: 0\nInfinite Parameters: 3\nVariables: 3" *
-              "\nDerivatives: 0\nMeasures: 0" *
-              "\n`GenericAffExpr{Float64,GeneralVariableRef}`-in-`MathOpt" *
-              "Interface.LessThan{Float64}`: 2 constraints" *
-              "\nNames registered in the model: c1, c3, par1, " *
-              "pars, x, y, z\nOptimizer model backend information: \nModel " *
-              "mode: AUTOMATIC\nCachingOptimizer state: EMPTY_OPTIMIZER\n" *
-              "Solver name: Mock"
-        str2 = "An InfiniteOpt Model\nFeasibility problem with:\nFinite " *
-              "Parameters: 0\nInfinite Parameters: 3\nVariables: 3" *
-              "\nDerivatives: 0\nMeasures: 0" *
-              "\n`GenericAffExpr{Float64, GeneralVariableRef}`-in-`MathOpt" *
-              "Interface.LessThan{Float64}`: 2 constraints" *
-              "\nNames registered in the model: c1, c3, par1, " *
-              "pars, x, y, z\nOptimizer model backend information: \nModel " *
-              "mode: AUTOMATIC\nCachingOptimizer state: EMPTY_OPTIMIZER\n" *
-              "Solver name: Mock"
+        str = "An InfiniteOpt Model\nFeasibility problem with:\n  Finite parameters: 0\n  " * 
+              "Infinite parameters: 3\n  Variables: 3\n  Derivatives: 0\n  Measures: 0\n  " * 
+              "`GenericAffExpr{Float64, GeneralVariableRef}`-in-`MathOptInterface.LessThan{Float64}`: " * 
+              "2 constraints\nNames registered in the model: c1, c3, par1, pars, x, y, z\n" * 
+              "Transformation backend information: \n  Backend type: TranscriptionBackend\n  " * 
+              "Solver name: Mock\n  Transformation built and up-to-date: false\n"
+        str2 = "An InfiniteOpt Model\nFeasibility problem with:\n  Finite parameters: 0\n  " * 
+              "Infinite parameters: 3\n  Variables: 3\n  Derivatives: 0\n  Measures: 0\n  " * 
+              "`GenericAffExpr{Float64,GeneralVariableRef}`-in-`MathOptInterface.LessThan{Float64}`: " * 
+              "2 constraints\nNames registered in the model: c1, c3, par1, pars, x, y, z\n" * 
+              "Transformation backend information: \n  Backend type: TranscriptionBackend\n  " * 
+              "Solver name: Mock\n  Transformation built and up-to-date: false\n"
         show_test(MIME("text/plain"), m, [str, str2], repl=:show)
     end
 end

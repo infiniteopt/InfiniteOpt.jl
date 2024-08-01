@@ -1,5 +1,5 @@
-# Test build_optimizer_model!
-@testset "build_optimizer_model!" begin
+# Test build_transformation_backend!
+@testset "build_transformation_backend!" begin
     # initialize model
     m = InfiniteModel()
     @infinite_parameter(m, par in [0, 1], supports = [0, 1], 
@@ -22,26 +22,26 @@
     @constraint(m, c5, meas2 == 0)
     @objective(m, Min, x0 + meas1)
     # test extra keywords
-    @test_throws ErrorException build_optimizer_model!(m, bad = 42)
+    @test_throws ErrorException build_transformation_backend!(m, bad = 42)
     # test normal usage
-    @test isa(build_optimizer_model!(m), Nothing)
-    @test optimizer_model_ready(m)
-    @test num_variables(optimizer_model(m)) == 14
+    @test isa(build_transformation_backend!(m), Nothing)
+    @test transformation_backend_ready(m)
+    @test num_variables(m.backend.model) == 14
     # test repeated build
-    @test isa(build_optimizer_model!(m), Nothing)
-    @test optimizer_model_ready(m)
-    @test num_variables(optimizer_model(m)) == 14
+    @test isa(build_transformation_backend!(m), Nothing)
+    @test transformation_backend_ready(m)
+    @test num_variables(m.backend.model) == 14
     # test finite model
     m = InfiniteModel()
     @variable(m, y >= 0)
     @objective(m, Min, y)
     warn = "Finite models (i.e., `InfiniteModel`s with no infinite " * 
            "parameters) should be modeled directly via a `Model` in JuMP.jl."
-    @test_logs (:warn, warn) build_optimizer_model!(m)
+    @test_logs (:warn, warn) build_transformation_backend!(m)
 end
 
-# Test optimizer model querying methods
-@testset "Optimizer Model Queries" begin
+# Test transformation backend querying methods
+@testset "Transformation Backend Queries" begin
     # initialize model
     m = InfiniteModel()
     @infinite_parameter(m, par in [0, 1], supports = [0, 1], 
@@ -56,96 +56,95 @@ end
     @constraint(m, c2, z + x0 >= -3)
     @constraint(m, c3, meas1 + z == 0)
     f = parameter_function(sin, par)
-    build_optimizer_model!(m)
-    tm = optimizer_model(m)
-    tdata = transcription_data(tm)
-    # Test optimizer_model_variable
-    @testset "optimizer_model_variable" begin
+    build_transformation_backend!(m)
+    tb = m.backend
+    tdata = IOTO.transcription_data(tb)
+    # Test transformation_variable
+    @testset "transformation_variable" begin
         # test normal usage
-        @test optimizer_model_variable(x, label = All) == transcription_variable(x, label = All)
-        @test optimizer_model_variable(x, label = All, ndarray = true) == transcription_variable(x, label = All, ndarray = true)
-        @test optimizer_model_variable(x0) == transcription_variable(x0)
-        @test optimizer_model_variable(z) == transcription_variable(z)
-        @test optimizer_model_variable(d1, label = InternalLabel) == transcription_variable(d1, label = InternalLabel)
-        @test optimizer_model_variable(f) == [0, sin(1)]
+        @test transformation_variable(x, label = All) == IOTO.transcription_variable(x, label = All)
+        @test transformation_variable(x0) == IOTO.transcription_variable(x0)
+        @test transformation_variable(z) == IOTO.transcription_variable(z)
+        @test transformation_variable(d1, label = InternalLabel) == IOTO.transcription_variable(d1, label = InternalLabel)
+        @test transformation_variable(f) == [0, sin(1)]
+        # test deprecation 
+        @test (@test_deprecated optimizer_model_variable(z)) == transformation_variable(z)
         # test fallback
-        @test_throws ErrorException optimizer_model_variable(x, Val(:Bad), my_key = true)
+        @test_throws ErrorException transformation_variable(x, TestBackend(), my_key = true)
     end
     # Test variable_supports
     @testset "variable_supports" begin
         # test finite variable fallback
-        @test InfiniteOpt.variable_supports(tm, dispatch_variable_ref(z), :key) == ()
-        @test InfiniteOpt.variable_supports(tm, dispatch_variable_ref(x0), :key, label = All) == ()
+        @test InfiniteOpt.variable_supports(dispatch_variable_ref(z), TestBackend()) == ()
+        @test InfiniteOpt.variable_supports(dispatch_variable_ref(x0), TestBackend(), label = All) == ()
         # test fallback
-        @test_throws ErrorException InfiniteOpt.variable_supports(tm, x, Val(:Bad))
+        @test_throws ErrorException InfiniteOpt.variable_supports(x, TestBackend())
     end
     # Test supports (variables)
     @testset "supports (Variables)" begin
         # test normal usage
         @test supports(x) == [(0.,), (1.,)]
-        @test supports(x, ndarray = true) == [(0.,), (1.,)]
         @test supports(x, label = All) == [(0.,), (0.5,), (1.,)]
         @test supports(meas1) == () 
         @test supports(d1, label = InternalLabel) == [(0.5,)]
         @test supports(f, label = All) == [(0.,), (0.5,), (1.,)]
     end
-    # Test optimizer_model_expression
-    @testset "optimizer_model_expression" begin
+    # Test transformation_expression
+    @testset "transformation_expression" begin
         # test variable references
-        @test optimizer_model_expression(x, label = All) == transcription_variable(x, label = All)
-        @test optimizer_model_expression(z) == transcription_variable(z)
-        @test optimizer_model_expression(x0) == transcription_variable(x0)
-        @test optimizer_model_expression(x0, ndarray = true) == transcription_variable(x0)
+        @test transformation_expression(x, label = All) == IOTO.transcription_variable(x, label = All)
+        @test transformation_expression(z) == IOTO.transcription_variable(z)
+        @test transformation_expression(x0) == IOTO.transcription_variable(x0)
         # test expression without variables 
         expr = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}) + 42
-        @test optimizer_model_expression(expr) == zero(AffExpr) + 42
+        @test transformation_expression(expr) == zero(AffExpr) + 42
         # test normal expressions 
-        xt = transcription_variable(x, label = All)
-        zt = transcription_variable(z)
-        @test optimizer_model_expression(x^2 + z) == [xt[1]^2 + zt, xt[3]^2 + zt]
-        @test optimizer_model_expression(x^2 + z, ndarray = true) == [xt[1]^2 + zt, xt[3]^2 + zt]
-        @test optimizer_model_expression(x^2 + z, label = All) == [xt[1]^2 + zt, xt[2]^2 + zt, xt[3]^2 + zt]
-        @test optimizer_model_expression(2z - 3) == 2zt - 3
-        @test optimizer_model_expression(2 * f) == [zero(AffExpr), zero(AffExpr) + sin(1) * 2]
+        xt = IOTO.transcription_variable(x, label = All)
+        zt = IOTO.transcription_variable(z)
+        @test transformation_expression(x^2 + z) == [xt[1]^2 + zt, xt[3]^2 + zt]
+        @test transformation_expression(x^2 + z, label = All) == [xt[1]^2 + zt, xt[2]^2 + zt, xt[3]^2 + zt]
+        @test transformation_expression(2z - 3) == 2zt - 3
+        @test transformation_expression(2 * f) == [zero(AffExpr), zero(AffExpr) + sin(1) * 2]
+        # test deprecation
+        @test (@test_deprecated optimizer_model_expression(2z-4)) == 2zt - 4
         # test fallback
-        @test_throws ErrorException optimizer_model_expression(c1, Val(:Bad), my_key = true)
+        @test_throws ErrorException transformation_expression(c1, TestBackend(), my_key = true)
     end
     # Test expression_supports
     @testset "expression_supports" begin
         # test normal usage
-        @test InfiniteOpt.expression_supports(tm, x, Val(:TransData)) == [(0.,), (1.,)]
-        @test InfiniteOpt.expression_supports(tm, x^2 - x0, Val(:TransData)) == [(0.,), (1.,)]
-        @test InfiniteOpt.expression_supports(tm, x^2 - x0, Val(:TransData), label = All) == [(0.,), (0.5,), (1.,)]
+        @test InfiniteOpt.expression_supports(x, tb) == [(0.,), (1.,)]
+        @test InfiniteOpt.expression_supports(x^2 - x0, tb) == [(0.,), (1.,)]
+        @test InfiniteOpt.expression_supports(x^2 - x0, tb, label = All) == [(0.,), (0.5,), (1.,)]
         # test fallback
-        @test_throws ErrorException InfiniteOpt.expression_supports(tm, z^2, Val(:Bad))
+        @test_throws ErrorException InfiniteOpt.expression_supports(z^2, TestBackend())
     end
     # Test supports (expressions)
     @testset "supports (Expressions)" begin
         # test normal usage
         @test supports(x) == [(0.,), (1.,)]
         @test supports(2x - z + x0 + 43) == [(0.,), (1.,)]
-        @test supports(2x - z + x0 + 43, ndarray = true) == [(0.,), (1.,)]
         expr = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}) + 42
         @test supports(expr, label = All) == ()
     end
-    # Test optimizer_model_constraint
-    @testset "optimizer_model_constraint" begin
+    # Test transformation_constraint
+    @testset "transformation_constraint" begin
         # test normal usage
-        @test optimizer_model_constraint(c1) == transcription_constraint(c1)
-        @test optimizer_model_constraint(c2, label = All) == transcription_constraint(c2, label = All)
-        @test optimizer_model_constraint(c2, label = All, ndarray = true) == transcription_constraint(c2, label = All, ndarray = true)
-        @test optimizer_model_constraint(c3) == transcription_constraint(c3)
+        @test transformation_constraint(c1) == IOTO.transcription_constraint(c1)
+        @test transformation_constraint(c2, label = All) == IOTO.transcription_constraint(c2, label = All)
+        @test transformation_constraint(c3) == IOTO.transcription_constraint(c3)
+        # test deprecation 
+        @test (@test_deprecated optimizer_model_constraint(c1)) == transformation_constraint(c1)
         # test fallback
-        @test_throws ErrorException optimizer_model_constraint(c1, Val(:Bad), my_key = true)
+        @test_throws ErrorException transformation_constraint(c1, TestBackend(), my_key = true)
     end
     # Test constraint_supports
     @testset "constraint_supports" begin
         # test normal usage
-        @test InfiniteOpt.constraint_supports(tm, c1) == [(0.,), (1.,)]
-        @test InfiniteOpt.constraint_supports(tm, c1, label = All) == [(0.,), (0.5,), (1.,)]
-        @test InfiniteOpt.constraint_supports(tm, c1, label = All, ndarray = true) == [(0.,), (0.5,), (1.,)]
+        @test InfiniteOpt.constraint_supports(c1, tb) == [(0.,), (1.,)]
+        @test InfiniteOpt.constraint_supports(c1, tb, label = All) == [(0.,), (0.5,), (1.,)]
         # test fallback
-        @test_throws ErrorException InfiniteOpt.constraint_supports(tm, c1, Val(:Bad))
+        @test_throws ErrorException InfiniteOpt.constraint_supports(c1, TestBackend())
     end
     # Test supports (constraints)
     @testset "supports (Constraints)" begin
@@ -181,8 +180,8 @@ end
     @objective(m, Min, x0 + meas1)
     # test normal usage
     @test isa(optimize!(m, check_support_dims = false), Nothing)
-    @test optimizer_model_ready(m)
-    @test num_variables(optimizer_model(m)) == 8
+    @test transformation_backend_ready(m)
+    @test num_variables(m.backend.model) == 8
     # test optimize hook
     function myhook(model; n = "", ub = 2, kwargs...)
         if !isempty(n)
@@ -194,29 +193,17 @@ end
     end
     @test set_optimize_hook(m, myhook) isa Nothing
     @test optimize!(m, n = "x", check_support_dims = false) isa Nothing
-    @test optimizer_model_ready(m)
-    @test num_variables(optimizer_model(m)) == 8
+    @test transformation_backend_ready(m)
+    @test num_variables(m.backend.model) == 8
     @test upper_bound(x) == 2
     @test set_optimize_hook(m, nothing) isa Nothing
     @test isnothing(m.optimize_hook)
     @test_throws ErrorException optimize!(m, n = "x")
     @test optimize!(m) isa Nothing
-    @test optimizer_model_ready(m)
-end
-
-# Test JuMP.result_count
-@testset "JuMP.result_count" begin
-    # Setup the infinite model
-    optimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
-                                         eval_objective_value=false)
-    m = InfiniteModel(optimizer)
-    tm = optimizer_model(m)
-    model = MOIU.Model{Float64}()
-    JuMP.optimize!(tm)
-    mockoptimizer = JuMP.backend(tm).optimizer.model
-    MOI.set(mockoptimizer, MOI.ResultCount(), 2)
-    MOI.set(mockoptimizer, MOI.TerminationStatus(), MOI.OPTIMAL)
-    @test result_count(m) == 2
+    @test transformation_backend_ready(m)
+    set_transformation_backend(m, TestBackend())
+    @test_throws ErrorException optimize!(m)
+    @test_throws ErrorException optimize!(TestBackend())
 end
 
 # Test that we avoid world age problems with generated parameter functions 
@@ -228,7 +215,7 @@ end
         myfunc(ts, a) = ts + a
         @parameter_function(m, d[i = 1:3] == (t) -> myfunc(t, i))
         @constraint(m, [i = 1:3], y >= d[i])
-        build_optimizer_model!(m)
+        build_transformation_backend!(m)
         return m
     end
     @test make_model() isa InfiniteModel

@@ -23,10 +23,11 @@ template is provided in
 [`./test/extensions/infinite_domain.jl`](https://github.com/infiniteopt/InfiniteOpt.jl/blob/master/test/extensions/infinite_domain.jl). 
 The extension steps employed are:
 1. Define the new `struct` infinite domain type (only thing required as bare minimum)
-2. Extend [`InfiniteOpt.supports_in_domain`](@ref) (enables error checking of supports)
-3. Extend [`InfiniteOpt.generate_support_values`](@ref) (enables support generation via `num_supports` keyword arguments)
-4. If a lower bound and upper bound can be reported, extend `JuMP` lower bound and upper bound methods (enables automatic bound detection in `integral`)
-5. Extend [`InfiniteOpt.MeasureToolbox.generate_expect_data`](@ref) (enables the use of `expect`) 
+2. Extend[`InfiniteOpt.round_domain`](@ref) (enables safe use of significant digit rounding)
+3. Extend [`InfiniteOpt.supports_in_domain`](@ref) (enables error checking of supports)
+4. Extend [`InfiniteOpt.generate_support_values`](@ref) (enables support generation via `num_supports` keyword arguments)
+5. If a lower bound and upper bound can be reported, extend `JuMP` lower bound and upper bound methods (enables automatic bound detection in `integral`)
+6. Extend [`InfiniteOpt.MeasureToolbox.generate_expect_data`](@ref) (enables the use of `expect`) 
 
 As an example, let's create a univariate disjoint interval domain as an infinite 
 domain type. This corresponds to the domain ``[lb_1, ub_1] \cup [lb_2, ub_2]`` 
@@ -82,13 +83,25 @@ to extend [`generate_integral_data`](@ref). See [`Measure Evaluation Techniques`
 for details. 
 
 To enable support domain checking which is useful to avoid strange bugs, we will 
-extend [`InfiniteOpt.supports_in_domain`](@ref). This returns a `Bool` to 
-indicate if a vector of supports are in the domain:
+extend [`InfiniteOpt.round_domain`](@ref) which rounds the domain to use proper 
+significant digits and [`InfiniteOpt.supports_in_domain`](@ref) which returns a 
+`Bool` whether a vector of supports is in the domain:
 ```jldoctest domain_ext; output = false
+function InfiniteOpt.round_domain(
+    domain::DisjointDomain,
+    sig_digits::Int
+    )
+    lb1 = round(domain.lb1, sigdigits = sig_digits)
+    ub1 = round(domain.ub1, sigdigits = sig_digits)
+    lb2 = round(domain.lb2, sigdigits = sig_digits)
+    ub2 = round(domain.ub2, sigdigits = sig_digits)
+    return DisjointDomain(lb1, ub1, lb2, ub2)
+end
+
 function InfiniteOpt.supports_in_domain(
     supports::Union{Number, Vector{<:Number}},
     domain::DisjointDomain
-    )::Bool
+    )
     return all((domain.lb1 .<= supports .<= domain.ub1) .| (domain.lb2 .<= supports .<= domain.ub2))
 end
 
@@ -113,7 +126,7 @@ function InfiniteOpt.generate_support_values(
     domain::DisjointDomain;
     num_supports::Int = InfiniteOpt.DefaultNumSupports,
     sig_digits::Int = InfiniteOpt.DefaultSigDigits
-    )::Tuple{Vector{Float64}, DataType}
+    )
     length_ratio = (domain.ub1 - domain.lb1) / (domain.ub1 - domain.lb1 + domain.ub2 - domain.lb2)
     num_supports1 = Int64(ceil(length_ratio * num_supports))
     num_supports2 = num_supports - num_supports1
@@ -200,11 +213,13 @@ we provide an API to do just this. A complete template is provided in
 to help streamline this process. The extension steps are:
 1. Define the new method `struct` that inherits from the correct 
    [`AbstractDerivativeMethod`](@ref) subtype
-2. Extend [`InfiniteOpt.generative_support_info`](@ref InfiniteOpt.generative_support_info(::AbstractDerivativeMethod)) 
+2. Extend [`InfiniteOpt.allows_high_order_derivatives`](@ref)
+3. Extend [`InfiniteOpt.generative_support_info`](@ref InfiniteOpt.generative_support_info(::AbstractDerivativeMethod)) 
    if the method is a [`GenerativeDerivativeMethod`](@ref)
-3. Extend [`InfiniteOpt.evaluate_derivative`](@ref).
+4. Extend [`InfiniteOpt.derivative_expr_data`](@ref)
+5. Extend [`InfiniteOpt.make_indexed_derivative_expr`](@ref).
 
-To exemplify this process let's implement explicit Euler which is already 
+To exemplify this process let's implement 1st order explicit Euler which is already 
 implemented via `FiniteDifference(Forward())`, but let's make our own anyway for 
 the sake of example. For a first order derivative ``\frac{d y(t)}{dt}`` explicit 
 Euler is expressed:
@@ -228,47 +243,76 @@ support scheme without adding any additional supports. If our desired method
 needed to add additional supports (e.g., orthogonal collocation over finite 
 elements) then we would need to have used [`GenerativeDerivativeMethod`](@ref).
 
-Since, this is a `NonGenerativeDerivativeMethod` we skip step 2. This is 
+Now we need to decide if this method will directly support higher order derivatives. 
+In this case, let's say it won't and define:
+```jldoctest deriv_ext; output = false
+InfiniteOpt.allows_high_order_derivatives(::ExplicitEuler) = false
+
+# output
+
+
+```
+Conversely, we could set the output to `true` if we wanted to directly support higher 
+order derivatives. In which case, we would need to take the order into account in steps 4 and 5.
+
+Since, this is a `NonGenerativeDerivativeMethod` we skip step 3. This is 
 however exemplified in the extension template.
 
-Now we just need to do step 3 which is to extend 
-[`InfiniteOpt.evaluate_derivative`](@ref). This function generates all the 
+For step 4, we extend [`InfiniteOpt.derivative_expr_data`](@ref). 
+This function generates all the needed data to make the
 expressions necessary to build the derivative evaluation equations (derivative 
 constraints). We assume these relations to be of the form ``h = 0`` where ``h`` 
-is a vector of expressions and is what the output of 
-`InfiniteOpt.evaluate_derivative` should be. Thus, mathematically ``h`` should 
-be of the form:
+is a vector of expressions. Thus, mathematically ``h`` should be of the form:
 ```math
 \begin{aligned}
-&&& y(t_{1}) - y(0) - (t_{1} - t_{0})\frac{d y(0)}{dt} \\
+&&& y(t_{2}) - y(t_{1}) - (t_{2} - t_{1})\frac{d y(t_1)}{dt} \\
 &&& \vdots \\
 &&& y(t_{n+1}) - y(t_n) - (t_{n+1} - t_{n})\frac{d y(t_n)}{dt} \\
-&&& \vdots \\
-&&& y(t_{k}) - y(k-1) - (t_{k} - t_{k-1})\frac{d y(k-1)}{dt} \\
 \end{aligned}
 ```
-With this in mind let's now extend `InfiniteOpt.evaluate_derivative`:
+The required data must include the support indices used for each derivative 
+variable and then any other constants needed. In this case, we will need the
+indices ``\{1, \dots, n\}`` and no additional data (additional data is exemplified 
+in the extension template). With this in mind let's now extend 
+`InfiniteOpt.derivative_expr_data`:
 ```jldoctest deriv_ext; output = false
-function InfiniteOpt.evaluate_derivative(
+function InfiniteOpt.derivative_expr_data(
     dref::GeneralVariableRef, 
-    method::ExplicitEuler,
-    write_model::JuMP.AbstractModel
-    )::Vector{JuMP.AbstractJuMPScalar}
-    # get the basic derivative information 
-    vref = derivative_argument(dref)
-    pref = operator_parameter(dref)
-    # generate the derivative expressions h_i corresponding to the equations of 
-    # the form h_i = 0
-    supps = supports(pref, label = All)
-    exprs = Vector{JuMP.AbstractJuMPScalar}(undef, length(supps) - 1)
-    for i in eachindex(exprs)
-        d = InfiniteOpt.make_reduced_expr(dref, pref, supps[i], write_model)
-        v1 = InfiniteOpt.make_reduced_expr(vref, pref, supps[i], write_model)
-        v2 = InfiniteOpt.make_reduced_expr(vref, pref, supps[i + 1], write_model)
-        change = supps[i + 1] - supps[i]
-        exprs[i] = JuMP.@expression(write_model, v2 - v1 - change * d)
-    end
-    return exprs
+    order::Int,
+    supps::Vector{Float64},
+    method::ExplicitEuler
+    )
+    # generate the support indices to be used for each call of `make_indexed_derivative_expr`
+    idxs = 1:length(supps)-1
+    # return the indexes and the other iterators
+    return (idxs, ) # output must be a tuple
+end
+
+# output
+
+
+```
+
+Finally, we just need to extend [`InfiniteOpt.make_indexed_derivative_expr`](@ref).
+This will be used to create derivative expressions for each index determined (and additional datum) produced by `derivative_expr_data`.
+```jldoctest deriv_ext; output = false
+function InfiniteOpt.make_indexed_derivative_expr(
+    dref::GeneralVariableRef,
+    vref::GeneralVariableRef,
+    pref::GeneralVariableRef,
+    order::Int,
+    idx,
+    supps::Vector{Float64}, # ordered
+    write_model::Union{InfiniteModel, AbstractTransformationBackend},
+    ::ExplicitEuler,
+    # put extra data args here (none in this case)
+    )
+    # generate the derivative expression h corresponding to the equation of 
+    # the form h = 0
+    d = InfiniteOpt.make_reduced_expr(dref, pref, supps[idx], write_model)
+    v1 = InfiniteOpt.make_reduced_expr(vref, pref, supps[idx], write_model)
+    v2 = InfiniteOpt.make_reduced_expr(vref, pref, supps[idx + 1], write_model)
+    return JuMP.@expression(write_model, -(supps[idx+1] - supps[idx]) * d + v2 - v1)
 end
 
 # output
@@ -277,9 +321,14 @@ end
 ```
 We used [`InfiniteOpt.make_reduced_expr`](@ref) as a convenient helper function 
 to generate the semi-infinite variables/expressions we need to generate at each 
-support point. Also note that [`InfiniteOpt.add_generative_supports`](@ref) needs 
-to be included for `GenerativeDerivativeMethods`, but is not necessary in this 
-example.
+support point.
+
+!!! note
+    If your new derivative method is not compatible can not be broken 
+    up into the `derivative_expr_data`-`make_indexed_derivative_expr` 
+    workflow, then you can instead extend [`InfiniteOpt.evaluate_derivative`](@ref).
+    This is discouraged where possible since it may make your method incompatible 
+    with backends that depend on the preferred workflow.
 
 Now that we have completed all the necessary steps, let's try it out! 
 ```jldoctest deriv_ext
@@ -296,8 +345,8 @@ julia> evaluate(dy)
 
 julia> derivative_constraints(dy)
 2-element Vector{InfOptConstraintRef}:
- y(5) - y(0) - 5 ∂/∂t[y(t)](0) = 0.0
- y(10) - y(5) - 5 ∂/∂t[y(t)](5) = 0.0
+ -5 d/dt[y(t)](0) + y(5) - y(0) = 0
+ -5 d/dt[y(t)](5) + y(10) - y(5) = 0
 ```
 We implemented explicit Euler and it works! Now go and extend away!
 
@@ -392,7 +441,7 @@ function InfiniteOpt.MeasureToolbox.generate_integral_data(
     method::UnifGrid;
     num_supports::Int = InfiniteOpt.DefaultNumSupports,
     weight_func::Function = InfiniteOpt.default_weight
-    )::InfiniteOpt.DiscreteMeasureData
+    )
     increment = (upper_bound - lower_bound) / (num_supports - 1)
     supports = [lower_bound + (i - 1) * increment for i in 1:num_supports]
     coeffs = ones(num_supports) / num_supports * (upper_bound - lower_bound)
@@ -495,11 +544,11 @@ function InfiniteOpt.parameter_refs(data::DiscreteVarianceData)
     return data.parameter_refs
 end
 
-function InfiniteOpt.supports(data::DiscreteVarianceData)::Vector
+function InfiniteOpt.supports(data::DiscreteVarianceData)
     return data.supports
 end
 
-function InfiniteOpt.support_label(data::DiscreteVarianceData)::DataType
+function InfiniteOpt.support_label(data::DiscreteVarianceData)
     return data.label
 end
 
@@ -511,7 +560,7 @@ end
 We also need to extend [`InfiniteOpt.add_supports_to_parameters`](@ref) 
 since support points will be used for measure evaluation later:
 ```jldoctest measure_data; output = false
-function InfiniteOpt.add_supports_to_parameters(data::DiscreteVarianceData)::Nothing
+function InfiniteOpt.add_supports_to_parameters(data::DiscreteVarianceData)
     pref = parameter_refs(data)
     supps = supports(data)
     label = support_label(data)
@@ -550,8 +599,8 @@ We can define variance measures now, but now let's extend
 function InfiniteOpt.expand_measure(
     expr::JuMP.AbstractJuMPScalar,
     data::DiscreteVarianceData,
-    write_model::JuMP.AbstractModel
-    )::JuMP.AbstractJuMPScalar
+    write_model::Union{InfiniteModel, AbstractTransformationBackend}
+    )
     # define the expectation data
     expect_data = DiscreteMeasureData(
                       data.parameter_refs,
@@ -586,7 +635,7 @@ function variance(
     name::String = "Var", 
     num_supports::Int = 10,
     use_existing::Bool = false
-    )::GeneralVariableRef
+    )
     # get the supports
     if use_existing
         supps = supports.(params)
@@ -654,7 +703,7 @@ types of supports and extend `support_label`:
 ```jldoctest info_model; output = false
 struct RandomInternal <: InternalLabel end
 
-function InfiniteOpt.support_label(info::RandomGenerativeInfo)::Type{RandomInternal}
+function InfiniteOpt.support_label(info::RandomGenerativeInfo)
     return RandomInternal
 end
 
@@ -665,7 +714,7 @@ Finally, let's extend `make_generative_supports` to create a vector of the
 generative supports based on a `RandomGenerativeInfo` and the existing model 
 supports which are passed in the function as input:
 ```jldoctest info_model; output = false
-function InfiniteOpt.make_generative_supports(info::RandomGenerativeInfo, pref, supps)::Vector{Float64}
+function InfiniteOpt.make_generative_supports(info::RandomGenerativeInfo, pref, supps)
     num_existing = length(supps)
     num_existing <= 1 && error("`$pref` doesn't have enough supports.")
     num_internal = info.attr
@@ -685,43 +734,65 @@ Our extension is done and now `RandomGenerativeInfo` can be incorporated by a
 `GenerativeDerivativeMethod` we create or an `AbstractMeasureData` object of our 
 choice like `FunctionalDiscreteMeasureData`. 
 
-## [Optimizer Models] (@id extend_optimizer_model)
+## [Transformation Backends] (@id extend_backends)
 `InfiniteOpt` provides a convenient interface and abstraction for modeling 
 infinite-dimensional optimization problems. By default, `InfiniteModel`s are 
-reformulated into a solvable `JuMP.Model` (referred to as an optimizer model) 
-via `TranscriptionOpt` which discretizes the model in accordance with the 
-infinite parameter supports. However, users may wish to employ some other 
-reformulation method to produce the optimizer model. This section will explain 
-how this can be done in `InfiniteOpt`. A template for implementing this 
-extension is provided in 
-[`./test/extensions/optimizer_model.jl`](https://github.com/infiniteopt/InfiniteOpt.jl/blob/master/test/extensions/optimizer_model.jl). 
+reformulated into a solvable `JuMP.Model` via `TranscriptionOpt.TranscriptionBackend` 
+which discretizes the model in accordance with the infinite parameter supports. 
+However, users may wish to employ some other transformation method to produce 
+the transformation backend. This section will explain how this can be done in 
+`InfiniteOpt`. A template for implementing this extension is provided in 
+[`./test/extensions/backend.jl`](https://github.com/infiniteopt/InfiniteOpt.jl/blob/master/test/extensions/backend.jl). 
 Our default sub-module `InfiniteOpt.TranscriptionOpt` also serves as a good 
 example.
 
-!!! note
-    We are currently working on a fundamental overhaul of the optimizer model 
-    interface. The new interface will be much more modular, will permit non-JuMP 
-    backends, and should generally make extending more intuitive. Track the progress 
-    [here](https://github.com/infiniteopt/InfiniteOpt.jl/issues/105).
-
-A new reformulation method and its corresponding optimizer model can be 
+A new transformation approach and its corresponding transformation backend can be 
 extended using the following steps:
 1. Define a `mutable struct` for variable/constraint mappings and other needed info (required)
-2. Define a `JuMP.Model` constructor that uses (1.) in `Model.ext[:my_ext_key]` (recommended)
-3. Extend [`build_optimizer_model!`](@ref) to in accordance with the new optimizer model (required)
-4. Extend [`optimizer_model_variable`](@ref) if possible (enables result queries)
-5. Extend [`optimizer_model_expression`](@ref) if possible (enables result queries)
-6. Extend [`optimizer_model_constraint`](@ref) if possible (enables result queries)
-7. Extend [`InfiniteOpt.variable_supports`](@ref) if appropriate
-8. Extend [`InfiniteOpt.expression_supports`](@ref) if appropriate
-9. Extend [`InfiniteOpt.constraint_supports`](@ref) if appropriate
-10. If steps 4-6 are skipped then extend the following:
+2. Define an [`AbstractTransformationBackend`](@ref) (required)
+3. Extend [`Base.empty!`](@ref Base.empty!(::AbstractTransformationBackend)) for the backend (required)
+4. Extend [`build_transformation_backend!`](@ref build_transformation_backend!(::InfiniteModel, ::AbstractTransformationBackend)) (required)
+5. If appropriate and NOT a [`JuMPBackend`](@ref), extend the following:
+    - [`transformation_model`](@ref transformation_model(::AbstractTransformationBackend))
+    - [`transformation_data`](@ref transformation_data(::AbstractTransformationBackend))
+    - [`JuMP.set_attribute`](@ref JuMP.set_attribute(::AbstractTransformationBackend, ::Any, ::Any)) (including the suggested attributes)
+    - [`JuMP.get_attribute`](@ref JuMP.get_attribute(::AbstractTransformationBackend, ::Any)) (including the suggested attributes)
+    - [`JuMP.optimize!`](@ref JuMP.optimize!(::AbstractTransformationBackend))
+    - [`JuMP.set_optimizer`](@ref JuMP.set_optimizer(::AbstractTransformationBackend, ::Any))
+    - [`JuMP.bridge_constraints`](@ref JuMP.bridge_constraints(::AbstractTransformationBackend))
+    - [`JuMP.add_bridge`](@ref JuMP.add_bridge(::AbstractTransformationBackend, ::Any))
+    - [`JuMP.print_active_bridges`](@ref JuMP.print_active_bridges(::IO,::AbstractTransformationBackend))
+    - [`JuMP.print_active_bridges`](@ref JuMP.print_active_bridges(::IO,::AbstractTransformationBackend))
+    - [`JuMP.compute_conflict!`](@ref JuMP.compute_conflict!(::AbstractTransformationBackend))
+    - [`JuMP.copy_conflict`](@ref JuMP.copy_conflict(::AbstractTransformationBackend))
+    - [`JuMP.mode`](@ref JuMP.mode(::AbstractTransformationBackend))
+    - [`JuMP.backend`](@ref JuMP.backend(::AbstractTransformationBackend))
+    - [`JuMP.unsafe_backend`](@ref JuMP.unsafe_backend(::AbstractTransformationBackend))
+6. Extend the following, if possible (also enables result queries for `JuMPBackend`s):
+    - [`transformation_variable`](@ref transformation_variable(::GeneralVariableRef, ::AbstractTransformationBackend))
+    - [`transformation_expression`](@ref transformation_expression(::Any, ::AbstractTransformationBackend))
+    - [`transformation_constraint`](@ref transformation_constraint(::InfOptConstraintRef, ::AbstractTransformationBackend))
+7. Extend the following, if appropriate:
+    - [`InfiniteOpt.variable_supports`](@ref)
+    - [`InfiniteOpt.expression_supports`](@ref)
+    - [`InfiniteOpt.constraint_supports`](@ref)
+8. As appropriate and if NOT a `JuMPBackend`, extend the following:
+    - The remaining result related attributes listed in [`JuMP.get_attribute`](@ref JuMP.get_attribute(::AbstractTransformationBackend, ::Any))
+    - [`JuMP.lp_sensitivity_report`](@ref JuMP.lp_sensitivity_report(::AbstractTransformationBackend))
+9. If Step 6 was skipped and/or the backend is NOT a `JuMPBackend` then extend the following:
     - [`InfiniteOpt.map_value`](@ref) (enables `JuMP.value`)
+    - [`InfiniteOpt.map_infinite_parameter_value`](@ref) (enables `JuMP.value` for infinite parameters)
     - [`InfiniteOpt.map_optimizer_index`](@ref) (enables `JuMP.optimizer_index`)
+    - [`InfiniteOpt.map_reduced_cost`](@ref) (enables `JuMP.reduced_cost`)
+    - [`InfiniteOpt.map_shadow_price`](@ref) (enables `JuMP.shadow_cost`)
     - [`InfiniteOpt.map_dual`](@ref) (enables `JuMP.dual`)
-11. Extend [`InfiniteOpt.add_point_variable`](@ref) and 
+10. Extend [`InfiniteOpt.add_point_variable`](@ref) and 
     [`InfiniteOpt.add_semi_infinite_variable`](@ref) to use 
     [`expand_measure`](@ref) without modifying the infinite model.
+
+This may seem like a lot a work, but the majority of the above steps can be
+skipped for [`JuMPBackend`](@ref)s as exemplified below. A complete extension,
+showing all the above is provided in the extension template file.
 
 For the sake of example, let's suppose we want to define a reformulation method 
 for `InfiniteModel`s that are 2-stage stochastic programs (i.e., only 
@@ -730,13 +801,13 @@ and finite variables are 1st stage variables). In particular, let's make a simpl
 method that replaces the infinite parameters with their mean values, giving us 
 the deterministic mean-valued problem.
 
-First, let's define the `mutable struct` that will be used to store our variable 
-and constraint mappings. This case it is quite simple since our deterministic 
-model will have a 1-to-1 mapping:
+First, let's define the (potentially mutable) `struct` that will be used to store 
+our variable and constraint mappings. This case it is quite simple since our 
+deterministic model will have a 1-to-1 mapping:
 ```jldoctest opt_model; output = false
 using InfiniteOpt, Distributions
 
-mutable struct DeterministicData
+struct DeterministicData
     # variable and constraint mapping
     infvar_to_detvar::Dict{GeneralVariableRef, VariableRef}
     infconstr_to_detconstr::Dict{InfOptConstraintRef, ConstraintRef}
@@ -751,52 +822,46 @@ end
 
 ```
 
-Now let's define a constructor for optimizer models that will use 
-`DeterministicData` and let's define a method to access that data:
+Now let's define the transformation backend based on [`JuMPBackend`](@ref)
+that will use a tag `Deterministic`:
 ```jldoctest opt_model; output = false
-const DetermKey = :DetermData
+struct Deterministic <: AbstractJuMPTag end
 
-function DeterministicModel(args...; kwargs...)::Model
-    # initialize the JuMP Model
-    model = Model(args...; kwargs...)
-    model.ext[DetermKey] = DeterministicData()
-    return model
+const DeterministicBackend = JuMPBackend{Deterministic, Float64, DeterministicData}
+
+# Constructor
+function DeterministicBackend(; kwargs...)
+    return JuMPBackend{Deterministic}(Model(; kwargs...), DeterministicData())
 end
-
-function deterministic_data(model::Model)::DeterministicData
-    haskey(model.ext, DetermKey) || error("Model is not a DeterministicModel.")
-    return model.ext[DetermKey]
+function DeterministicBackend(optimizer_constructor; kwargs...)
+    backend = DeterministicBackend(; kwargs...)
+    set_optimizer(backend.model, optimizer_constructor)
+    return backend
 end
 
 # output
-deterministic_data (generic function with 1 method)
+JuMPBackend{Deterministic, Float64, DeterministicData}
 
 ```
-
-!!! note
-    The use of an extension key such as `DetermKey` is required since it used to 
-    dispatch reformulation and querying methods making optimizer model 
-    extensions possible.
-
 With the constructor we can now specify that a given `InfiniteModel` uses a 
-`DeterministicModel` instead of a `TranscriptionModel` using the `OptimizerModel` 
-keyword argument or via [`set_optimizer_model`](@ref):
+`DeterministicBackend` instead of a `TranscriptionBackend` or via 
+[`set_transformation_backend`](@ref):
 ```jldoctest opt_model; output = false
 using Ipopt
 
 # Make model using Ipopt and DeterministicModels
-model = InfiniteModel(optimizer_with_attributes(Ipopt.Optimizer, "print_level" => 0),
-                      OptimizerModel = DeterministicModel)
+dbackend = DeterministicBackend(optimizer_with_attributes(Ipopt.Optimizer, "print_level" => 0))
+model = InfiniteModel(dbackend)
 
 # Or equivalently
 model = InfiniteModel()
-set_optimizer_model(model, DeterministicModel())
+set_transformation_backend(model, DeterministicBackend())
 set_optimizer(model, optimizer_with_attributes(Ipopt.Optimizer, "print_level" => 0))
 
 # output
 
 ```
-Now `model` uses a `DeterministicModel` as its optimizer model! With that we can
+Now `model` uses a `DeterministicBackend` as its transformation backend! With that we can
 build our `InfiniteModel` as normal, for example:
 ```jldoctest opt_model
 @infinite_parameter(model, ξ ~ Uniform())
@@ -819,20 +884,34 @@ Subject to
 ```
 
 We have defined our `InfiniteModel`, but now we need to specify how to 
-reformulate it into a `DeterministicModel`. This is accomplished by extending 
-[`build_optimizer_model!`](@ref). This will enable the use of `optimize!`. First, 
-let's define an internal function `_make_expression` that will use dispatch to 
-convert and `InfiniteOpt` expression into a `JuMP` expression using the mappings 
-stored in `opt_model` in its `DeterministicData`:
+reformulate it into a `DeterministicBackend`. This is accomplished by extending 
+[`build_transformation_backend!`](@ref build_transformation_backend!(::InfiniteModel, ::AbstractTransformationBackend))
+which will enable the use of `optimize!`. A necessary preliminary step though, is to
+define `Base.empty!` for `DeterministicData`:
+```jldoctest opt_model; output = false
+function Base.empty!(data::DeterministicData)
+    empty!(data.infvar_to_detvar)
+    empty!(data.infconstr_to_detconstr)
+    return data
+end
+
+# output
+
+```
+This enables the backend to be cleared out before it is rebuilt which is
+necessary to allow for modifications to the model.
+Now, let's define an internal function `_make_expression` that will use dispatch to 
+convert an `InfiniteOpt` expression into a `JuMP` expression using the mappings 
+stored in `backend`'s `DeterministicData`:
 ```jldoctest opt_model; output = false
 ## Make dispatch methods for converting InfiniteOpt expressions
 # GeneralVariableRef
-function _make_expression(opt_model::Model, expr::GeneralVariableRef)
-    return _make_expression(opt_model, expr, index(expr))
+function _make_expression(backend::DeterministicBackend, expr::GeneralVariableRef)
+    return _make_expression(backend, expr, index(expr))
 end
 # IndependentParameterRef
 function _make_expression(
-    opt_model::Model, 
+    backend::DeterministicBackend, 
     expr::GeneralVariableRef, 
     ::IndependentParameterIndex
     )
@@ -840,7 +919,7 @@ function _make_expression(
 end
 # FiniteParameterRef
 function _make_expression(
-    opt_model::Model, 
+    backend::DeterministicBackend, 
     expr::GeneralVariableRef, 
     ::FiniteParameterIndex
     )
@@ -848,31 +927,31 @@ function _make_expression(
 end
 # DependentParameterRef
 function _make_expression(
-    opt_model::Model, 
+    backend::DeterministicBackend, 
     expr::GeneralVariableRef, 
     ::DependentParameterIndex
     )
-    return mean(infinite_domain(expr).distribution) # assuming valid dist.
+    return mean(infinite_domain(expr).distribution) # assuming valid distribution
 end
 # DecisionVariableRef
 function _make_expression(
-    opt_model::Model, 
+    backend::DeterministicBackend, 
     expr::GeneralVariableRef, 
     ::Union{InfiniteVariableIndex, FiniteVariableIndex}
     )
-    return deterministic_data(opt_model).infvar_to_detvar[expr]
+    return backend.data.infvar_to_detvar[expr]
 end
 # MeasureRef --> assume is expectation
 function _make_expression(
-    opt_model::Model, 
+    backend::DeterministicBackend, 
     expr::GeneralVariableRef,
     ::MeasureIndex
     )
-    return _make_expression(opt_model, measure_function(expr))
+    return _make_expression(backend, measure_function(expr))
 end
-# AffExpr/QuadExpr
-function _make_expression(opt_model::Model, expr::Union{GenericAffExpr, GenericQuadExpr, GenericNonlinearExpr})
-    return map_expression(v -> _make_expression(opt_model, v), expr)
+# AffExpr/QuadExpr/NonlinearExpr
+function _make_expression(backend::DeterministicBackend, expr::Union{GenericAffExpr, GenericQuadExpr, GenericNonlinearExpr})
+    return map_expression(v -> _make_expression(backend, v), expr)
 end
 
 # output
@@ -885,27 +964,22 @@ expectations. Naturally, a full extension should include checks to enforce that
 such assumptions hold. Notice that [`map_expression`](@ref) is useful for 
 converting expressions.
 
-Now let's extend [`build_optimizer_model!`](@ref) for `DeterministicModel`s. 
-Such extensions should build an optimizer model in place and in general should 
-employ the following: 
-- [`clear_optimizer_model_build!`](@ref InfiniteOpt.clear_optimizer_model_build!(::InfiniteModel))
-- [`set_optimizer_model_ready`](@ref).
-In place builds without the use of `clear_optimizer_model_build!` are also 
-possible, but will require some sort of active mapping scheme to update in 
-accordance with the `InfiniteModel` in the case that the 
-optimizer model is built more than once. Thus, for simplicity we extend 
-`build_optimizer_model!` below using an initial clearing scheme:
+Now let's extend
+[`build_transformation_backend!`](@ref build_transformation_backend!(::InfiniteModel, ::AbstractTransformationBackend))
+for `DeterministicBackend`s. This should build out the backend in-place and thus we should also be
+sure to have it clear out any previous builds with `Base.empty!`:
 ```jldoctest opt_model; output = false
-function InfiniteOpt.build_optimizer_model!(
+function InfiniteOpt.build_transformation_backend!(
     model::InfiniteModel,
-    key::Val{DetermKey}
-    )::Nothing
+    backend::DeterministicBackend
+    )
     # TODO check that `model` is a stochastic model
-    # clear the model for a build/rebuild
-    determ_model = InfiniteOpt.clear_optimizer_model_build!(model)
+    # empty the model for a build/rebuild
+    empty!(backend)
+    backend.model.operator_counter = 0 # clears out any previous user defined operators
 
     # add user-defined nonlinear operators if there are any
-    add_operators_to_jump(determ_model, model)
+    add_operators_to_jump(backend.model, model)
 
     # add variables
     for vref in all_variables(model)
@@ -922,36 +996,34 @@ function InfiniteOpt.build_optimizer_model!(
         end
         info = VariableInfo(!isnan(lb), lb, !isnan(ub), ub, is_fixed(vref), lb, 
                             !isnan(start), start, is_binary(vref), is_integer(vref))
-        new_vref = add_variable(determ_model, ScalarVariable(info), name(vref))
-        deterministic_data(determ_model).infvar_to_detvar[vref] = new_vref
+        new_vref = add_variable(backend.model, ScalarVariable(info), name(vref))
+        backend.data.infvar_to_detvar[vref] = new_vref
     end
 
     # add the objective
-    obj_func = _make_expression(determ_model, objective_function(model))
-    set_objective(determ_model, objective_sense(model), obj_func)
+    obj_func = _make_expression(backend, objective_function(model))
+    set_objective(backend.model, objective_sense(model), obj_func)
 
     # add the constraints
     for cref in all_constraints(model, Union{GenericAffExpr, GenericQuadExpr, GenericNonlinearExpr})
         constr = constraint_object(cref)
-        new_func = _make_expression(determ_model, constr.func)
+        new_func = _make_expression(backend, constr.func)
         new_constr = build_constraint(error, new_func, constr.set)
-        new_cref = add_constraint(determ_model, new_constr, name(cref))
-        deterministic_data(determ_model).infconstr_to_detconstr[cref] = new_cref
+        new_cref = add_constraint(backend.model, new_constr, name(cref))
+        backend.data.infconstr_to_detconstr[cref] = new_cref
     end
-
-    # update the status
-    set_optimizer_model_ready(model, true)
     return
 end
 
 # output
 
 ```
-Now we can build our optimizer model to obtain a `DeterministicModel` which can 
-be leveraged to call `optimize!`
+Note that Step 5 can be skipped since we are using the `JuMPBackend` API which inherits 
+all the needed methods. Now we can build our backend automatically and enable the use of 
+`optimize!`:
 ```jldoctest opt_model
 optimize!(model)
-print(optimizer_model(model))
+print(transformation_model(model))
 
 # output
 Min z + y[1] + y[2]
@@ -963,51 +1035,49 @@ Subject to
  y[2] ≥ 0
 ```
 Note that better variable naming could be used with the reformulated infinite 
-variables. Moreover, in general extensions of [`build_optimizer_model!`](@ref) 
-should account for the possibility that `InfiniteModel` contains constraints wiht 
+variables. Moreover, in general extensions of [`build_transformation_backend!`](@ref) 
+should account for the possibility that `InfiniteModel` contains constraints with 
 [`DomainRestrictions`](@ref) as accessed via [`domain_restrictions`](@ref).
 
-Now that we have optimized out `InfiniteModel` via the use the of a 
-`DeterministicModel`, we probably will want to access the results. All queries 
-are enabled when we extend [`optimizer_model_variable`](@ref), 
-[`optimizer_model_expression`](@ref), and [`optimizer_model_constraint`](@ref) 
-to return the variable(s)/expression(s)/constraint(s) in the 
-optimizer model corresponding to their `InfiniteModel` counterparts. These will 
-use the `mutable struct` of mapping data and should error if no mapping can be 
-found, Let's continue our example using `DeterministicModel`s:
+Now that we have optimized our `InfiniteModel` via the use the of a 
+`DeterministicBackend`, we probably want to access the results. All queries 
+are enabled via Step 6 where we extend:
+- [`transformation_variable`](@ref transformation_variable(::GeneralVariableRef, ::AbstractTransformationBackend))
+- [`transformation_expression`](@ref transformation_expression(::Any, ::AbstractTransformationBackend))
+- [`transformation_constraint`](@ref transformation_constraint(::InfOptConstraintRef, ::AbstractTransformationBackend))
+to return the variable(s)/expression(s)/constraint(s) in the backend.
+These will use the `DeterministicData` and should error if no mapping can be 
+found.
 ```jldoctest opt_model; output = false
-function InfiniteOpt.optimizer_model_variable(
+function InfiniteOpt.transformation_variable(
     vref::GeneralVariableRef,
-    key::Val{DetermKey}
+    backend::DeterministicBackend
     )
-    model = optimizer_model(JuMP.owner_model(vref))
-    map_dict = deterministic_data(model).infvar_to_detvar
-    haskey(map_dict, vref) || error("Variable $vref not used in the optimizer model.")
+    map_dict = backend.data.infvar_to_detvar
+    haskey(map_dict, vref) || error("Variable $vref not used in the transformation backend.")
     return map_dict[vref]
 end
 
-function InfiniteOpt.optimizer_model_expression(
+function InfiniteOpt.transformation_expression(
     expr::JuMP.AbstractJuMPScalar,
-    key::Val{DetermKey}
+    backend::DeterministicBackend
     )
-    model = optimizer_model(InfiniteOpt._model_from_expr(expr))
-    return _make_expression(model, expr)
+    return _make_expression(backend, expr)
 end
 
-function InfiniteOpt.optimizer_model_constraint(
+function InfiniteOpt.transformation_constraint(
     cref::InfOptConstraintRef,
-    key::Val{DetermKey}
+    backend::DeterministicBackend
     )
-    model = optimizer_model(JuMP.owner_model(cref))
-    map_dict = deterministic_data(model).infconstr_to_detconstr
-    haskey(map_dict, cref) || error("Constraint $cref not used in the optimizer model.")
+    map_dict = backend.data.infconstr_to_detconstr
+    haskey(map_dict, cref) || error("Constraint $cref not used in the transformation backend.")
     return map_dict[cref]
 end
 
 # output
 
 ```
-With these extensions we can now access all the result queries. For example:
+With these extensions we can now access all the result queries (skipping Steps 8-9). For example:
 ```jldoctest opt_model
 julia> termination_status(model)
 LOCALLY_SOLVED::TerminationStatusCode = 4
@@ -1023,18 +1093,8 @@ julia> value.(y)
 julia> optimizer_index(z)
 MathOptInterface.VariableIndex(3)
 ```
-
-!!! note
-    If [`optimizer_model_variable`](@ref), [`optimizer_model_expression`](@ref), 
-    and/or [`optimizer_model_constraint`](@ref) cannot be extended due to the 
-    nature of the reformulation then please refer to step 10 of the extension 
-    steps listed at the beginning of this section.
-
-Furthermore, if appropriate for the given reformulation the following should be 
-extended:
-- [`InfiniteOpt.variable_supports`](@ref) to enable `supports` on variables)
-- [`InfiniteOpt.expression_supports`](@ref) to enable `supports` on expressions)
-- [`InfiniteOpt.constraint_supports`](@ref) to enable `supports` on constraints)
+We also skip steps 7 and 10 since these are not applicable to this particular 
+example.
 
 That's it!
 

@@ -21,11 +21,14 @@ DerivativeRef
 ```@docs
 derivative_argument(::DerivativeRef)
 operator_parameter(::DerivativeRef)
+derivative_order(::DerivativeRef)
 num_derivatives
 all_derivatives
 parameter_refs(::DerivativeRef)
 parameter_list(::DerivativeRef)
 raw_parameter_refs(::DerivativeRef)
+parameter_group_int_indices(::DerivativeRef)
+core_object(::DerivativeRef)
 ```
 
 ## Modification
@@ -54,7 +57,10 @@ evaluate_all_derivatives!
 has_derivative_constraints(::DerivativeRef)
 derivative_constraints(::DerivativeRef)
 delete_derivative_constraints(::DerivativeRef)
+InfiniteOpt.make_indexed_derivative_expr
+InfiniteOpt.derivative_expr_data
 evaluate_derivative
+InfiniteOpt.allows_high_order_derivatives
 generative_support_info(::AbstractDerivativeMethod)
 support_label(::AbstractDerivativeMethod)
 InfiniteOpt.make_reduced_expr

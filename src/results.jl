@@ -1,141 +1,305 @@
 ################################################################################
 #                                  MODEL QUERIES
 ################################################################################
-# Simple model queries
-for op in (:termination_status, :raw_status, :solve_time, :simplex_iterations,
-           :barrier_iterations, :node_count, :objective_bound, :relative_gap)
-    @eval begin 
-        @doc """
-            JuMP.$($op)(model::InfiniteModel)
+# Ensure results are reliable
+function _check_result_is_current(model::InfiniteModel, func)
+    if JuMP.termination_status(model) == MOI.OPTIMIZE_NOT_CALLED
+        error("Unable to query `$func` since up-to-date solution results " *
+              "are not available. This is likely because the transformation " *
+              "backend has not been built and optimized yet, or the model " *
+              "has been modified since the backend was optimized.")
+    end
+    return
+end
 
-        Extend [`JuMP.$($op)`](https://jump.dev/JuMP.jl/v0.22/reference/solutions/#JuMP.$($op)) 
-        for `InfiniteModel`s in accordance with that reported by its optimizer 
-        model. Errors if such a query is not supported or if the optimizer model 
-        hasn't be solved.
+# Make `get_attribute` check for reliability
+function JuMP.get_attribute(model::InfiniteModel, attr::MOI.TerminationStatus)
+    if !transformation_backend_ready(model)
+        return MOI.OPTIMIZE_NOT_CALLED
+    end
+    return JuMP.get_attribute(model.backend, attr)
+end
+function JuMP.get_attribute(model::InfiniteModel, attr::MOI.ResultCount)
+    if JuMP.termination_status(model) == MOI.OPTIMIZE_NOT_CALLED
+        return 0
+    end
+    return JuMP.get_attribute(model.backend, attr)
+end
+function JuMP.get_attribute(model::InfiniteModel, attr::MOI.RawStatusString)
+    if JuMP.termination_status(model) == MOI.OPTIMIZE_NOT_CALLED
+        return "optimize not called"
+    end
+    return JuMP.get_attribute(model.backend, attr)
+end
+function JuMP.get_attribute(
+    model::InfiniteModel,
+    attr::Union{MOI.PrimalStatus, MOI.DualStatus}
+    )
+    if JuMP.termination_status(model) == MOI.OPTIMIZE_NOT_CALLED
+        return MOI.NO_SOLUTION
+    end
+    return JuMP.get_attribute(model.backend, attr)
+end
+function JuMP.get_attribute(
+    model::InfiniteModel,
+    attr::MOI.AbstractModelAttribute
+    )
+    if MOI.is_set_by_optimize(attr)
+        _check_result_is_current(model::InfiniteModel, attr)
+    end
+    return JuMP.get_attribute(model.backend, attr)
+end
+
+# Simple model queries
+for (func, Attr) in (
+    (:termination_status, :TerminationStatus),
+    (:raw_status, :RawStatusString),
+    (:solve_time, :SolveTimeSec),
+    (:simplex_iterations, :SimplexIterations),
+    (:barrier_iterations, :BarrierIterations),
+    (:node_count, :NodeCount),
+    (:objective_bound, :ObjectiveBound),
+    (:relative_gap, :RelativeGap),
+    (:result_count, :ResultCount)
+    )
+    @eval begin
+        @doc """
+            JuMP.$($func)(model::InfiniteModel)
+
+        Extend [`JuMP.$($func)`](https://jump.dev/JuMP.jl/v1/api/JuMP/#$($func)) 
+        for `InfiniteModel`s in accordance with that reported by its 
+        transformation backend. Errors if such a query is not supported or if 
+        the transformation backend hasn't been solved.
         """
-        function JuMP.$op(model::InfiniteModel)
-            return JuMP.$op(optimizer_model(model))
+        function JuMP.$func(model::InfiniteModel)
+            JuMP.get_attribute(model, MOI.$Attr())
         end
     end
 end
 
 # Simple result dependent model queries
-for op in (:primal_status, :dual_status, :has_values, :has_duals, 
-           :objective_value, :dual_objective_value)
+for (func, Attr) in (
+    (:primal_status, :PrimalStatus),
+    (:dual_status, :DualStatus),
+    (:objective_value, :ObjectiveValue),
+    (:dual_objective_value, :DualObjectiveValue)
+    )
     @eval begin 
         @doc """
-            JuMP.$($op)(model::InfiniteModel; [result::Int = 1])
+            JuMP.$($func)(model::InfiniteModel; result::Int = 1)
 
-        Extend [`JuMP.$($op)`](https://jump.dev/JuMP.jl/v0.22/reference/solutions/#JuMP.$($op)) 
-        for `InfiniteModel`s in accordance with that reported by its optimizer 
-        model and the result index `result` of the most recent solution obtained. 
-        Errors if such a query is not supported or if the optimizer model hasn't 
-        be solved.
+        Extend [`JuMP.$($func)`](https://jump.dev/JuMP.jl/v1/api/JuMP/#$($func)) 
+        for `InfiniteModel`s in accordance with that reported by its 
+        transformation backend. Errors if such a query is not supported or if the 
+        transformation backend hasn't be solved. Accepts keyword `result`
+        to access the solution index of interest (if the solver/backend supports 
+        multiple solutions).
         """
-        function JuMP.$op(model::InfiniteModel; result::Int = 1)
-            return JuMP.$op(optimizer_model(model); result = result)
+        function JuMP.$func(model::InfiniteModel; result::Int = 1)
+            return JuMP.get_attribute(model, MOI.$Attr(result))
         end
     end
+end
+
+# Simple result dependent model queries
+for (func, Attr) in ((:has_values, :PrimalStatus), (:has_duals, :DualStatus))
+    @eval begin 
+        @doc """
+            JuMP.$($func)(model::InfiniteModel; result::Int = 1)
+
+        Extend [`JuMP.$($func)`](https://jump.dev/JuMP.jl/v1/api/JuMP/#$($func)) 
+        for `InfiniteModel`s in accordance with that reported by its 
+        transformation backend. Errors if such a query is not supported or if the 
+        transformation backend hasn't be solved. Accepts keyword `result`
+        to access the solution index of interest (if the solver/backend supports 
+        multiple solutions).
+        """
+        function JuMP.$func(model::InfiniteModel; result::Int = 1)
+            return JuMP.get_attribute(model, MOI.$Attr(result)) != MOI.NO_SOLUTION
+        end
+    end
+end
+
+"""
+    JuMP.is_solved_and_feasible(
+        model::InfiniteModel;
+        [dual::Bool = false,
+        allow_local::Bool = true,
+        allow_almost::Bool = false,
+        result::Int = 1]
+        )::Bool
+
+Extend [`JuMP.is_solved_and_feasible`](https://jump.dev/JuMP.jl/v1/api/JuMP/#is_solved_and_feasible))
+for `model`. See the JuMP docs details. 
+For new transformation backend types, this relies on `JuMP.termination_status`,
+`JuMP.primal_status`, and `JuMP.dual_status`.
+"""
+function JuMP.is_solved_and_feasible(
+    model::InfiniteModel;
+    dual::Bool = false,
+    allow_local::Bool = true,
+    allow_almost::Bool = false,
+    result::Int = 1
+    )
+    status = JuMP.termination_status(model)
+    ret =
+        (status == MOI.OPTIMAL) ||
+        (allow_local && (status == MOI.LOCALLY_SOLVED)) ||
+        (allow_almost && (status == MOI.ALMOST_OPTIMAL)) ||
+        (allow_almost && allow_local && (status == MOI.ALMOST_LOCALLY_SOLVED))
+    if ret
+        primal = JuMP.primal_status(model; result)
+        ret &=
+            (primal == MOI.FEASIBLE_POINT) ||
+            (allow_almost && (primal == MOI.NEARLY_FEASIBLE_POINT))
+    end
+    if ret && dual
+        dual_stat = JuMP.dual_status(model; result)
+        ret &=
+            (dual_stat == MOI.FEASIBLE_POINT) ||
+            (allow_almost && (dual_stat == MOI.NEARLY_FEASIBLE_POINT))
+    end
+    return ret
 end
 
 ################################################################################
 #                                 VALUE QUERIES
 ################################################################################
 """
-    map_value([ref/expr], key::Val{ext_key_name}, result::Int; kwargs...)
+    map_value([ref/expr], backend::AbstractTransformationBackend; [kwargs...])
 
-Map the value(s) of `ref` to its counterpart in the optimizer model type that is
-distininguished by its extension key `key` as type `Val{ext_key_name}`.
+Map the value(s) of `ref` to its counterpart in the `backend`.
 Here `ref` need refer to methods for both variable references and constraint
-references. This only needs to be defined for reformulation extensions that cannot
-readily extend `optimizer_model_variable`, `optimizer_model_expression`, and/or
-`optimizer_model_constraint`. Such as is the case with reformuations that do not
-have a direct mapping between variables and/or constraints in the original
-infinite form. Otherwise, `optimizer_model_variable`,
-`optimizer_model_expression`, and `optimizer_model_constraint` are used to make
-these mappings by default where `kwargs` are passed on these functions. Here 
-`result` is the result index used in `value`.
+references. No extension is needed for [`JuMPBackend`](@ref)s that support
+`transformation_variable`, `transformation_expression`, and 
+`transformation_constraint`. In this case, `transformation_variable`, 
+`transformation_expression`, and `transformation_constraint` are 
+used to make these mappings by default where `kwargs` are passed on these functions. 
+For mapping the values of infinite parameters, refer to 
+[`map_infinite_parameter_value`](@ref).
 """
-function map_value end
+function map_value(ref, backend::AbstractTransformationBackend; kwargs...)
+    error("Value queries are not supported for `$(typeof(ref))`s with a " *
+          "transformation backend of type `$(typeof(backend))`. If you are " * 
+          "writing an extension be sure to extend `map_value`.")
+end
 
-# Default method that depends on optimizer_model_variable --> making extensions easier
-function map_value(vref::GeneralVariableRef, key, result::Int; kwargs...)
-    opt_vref = optimizer_model_variable(vref, key; kwargs...)
+# Dispatch to deal with what is returned by parameter functions
+_get_jump_value(v, result) = JuMP.value(v, result = result)
+_get_jump_value(v::Real, result) = v
+
+# Default method that depends on transformation_variable --> making extensions easier
+function map_value(
+    vref::GeneralVariableRef,
+    backend::JuMPBackend;
+    result::Int = 1,
+    kwargs...
+    )
+    opt_vref = transformation_variable(vref, backend; kwargs...)
     if opt_vref isa AbstractArray
-        return map(v -> JuMP.value(v; result = result), opt_vref)
+        return map(v -> _get_jump_value(v, result), opt_vref)
     else
-        return JuMP.value(opt_vref; result = result)
+        return _get_jump_value(opt_vref, result)
     end
 end
 
-# Default method that depends on optimizer_model_constraint --> making extensions easier
-function map_value(cref::InfOptConstraintRef, key, result::Int; kwargs...)
-    func = JuMP.jump_function(JuMP.constraint_object(cref))
-    return map_value(func, key, result; kwargs...)
-end
-
-# Default method that depends on optimizer_model_expression --> making extensions easier
-function map_value(expr::JuMP.AbstractJuMPScalar, key, result::Int; kwargs...)
-    opt_expr = optimizer_model_expression(expr, key; kwargs...)
+# Default method that depends on transformation_expression --> making extensions easier
+function map_value(
+    expr::JuMP.AbstractJuMPScalar,
+    backend::JuMPBackend;
+    result::Int = 1,
+    kwargs...
+    )
+    opt_expr = transformation_expression(expr, backend; kwargs...)
     if opt_expr isa AbstractArray
-        return map(e -> JuMP.value(e; result = result), opt_expr)
+        return map(v -> _get_jump_value(v, result), opt_expr)
     else
-        return JuMP.value(opt_expr; result = result)
+        return _get_jump_value(opt_expr, result)
     end
+end
+
+# Default method that depends on transformation_constraint --> making extensions easier
+function map_value(
+    cref::InfOptConstraintRef,
+    backend::JuMPBackend;
+    result::Int = 1,
+    kwargs...
+    )
+    opt_cref = transformation_constraint(cref, backend; kwargs...)
+    if opt_cref isa AbstractArray
+        return map(c -> _get_jump_value(c, result), opt_cref)
+    else
+        return _get_jump_value(opt_cref, result)
+    end
+end
+
+"""
+    map_infinite_parameter_value(
+        pref::GeneralVariableRef, 
+        backend::AbstractTransformationBackend;
+        [kwargs...]
+        )
+
+Return the mapped value of the infinite parameter `pref` according to the 
+`backend`. This serves as an optional extension point for new type of 
+backends that do not rely on using supports. Otherwise, this defaults 
+to:
+```julia
+map_infinite_parameter_value(pref; [label = PublicLabel]) = supports(pref, label = label)
+```
+"""
+function map_infinite_parameter_value(
+    pref::GeneralVariableRef, 
+    backend::AbstractTransformationBackend; 
+    label = PublicLabel
+    )
+    return supports(pref, label = label)
 end
 
 ## Define dispatch methods to collect value of parameters 
 # InfiniteParameter 
-function _get_value(pref, ::Type{<:InfiniteParameterIndex}, result; kwargs...)
-    label = get(kwargs, :label, PublicLabel)
-    return supports(pref, label = label) # TODO generalize this once we decouple the supports
+function _get_value(pref, ::Type{<:InfiniteParameterIndex}; kwargs...)
+    backend = JuMP.owner_model(pref).backend
+    return map_infinite_parameter_value(pref, backend; kwargs...)
 end
 
 # FiniteParameter 
-function _get_value(pref, ::Type{FiniteParameterIndex}, result; kwargs...)
+function _get_value(pref, ::Type{FiniteParameterIndex}; kwargs...)
     return parameter_value(pref)
 end
 
 # Others 
-function _get_value(vref, index_type, result; kwargs...)
-    return map_value(vref, Val(optimizer_model_key(JuMP.owner_model(vref))), 
-                     result; kwargs...)
-end
-
-# Extend JuMP.value to handle numbers as needed for parameter functions 
-function JuMP.value(val::Real; result = 1)
-    return val
+function _get_value(vref, index_type; kwargs...)
+    return map_value(vref, JuMP.owner_model(vref).backend; kwargs...)
 end
 
 """
-    JuMP.value(vref::GeneralVariableRef; [result::Int = 1, 
-               label::Type{<:AbstractSupportLabel} = PublicLabel,
-               ndarray::Bool = false, kwargs...])
+    JuMP.value(vref::GeneralVariableRef; [kwargs...])
 
 Extend `JuMP.value` to return the value(s) of `vref` in accordance with its 
-reformulation variable(s) stored in the optimizer model and the result index 
-`result` of the most recent solution obtained. Use
+reformulation variable(s) stored in the transformation backend. Use
 [`JuMP.has_values`](@ref JuMP.has_values(::InfiniteModel)) to check
-if a result exists before asking for values. 
+whether a result exists before checking the values. 
     
-The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
-and `kwargs` denote extra ones that user extensions may employ.
+Thw keyword arguments `kwargs` depend on the transformation backend that is 
+being used. The default backend `TranscriptionOpt` uses the keyword 
+arguments:
+- `result::Int = 1`: indexes the solution result to be queried
+- `label::Type{<:AbstractSupportLabel} = PublicLabel`: the label of supports to be returned
+By default only the values associated with public supports (i.e., `PublicLabel`s) 
+are returned, the full set can be accessed via `label = All`. Where possible, all the 
+values are returned as an n-dimensional array 
+where each dimension is determined by the each independent group of
+infinite parameters they depend on.
 
-By default only the values associated with public supports are returned, the 
-full set can be accessed via `label = All`. Moreover, the values of infinite 
-variables are returned as a list. However, a n-dimensional array 
-can be obtained via `ndarray = true` which is handy when the variable has multiple 
-infinite parameter dependencies.
+To provide context for the values, it may be helpful to also query the variable's 
+`parameter_refs` and `supports` which will have a one-to-one correspondence with 
+the value(s). It may also be helpful to query via [`transformation_variable`](@ref) 
+to retrieve the variables(s) that these values are based on. These functions should 
+all be called with the same keyword arguments for consistency.
 
-To provide context for the
-results it may be helpful to also query the variable's `parameter_refs` and
-`supports` which will have a one-to-one correspondence with the value(s).
-It may also be helpful to query via [`optimizer_model_variable`](@ref) to
-retrieve the variables(s) that these values are based on. These functions should 
-all be called with the same keyword arugments for consistency.
-
-For extensions, this only works if
-[`optimizer_model_variable`](@ref) has been extended correctly and/or
+For extensions, this only works if 
+[`transformation_variable`](@ref) has been extended correctly and/or 
 [`map_value`](@ref) has been extended for variables.
 
 **Example**
@@ -144,86 +308,39 @@ julia> value(z)
 42.0
 ```
 """
-function JuMP.value(vref::GeneralVariableRef; result::Int = 1, kwargs...)
-    return _get_value(vref, _index_type(vref), result; kwargs...)
+function JuMP.value(vref::GeneralVariableRef; kwargs...)
+    _check_result_is_current(JuMP.owner_model(vref), JuMP.value)
+    return _get_value(vref, _index_type(vref); kwargs...)
 end
 
 """
-    JuMP.value(cref::InfOptConstraintRef; [result::Int = 1,
-               label::Type{<:AbstractSupportLabel} = PublicLabel,
-               ndarray::Bool = false, kwargs...])
+    JuMP.value(expr::JuMP.AbstractJuMPScalar; [kwargs...])
 
-Extend `JuMP.value` to return the value(s) of `cref` in accordance with its 
-reformulation constraint(s) stored in the optimizer model and the result index 
-`result` of the most recent solution obtained. Use 
-[`JuMP.has_values`](@ref JuMP.has_values(::InfiniteModel)) to check if a result 
-exists before asking for values. 
+Extend `JuMP.value` to return the value(s) of `vref` in accordance with its 
+reformulation expression(s) stored in the transformation backend. Use
+[`JuMP.has_values`](@ref JuMP.has_values(::InfiniteModel)) to check
+whether a result exists before checking the values. 
     
-The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
-and `kwargs` denote extra ones that user extensions may employ.
+Thw keyword arguments `kwargs` depend on the transformation backend that is 
+being used. The default backend `TranscriptionOpt` uses the keyword 
+arguments:
+- `result::Int = 1`: indexes the solution result to be queried
+- `label::Type{<:AbstractSupportLabel} = PublicLabel`: the label of supports to be returned
+By default only the values associated with public supports (i.e., `PublicLabel`s) 
+are returned, the full set can be accessed via `label = All`. Where possible, all the
+values of infinite expressions are returned as an n-dimensional array 
+where each dimension is determined by the each independent group of
+infinite parameters they depend on.
 
-By default only the values associated with public supports are returned, the 
-full set can be accessed via `label = All`. Moreover, the values of infinite 
-constraints are returned as a list. However, a n-dimensional array 
-can be obtained via `ndarray = true` which is handy when the constraint has multiple 
-infinite parameter dependencies.
+To provide context for the values, it may be helpful to also query the expression's 
+`parameter_refs` and `supports` which will have a one-to-one correspondence with 
+the value(s). It may also be helpful to query via [`transformation_expression`](@ref) 
+to retrieve the expression(s) that these values are based on. These functions should 
+all be called with the same keyword arguments for consistency.
 
-To provide context for
-the results it may be helpful to also query the constraint's `parameter_refs`
-and `supports` which will have a one-to-one correspondence with the value(s).
-It may also be helpful to query via [`optimizer_model_constraint`](@ref) to
-retrieve the constraint(s) that these values are based on. By default, only the 
-values corresponding to public supports are returned. These functions should 
-all be called with the same keyword arugments for consistency.
-
-For extensions, this only
-works if [`optimizer_model_constraint`](@ref) has been extended correctly and/or
-[`map_value`](@ref) has been extended for constraints. 
-
-**Example**
-```julia-repl
-julia> value(c1)
-4-element Array{Float64,1}:
- -0.0
- 20.9
- 20.9
- 20.9
-```
-"""
-function JuMP.value(cref::InfOptConstraintRef; result::Int = 1, 
-                    kwargs...)
-    return map_value(cref, Val(optimizer_model_key(JuMP.owner_model(cref))), 
-                     result; kwargs...)
-end
-
-"""
-    JuMP.value(expr::JuMP.AbstractJuMPScalar; [result::Int = 1, 
-               label::Type{<:AbstractSupportLabel} = PublicLabel,
-               ndarray::Bool = false, kwargs...])
-
-Return the value(s) of `expr` in accordance with the optimized variable values
-the result index `result` of the most recent solution obtained. Use
-[`JuMP.has_values`](@ref JuMP.has_values(::InfiniteModel)) to check if a result
-exists before asking for values. 
-    
-The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
-and `kwargs` denote extra ones that user extensions may employ.
-
-By default only the values associated with public supports are returned, the 
-full set can be accessed via `label = All`. Moreover, the values of infinite 
-expressions are returned as a list. However, a n-dimensional array 
-can be obtained via `ndarray = true` which is handy when the expression has multiple 
-infinite parameter dependencies.
-    
-To provide context for the results it may be
-helpful to also query the expression's `parameter_refs` and `supports` which
-will have a one-to-one correspondence with the value(s). It may also be helpful
-to query via [`optimizer_model_expression`](@ref) to retrieve the expression(s)
-that these values are based on. These should use the same keyword arguments for 
-consistency.
-
-For extensions, this only works if [`optimizer_model_expression`](@ref) has been
-extended correctly and/or [`map_value`](@ref) has been extended for expressions.
+For extensions, this only works if 
+[`transformation_expression`](@ref) has been extended correctly and/or 
+[`map_value`](@ref) has been extended for expressions.
 
 **Example**
 ```julia-repl
@@ -239,8 +356,11 @@ julia> value(my_infinite_expr)
 ```
 """
 function JuMP.value(
-    expr::Union{JuMP.GenericAffExpr{Float64, GeneralVariableRef}, JuMP.GenericQuadExpr{Float64, GeneralVariableRef}, JuMP.GenericNonlinearExpr{GeneralVariableRef}};
-    result::Int = 1,
+    expr::Union{
+        JuMP.GenericAffExpr{Float64, GeneralVariableRef}, 
+        JuMP.GenericQuadExpr{Float64, GeneralVariableRef}, 
+        JuMP.GenericNonlinearExpr{GeneralVariableRef}
+        };
     kwargs...
     )
     # get the model
@@ -251,238 +371,201 @@ function JuMP.value(
         return JuMP.constant(expr)
     # otherwise let's call map_value
     else
-        key = optimizer_model_key(model)
-        return map_value(expr, Val(key), result; kwargs...)
-    end
-end
-
-################################################################################
-#                                 REDUCED COST
-################################################################################
-"""
-    map_reduced_cost(vref::GeneralVariableRef, key::Val{ext_key_name}, 
-                      result::Int; kwargs...)
-
-Map the reduced cost(s) of `vref` to its counterpart in the optimizer model type that is
-distininguished by its extension key `key` as type `Val{ext_key_name}`.
-This only needs to be defined for reformulation extensions that cannot
-readily extend `optimizer_model_variable`. Such as is the case with reformulations 
-that do not have a direct mapping between variables in the original
-infinite form. Otherwise, `optimizer_model_variable`, is used to make
-these mappings by default where `kwargs` are passed on these functions. Here 
-`result` is the result index used in `value`.
-"""
-function map_reduced_cost end
-
-# Default definition for when optimizer_model_variable is defined
-function map_reduced_cost(vref::GeneralVariableRef, key; kwargs...)
-    opt_vref = optimizer_model_variable(vref, key; kwargs...)
-    if opt_vref isa AbstractArray
-        return map(v -> JuMP.reduced_cost(v), opt_vref)
-    else
-        return JuMP.reduced_cost(opt_vref)
+        _check_result_is_current(model, JuMP.value)
+        return map_value(expr, model.backend; kwargs...)
     end
 end
 
 """
-    JuMP.reduced_cost(vref::GeneralVariableRef)
+    JuMP.value(cref::InfOptConstraintRef; [kwargs...])
 
-Extend `JuMP.reduced_cost`. This returns the reduced cost(s) of a variable. This 
-will be a vector of scalar values for an infinite variable or will be a scalar 
-value for finite variables. 
+Extend `JuMP.value` to return the value(s) of `cref` in accordance with its 
+reformulation constraint(s) stored in the transformation backend. Use
+[`JuMP.has_values`](@ref JuMP.has_values(::InfiniteModel)) to check
+whether a result exists before checking the values. 
+    
+Thw keyword arguments `kwargs` depend on the transformation backend that is 
+being used. The default backend `TranscriptionOpt` uses the keyword 
+arguments:
+- `result::Int = 1`: indexes the solution result to be queried
+- `label::Type{<:AbstractSupportLabel} = PublicLabel`: the label of supports to be returned
+By default only the values associated with public supports (i.e., `PublicLabel`s) 
+are returned, the full set can be accessed via `label = All`. Where possible, all the
+values of infinite constraints are returned as an n-dimensional array 
+where each dimension is determined by the each independent group of
+infinite parameters they depend on.
+
+To provide context for the values, it may be helpful to also query the constraint's 
+`parameter_refs` and `supports` which will have a one-to-one correspondence with 
+the value(s). It may also be helpful to query via [`transformation_constraint`](@ref) 
+to retrieve the constraint(s) that these values are based on. These functions should 
+all be called with the same keyword arguments for consistency.
+
+For extensions, this only works if 
+[`transformation_constraint`](@ref) has been extended correctly and/or 
+[`map_value`](@ref) has been extended for constraints.
 
 **Example**
 ```julia-repl
-julia> reduced_cost(x)
-12.81
+julia> value(c1)
+4-element Array{Float64,1}:
+ -0.0
+ 20.9
+ 20.9
+ 20.9
 ```
 """
-function JuMP.reduced_cost(vref::GeneralVariableRef; kwargs...)
-    return map_reduced_cost(vref, Val(optimizer_model_key(JuMP.owner_model(vref))); 
-                            kwargs...)
+function JuMP.value(cref::InfOptConstraintRef; kwargs...)
+    model = JuMP.owner_model(cref)
+    _check_result_is_current(model, JuMP.value)
+    return map_value(cref, model.backend; kwargs...)
 end
 
 ################################################################################
-#                             OPTIMIZER INDEX QUERIES
+#                            BOILERPLATE REF QUERIES
 ################################################################################
-"""
-    map_optimizer_index(ref, key::Val{ext_key_name}; kwargs...)
+for (Ref, func, mapper) in (
+    (:GeneralVariableRef, :reduced_cost, :transformation_variable), 
+    (:GeneralVariableRef, :optimizer_index, :transformation_variable),
+    (:InfOptConstraintRef, :optimizer_index, :transformation_constraint),
+    (:InfOptConstraintRef, :shadow_price, :transformation_constraint)
+    )
+    @eval begin 
+        @doc """
+            map_$($func)(
+                ref::$($Ref),
+                backend::AbstractTransformationBackend;
+                [kwargs...]
+                )
 
-Map the `MathOptInterface` index(es) of `ref` to its counterpart in the optimizer
-model type that is distininguished by its extension key `key` as type `Val{ext_key_name}`.
-Here `ref` need refer to methods for both variable references and constraint
-references. This only needs to be defined for reformulation extensions that cannot
-readily extend `optimizer_model_variable` and `optimizer_model_constraint`.
-Such as is the case with reformuations that do not have a direct mapping between
-variables and/or constraints in the original infinite form. Otherwise,
-`optimizer_model_variable` and `optimizer_model_constraint` are used to make
-these mappings by default where `kwargs` are passed on as well.
-"""
-function map_optimizer_index end
+        Map `JuMP.$($func)` of `ref` to its counterpart in the `backend`.
+        No extension is needed for [`JuMPBackend`](@ref)s that support
+        `$($mapper)`, in which case, `$($mapper)` is used to make these 
+        mappings using `kwargs`.
+        """
+        function $(Symbol(string("map_", func)))(
+            ref::$Ref,
+            backend::AbstractTransformationBackend;
+            kwargs...
+            )
+            error("`$($func)` queries are not supported for a " *
+                  "transformation backend of type `$(typeof(backend))`. If you " * 
+                  "are writing an extension be sure to extend `map_$($func)`.")
+        end
 
-# Default method that depends on optimizer_model_variable --> making extensions easier
-function map_optimizer_index(vref::GeneralVariableRef, key; kwargs...)
-    opt_vref = optimizer_model_variable(vref, key; kwargs...)
-    if opt_vref isa AbstractArray
-        return map(v -> JuMP.optimizer_index(v), opt_vref)
-    else
-        return JuMP.optimizer_index(opt_vref)
+        # JuMPBackend
+        function $(Symbol(string("map_", func)))(
+            ref::$Ref,
+            backend::JuMPBackend;
+            kwargs...
+            )
+            opt_ref = $mapper(ref, backend; kwargs...)
+            if opt_ref isa AbstractArray
+                return map(r -> JuMP.$func(r), opt_ref)
+            else
+                return JuMP.$func(opt_ref)
+            end
+        end
+
+        @doc """
+            JuMP.$($func)(ref::$($Ref); [kwargs...])
+
+        Extend [`JuMP.$($func)`](https://jump.dev/JuMP.jl/v1/api/JuMP/#$($func))
+        for `ref`s in InfiniteModel. The exact format of output will depend 
+        on the transformation backend that is being used.
+
+        Thw keyword arguments `kwargs` depend on the transformation backend that is 
+        being used. The default backend `TranscriptionOpt` uses the keyword 
+        arguments:
+        - `label::Type{<:AbstractSupportLabel} = PublicLabel`: the label of supports to be returned
+        By default only the values associated with public supports (i.e., `PublicLabel`s) 
+        are returned, the full set can be accessed via `label = All`. Where possible, all the
+        values of infinite objects are returned as an n-dimensional array 
+        where each dimension is determined by the each independent group of
+        infinite parameters they depend on.
+
+        To provide context for the values, it may be helpful to also query the
+        `parameter_refs` and `supports` which will have a one-to-one correspondence with 
+        the output(s) of this function. These functions should 
+        all be called with the same keyword arguments for consistency.
+        """
+        function JuMP.$func(ref::$Ref; kwargs...)
+            model = JuMP.owner_model(ref)
+            backend = model.backend
+            _check_result_is_current(model, JuMP.$func)
+            return $(Symbol(string("map_", func)))(ref, backend; kwargs...)
+        end
     end
-end
-
-# Default method that depends on optimizer_model_constraint --> making extensions easier
-function map_optimizer_index(cref::InfOptConstraintRef, key; kwargs...)
-    opt_cref = optimizer_model_constraint(cref, key; kwargs...)
-    if opt_cref isa AbstractArray
-        return map(c -> JuMP.optimizer_index(c), opt_cref)
-    else
-        return JuMP.optimizer_index(opt_cref)
-    end
-end
-
-"""
-    JuMP.optimizer_index(vref::GeneralVariableRef; 
-                         [label::Type{<:AbstractSupportLabel} = PublicLabel,
-                         ndarray::Bool = false, kwargs...])
-
-Extend `JuMP.optimizer_index` to return the `MathOptInterface` index(es) of 
-`vref` in accordance with its reformulation variable(s) stored in the optimizer 
-model.
-
-The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
-and `kwargs` denote extra ones that user extensions may employ.
-
-By default only the optimizer indices associated with public supports are returned, the 
-full set can be accessed via `label = All`. Moreover, the indices of infinite 
-variables are returned as a list. However, a n-dimensional array 
-can be obtained via `ndarray = true` which is handy when the variable has multiple 
-infinite parameter dependencies.
-
-It may also be helpful to query via [`optimizer_model_variable`](@ref) to
-retrieve the variables(s) that these indices are based on. These should use the 
-same keyword arguments for consistency.
-
-For extensions, this
-only works if [`optimizer_model_variable`](@ref) has been extended correctly
-and/or [`map_optimizer_index`](@ref) has been extended for variables.
-
-**Example**
-```julia-repl
-julia> optimizer_index(x)
-4-element Array{MathOptInterface.VariableIndex,1}:
- MathOptInterface.VariableIndex(2)
- MathOptInterface.VariableIndex(3)
- MathOptInterface.VariableIndex(4)
- MathOptInterface.VariableIndex(5)
-```
-"""
-function JuMP.optimizer_index(vref::GeneralVariableRef; kwargs...)
-    return map_optimizer_index(vref, Val(optimizer_model_key(JuMP.owner_model(vref))); 
-                               kwargs...)
-end
-
-"""
-    JuMP.optimizer_index(cref::InfOptConstraintRef; 
-                         [label::Type{<:AbstractSupportLabel} = PublicLabel,
-                         ndarray::Bool = false, kwargs...])
-
-Extend `JuMP.optimizer_index` to return the `MathOptInterface` index(es) of 
-`cref` in accordance with its reformulation constraints(s) stored in the 
-optimizer model. 
-
-The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
-and `kwargs` denote extra ones that user extensions may employ.
-
-By default only the optimizer indices associated with public supports are returned, the 
-full set can be accessed via `label = All`. Moreover, the indices of infinite 
-constraints are returned as a list. However, a n-dimensional array 
-can be obtained via `ndarray = true` which is handy when the constraint has multiple 
-infinite parameter dependencies.
-
-It may also be helpful to query via [`optimizer_model_constraint`](@ref) to
-retrieve the constraints(s) that these indices are based on. The same keyword 
-arguments should be used for consistency.
-
-For extensions, this
-only works if [`optimizer_model_constraint`](@ref) has been extended correctly
-and/or [`map_optimizer_index`](@ref) has been extended for constraints.
-
-**Example**
-```julia-repl
-julia> optimizer_index(c1)
-4-element Array{MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.GreaterThan{Float64}},1}:
- MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.GreaterThan{Float64}}(1)
- MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.GreaterThan{Float64}}(2)
- MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.GreaterThan{Float64}}(3)
- MathOptInterface.ConstraintIndex{MathOptInterface.ScalarAffineFunction{Float64},MathOptInterface.GreaterThan{Float64}}(4)
-```
-"""
-function JuMP.optimizer_index(cref::InfOptConstraintRef; kwargs...)
-    return map_optimizer_index(cref, Val(optimizer_model_key(JuMP.owner_model(cref))); 
-                               kwargs...)
 end
 
 ################################################################################
 #                                  DUAL QUERIES
 ################################################################################
 """
-    map_dual(cref::InfOptConstraintRef, key::Val{ext_key_name}, result::Int; 
-             kwargs...)
+    map_dual(
+        cref::InfOptConstraintRef,
+        backend::AbstractTransformationBackend;
+        [kwargs...]
+        )
 
-Map the dual(s) of `cref` to its counterpart in the optimizer
-model type that is distininguished by its extension key `key` as type `Val{ext_key_name}`.
-Here `ref` need refer to methods for both variable references and constraint
-references. This only needs to be defined for reformulation extensions that cannot
-readily extend `optimizer_model_variable` and `optimizer_model_constraint`.
-Such as is the case with reformuations that do not have a direct mapping between
-variables and/or constraints in the original infinite form. Otherwise,
-`optimizer_model_variable` and `optimizer_model_constraint` are used to make
-these mappings by default where `kwargs` are also pass on to. Here `result` is 
-the result index that is used in `dual`. 
+Map the dual(s) of `cref` to its counterpart in the `backend`.
+No extension is needed for [`JuMPBackend`](@ref)s that support
+`transformation_constraint`. In this case, `transformation_constraint` 
+are used to make these mappings by default where `kwargs` are passed on these 
+functions.
 """
-function map_dual end
+function map_dual(
+    cref::InfOptConstraintRef,
+    backend::AbstractTransformationBackend;
+    kwargs...
+    )
+    error("Dual queries are not supported for a " *
+          "transformation backend of type `$(typeof(backend))`. If you are " * 
+          "writing an extension be sure to extend `map_dual`.")
+end
 
-# Default method that depends on optimizer_model_constraint --> making extensions easier
-function map_dual(cref::InfOptConstraintRef, key, result::Int; kwargs...)
-    opt_cref = optimizer_model_constraint(cref, key; kwargs...)
-    if opt_cref isa AbstractArray && first(opt_cref) isa JuMP.NonlinearConstraintRef
-        return map(c -> JuMP.dual(c), opt_cref)
-    elseif opt_cref isa AbstractArray
-        return map(c -> JuMP.dual(c; result = result), opt_cref)
-    elseif opt_cref isa JuMP.NonlinearConstraintRef
-        return JuMP.dual(opt_cref)
+# JuMPBackend default
+function map_dual(
+    cref::InfOptConstraintRef,
+    backend::JuMPBackend;
+    result::Int = 1,
+    kwargs...
+    )
+    opt_cref = transformation_constraint(cref, backend; kwargs...)
+    if opt_cref isa AbstractArray
+        return map(c -> JuMP.dual(c, result = result), opt_cref)
     else
-        return JuMP.dual(opt_cref; result = result)
+        return JuMP.dual(opt_cref, result = result)
     end
 end
 
 """
-    JuMP.dual(cref::InfOptConstraintRef; [result::Int = 1, 
-              label::Type{<:AbstractSupportLabel} = PublicLabel,
-              ndarray::Bool = false, kwargs...])
+    JuMP.dual(cref::InfOptConstraintRef; [kwargs...])
 
 Extend `JuMP.dual` to return the dual(s) of `cref` in accordance with its 
-reformulation constraint(s) stored in the optimizer model and the result index 
-`result` of the most recent solution obtained. Use 
-[`JuMP.has_duals`](@ref JuMP.has_duals(::InfiniteModel)) to check if a result 
-exists before asking for duals. 
+reformulation constraint(s) stored in the transformation backend. Use
+[`JuMP.has_duals`](@ref JuMP.has_duals(::InfiniteModel)) to check
+whether a result exists before checking the duals. 
+    
+Thw keyword arguments `kwargs` depend on the transformation backend that is 
+being used. The default backend `TranscriptionOpt` uses the keyword 
+arguments:
+- `result::Int = 1`: indexes the solution result to be queried
+- `label::Type{<:AbstractSupportLabel} = PublicLabel`: the label of supports to be returned
+By default only the values associated with public supports (i.e., `PublicLabel`s) 
+are returned, the full set can be accessed via `label = All`. Where possible, all the
+duals of infinite cosntraints are returned as an n-dimensional array 
+where each dimension is determined by the each independent group of
+infinite parameters they depend on.
 
-The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
-and `kwargs` denote extra ones that user extensions may employ.
+To provide context for the duals, it may be helpful to also query the constraint's 
+`parameter_refs` and `supports` which will have a one-to-one correspondence with 
+the value(s). It may also be helpful to query via [`transformation_constraint`](@ref) 
+to retrieve the constraint(s) that these values are based on. These functions should 
+all be called with the same keyword arguments for consistency.
 
-By default only the duals associated with public supports are returned, the 
-full set can be accessed via `label = All`. Moreover, the duals of infinite 
-constraints are returned as a list. However, a n-dimensional array 
-can be obtained via `ndarray = true` which is handy when the constraint has multiple 
-infinite parameter dependencies.
-
-It may also be helpful to
-query via [`optimizer_model_constraint`](@ref) to retrieve the constraint(s)
-that these duals are based on. Calling `parameter_refs` and `supports` may also
-be insightful. Be sure to use the same keyword arguments for consistency.
-
-For extensions, this only
-works if [`optimizer_model_constraint`](@ref) has been extended correctly and/or
+For extensions, this only works if 
+[`transformation_constraint`](@ref) has been extended correctly and/or 
 [`map_dual`](@ref) has been extended for constraints.
 
 **Example**
@@ -495,104 +578,15 @@ julia> dual(c1)
  0.0
 ```
 """
-function JuMP.dual(cref::InfOptConstraintRef; result::Int = 1, kwargs...)
-    return map_dual(cref, Val(optimizer_model_key(JuMP.owner_model(cref))),
-                    result; kwargs...)
+function JuMP.dual(cref::InfOptConstraintRef; kwargs...)
+    model = JuMP.owner_model(cref)
+    _check_result_is_current(model, JuMP.dual)
+    return map_dual(cref, model.backend; kwargs...)
 end
 
-# Error redriect for variable call
+# Error redirect for variable call
 function JuMP.dual(vref::GeneralVariableRef; kwargs...)
     return JuMP.dual(JuMP.VariableRef(JuMP.Model(), MOI.VariableIndex(1)))
-end
-
-################################################################################
-#                              SHADOW PRICE QUERIES
-################################################################################
-# Dispatch functions for computing the shadow price
-function _process_shadow_price(::MOI.LessThan, sense, duals)
-    if sense == MOI.MAX_SENSE
-        return -duals
-    elseif sense == MOI.MIN_SENSE
-        return duals
-    else
-        error(
-            "The shadow price is not available because the objective sense " *
-            "$sense is not minimization or maximization.",
-        )
-    end
-end
-function _process_shadow_price(::MOI.GreaterThan, sense, duals)
-    if sense == MOI.MAX_SENSE
-        return duals
-    elseif sense == MOI.MIN_SENSE
-        return -duals
-    else
-        error(
-            "The shadow price is not available because the objective sense " *
-            "$sense is not minimization or maximization.",
-        )
-    end
-end
-function _process_shadow_price(::MOI.EqualTo, sense, duals)
-    if sense == MOI.MAX_SENSE 
-        return map(d -> d > 0 ? d : -d, duals)
-    elseif sense == MOI.MIN_SENSE
-        return map(d -> d > 0 ? -d : d, duals)
-    else
-        error(
-            "The shadow price is not available because the objective sense " *
-            "$sense is not minimization or maximization.",
-        )
-    end
-end
-
-"""
-    JuMP.shadow_price(cref::InfOptConstraintRef; 
-                      [label::Type{<:AbstractSupportLabel} = PublicLabel,
-                      ndarray::Bool = false, kwargs...])
-
-Extend `JuMP.shadow_price` to return the shadow price(s) of `cref` in accordance 
-with its reformulation constraint(s) stored in the optimizer model. Use 
-[`JuMP.has_duals`](@ref JuMP.has_duals(::InfiniteModel)) to check if a result 
-exists before asking for the shadow price (it uses the duals). 
-    
-The keyword arugments `label` and `ndarray` are what `TranscriptionOpt` employ 
-and `kwargs` denote extra ones that user extensions may employ.
-
-By default only the shadow prices associated with public supports are returned, the 
-full set can be accessed via `label = All`. Moreover, the prices of infinite 
-constraints are returned as a list. However, a n-dimensional array 
-can be obtained via `ndarray = true` which is handy when the constraint has multiple 
-infinite parameter dependencies.
-
-It may also be helpful to query via [`optimizer_model_constraint`](@ref) to 
-retrieve the constraint(s) that these shadow prices are based on. Calling 
-`parameter_refs` and `supports` may also be insightful. Be sure to use the same 
-keyword arguments for consistency.
-
-For extensions, this only works if [`optimizer_model_constraint`](@ref) has been 
-extended correctly and/or [`map_dual`](@ref) has been extended for constraints. 
-
-**Example**
-```julia-repl
-julia> shadow_price(c1)
-4-element Array{Float64,1}:
- 42.0
- 42.0
- -32.3
- -0.0
-```
-"""
-function JuMP.shadow_price(cref::InfOptConstraintRef; kwargs...)
-    model = JuMP.owner_model(cref)
-    set = JuMP.moi_set(JuMP.constraint_object(cref))
-    sense = JuMP.objective_sense(model)
-    if !JuMP.has_duals(model)
-        error("The shadow price is not available because no dual result is " *
-              "available.")
-    end
-    duals = map_dual(cref, Val(optimizer_model_key(model)), 1; kwargs...)
-    return _process_shadow_price(set, sense, duals)
 end
 
 ################################################################################
@@ -602,21 +596,22 @@ end
     InfOptSensitivityReport
 
 A wrapper `DataType` for `JuMP.SensitivityReport`s in `InfiniteOpt`. 
-These are generated based on the optimizer model and should be made via the use of 
-[`lp_sensitivity_report`](@ref JuMP.lp_sensitivity_report(::InfiniteModel)). Once 
-made these can be indexed to get the sensitivies with respect to variables and/or 
+These are generated based on the transformation backend and should be made via 
+the use of [`lp_sensitivity_report`](@ref JuMP.lp_sensitivity_report(::InfiniteModel)). 
+Once made these can be indexed to get the sensitivies with respect to variables and/or 
 constraints. The indexing syntax for these is: 
 ```julia
 report[ref::[GeneralVariableRef/InfOptConstraintRef]; 
        [label::Type{<:AbstractSupportLabel} = PublicLabel,
-       ndarray::Bool = false, kwargs...]]
+       kwargs...]]
 ```
 
-This is enabled in user-defined optimizer model extensions by appropriately 
-extending [`optimizer_model_variable`](@ref) and [`optimizer_model_constraint`](@ref).
+This is enabled for new transformation backends by appropriately 
+extending [`transformation_variable`](@ref) and 
+[`transformation_constraint`](@ref).
 
 **Fields**
-- `opt_report::JuMP.SensitivityReport`: The LP sensitivity captured from the optimizer model.
+- `opt_report::JuMP.SensitivityReport`: The LP sensitivity captured from the backend.
 """
 struct InfOptSensitivityReport 
     opt_report::JuMP.SensitivityReport
@@ -624,8 +619,8 @@ end
 
 # Extend Base.getindex for variables on InfOptSensitivityReport
 function Base.getindex(s::InfOptSensitivityReport, v::GeneralVariableRef; kwargs...)
-    key = Val(optimizer_model_key(JuMP.owner_model(v)))
-    opt_vref = optimizer_model_variable(v, key; kwargs...)
+    backend = JuMP.owner_model(v).backend
+    opt_vref = transformation_variable(v, backend; kwargs...)
     if opt_vref isa AbstractArray
         return map(v -> s.opt_report[v], opt_vref)
     else
@@ -635,8 +630,8 @@ end
 
 # Extend Base.getindex for constraints on InfOptSensitivityReport
 function Base.getindex(s::InfOptSensitivityReport, c::InfOptConstraintRef; kwargs...)
-    key = Val(optimizer_model_key(JuMP.owner_model(c)))
-    opt_cref = optimizer_model_constraint(c, key; kwargs...)
+    backend = JuMP.owner_model(c).backend
+    opt_cref = transformation_constraint(c, backend; kwargs...)
     if opt_cref isa AbstractArray
         return map(c -> s.opt_report[c], opt_cref)
     else
@@ -645,11 +640,37 @@ function Base.getindex(s::InfOptSensitivityReport, c::InfOptConstraintRef; kwarg
 end
 
 """
-    JuMP.lp_sensitivity_report(model::InfiniteModel; 
-                               [atol::Float64 = 1e-8])::InfOptSensitivityReport
+    JuMP.lp_sensitivity_report(
+        backend::AbstractTransformationBackend;
+        [atol::Float64 = 1e-8]
+        )::InfOptSensitivityReport
+
+Extend `JuMP.lp_sensitivity_report` as appropriate for `backend`. This is
+intended as an extension point. For [`JuMPBackend`](@ref)s, this simply 
+calls `JuMP.lp_sensitivity_report` on the underlying JuMP model. 
+"""
+function JuMP.lp_sensitivity_report(
+    backend::AbstractTransformationBackend;
+    kwargs...
+    )
+    error("`JuMP.lp_sensitivity_report` not defined for backends of type " *
+          "`$(typeof(backend))`.")
+end
+
+# JuMPBackend
+function JuMP.lp_sensitivity_report(backend::JuMPBackend; atol::Float64 = 1e-8)
+    report = JuMP.lp_sensitivity_report(backend.model, atol = atol)
+    return InfOptSensitivityReport(report)
+end
+
+"""
+    JuMP.lp_sensitivity_report(
+        model::InfiniteModel;
+        [atol::Float64 = 1e-8]
+        )::InfOptSensitivityReport
 
 Extends `JuMP.lp_sensitivity_report` to generate and return an LP sensitivity 
-report in accordance with the optimizer model. See 
+report in accordance with the transformation backend. See 
 [`InfOptSensitivityReport`](@ref) for syntax details on how to query it. `atol` 
 denotes the optimality tolerance and should match that used by the solver to 
 compute the basis. Please refer to `JuMP`'s documentation for more technical 
@@ -663,11 +684,7 @@ julia> report[x]
 (0.0, 0.5)
 ```
 """
-function JuMP.lp_sensitivity_report(
-    model::InfiniteModel; 
-    atol::Float64 = 1e-8
-    )::InfOptSensitivityReport
-    opt_model = optimizer_model(model)
-    opt_report = JuMP.lp_sensitivity_report(opt_model, atol = atol)
-    return InfOptSensitivityReport(opt_report)
+function JuMP.lp_sensitivity_report(model::InfiniteModel; atol::Float64 = 1e-8)
+    _check_result_is_current(model, JuMP.lp_sensitivity_report)
+    return JuMP.lp_sensitivity_report(model.backend; atol = atol)
 end

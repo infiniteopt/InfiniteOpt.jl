@@ -13,12 +13,6 @@ added by defining a user-defined type). These can be used to parameterize
 infinite variables, semi-infinite variables, point variables, derivatives,  
 measures, and can be used directly inside constraints. 
 
-!!! note 
-    Previous versions of `InfiniteOpt` used the syntax 
-    `@infinite_parameter(model, ξ in distribution)` for defining random infinite 
-    parameters. This has been updated to 
-    `@infinite_parameter(model, ξ ~ distribution)`.
-
 ## Basic Usage
 First, we need to initialize and add infinite parameters to our `InfiniteModel`. 
 This can be accomplished using [`@infinite_parameter`](@ref). For example, let's 
@@ -37,7 +31,8 @@ infinite variables, derivatives, measures, and constraints as described in their
 respective user guide sections.
 
 When the model is optimized, `t` will be transcribed (discretized) over its domain 
-following its support points. Users can specify support points via the  
+following its support points (assuming the transformation backend relies on
+discretization). Users can specify support points via the  
 `num_supports` or `supports` keyword arguments. For example, if we desire to 
 have only 10 equidistant supports then we could have instead defined `t`: 
 ```jldoctest; setup = :(using InfiniteOpt; model = InfiniteModel()) 
@@ -87,7 +82,7 @@ julia> @infinite_parameter(model, ξ[i = 1:3] ~ Normal(), independent = true)
  ξ[2]
  ξ[3]
 ```
-Note that we use `~` instead of `in` when specifying distributions. We could have 
+Note that we use `~` instead of `in` when specifying distributions. We also could have 
 used `i` as an index to assign a different distribution to each parameter. 
 Supports can also be specified for each parameter as shown above. Similarly, the 
 `num_supports` keyword is used to generate random supports.
@@ -276,8 +271,8 @@ the distribution.
 ```jldoctest macro_define
 julia> supports(θ)
 2×3 Matrix{Float64}:
- -0.353007  0.679107  0.586617
- -0.190712  1.17155   0.420496
+ 0.679107  -0.353007  0.586617
+ 1.17155   -0.190712  0.420496
 ```
 We refer to groups of parameters defined this way as dependent infinite 
 parameters. In principle, nonrandom infinite parameter types can be made 
@@ -317,9 +312,11 @@ for more information.
 
 ## Supports
 For an infinite parameter, its supports are a finite set of points that the 
-parameter will take (or possibly take, if the parameter is random). During the 
-transcription stage, the supports specified will become part of the grid points 
-that approximate all functions parameterized by the infinite parameter.
+parameter will take (or possibly take, if the parameter is random). Assuming
+the underlying transformation backend relies on a discretization strategy (as is
+the case with [`TranscriptionBackend`](@ref)), these supports will be used
+when building the transcription backend to approximate all variables/expressions
+parameterized by the infinite parameter over a grid of points.
 
 Once an infinite parameter is defined, users can access the supports using 
 [`supports`](@ref) function:
@@ -521,8 +518,8 @@ julia> fill_in_supports!(ξ, num_supports = 3)
 
 julia> supports(ξ)
 2×3 Matrix{Float64}:
- -0.353007  0.679107  0.586617
- -0.190712  1.17155   0.420496
+ 0.679107  -0.353007  0.586617
+ 1.17155   -0.190712  0.420496
 ```
 Note that [`fill_in_supports!`](@ref) only fill in supports for parameters with no 
 associated supports. To modify the supports of parameters already associated 
@@ -545,7 +542,7 @@ false
 
 ```
 This function checks if the parameter is used by any constraint, measure, or 
-variable. In a similar way, functions [`used_by_constraint`](@ref), 
+variable. Similarly, functions [`used_by_constraint`](@ref), 
 [`used_by_measure`](@ref) and [`used_by_infinite_variable`](@ref) can be applied to 
 find out any dependency of specific types on the infinite parameter.
 

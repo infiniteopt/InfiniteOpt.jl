@@ -8,35 +8,50 @@ struct MyDerivMethod <: GenerativeDerivativeMethod
     # ADD ANY MORE INFORMATION THAT IS NEEDED
 end
 
+# Extend `allows_high_order_derivatives`
+# Return a `Bool` on whether this method will explictly support derivatives 
+# with an order greater than 1 (e.g., 2nd derivatives)
+# If we return `false`, the InfiniteOpt will automatically reformulate higher order 
+# derivatives into 1st derivatives that the method can handle
+InfiniteOpt.allows_high_order_derivatives(method::MyDerivMethod) = false # TODO replace with desired output
+
 # Extend `generative_support_info` (only needed for generative methods)
 function InfiniteOpt.generative_support_info(method::MyDerivMethod)
     info = UniformGenerativeInfo([method.my_attr], InternalLabel)
     return info # REPLACE WITH NEEDED AbstractGenerativeInfo THAT IS NEEDED TO MAKE THE GENERATIVE SUPPORTS
 end
 
-# Extend `evaluate_derivative`
-# Generative methods must include calling `add_generative_supports`
-# It will likely also be convenient to use `make_reduced_expr`
-function InfiniteOpt.evaluate_derivative(
-    dref::GeneralVariableRef, 
-    method::MyDerivMethod,
-    write_model::JuMP.AbstractModel
-    )::Vector{JuMP.AbstractJuMPScalar}
-    # get the basic derivative information 
-    vref = derivative_argument(dref)
-    pref = operator_parameter(dref)
-    # make sure generative supports are added to the model
-    InfiniteOpt.add_generative_supports(pref)
-    # generate the derivative expressions h_i corresponding to equations of 
-    # the form h_i = 0 (REPLACE BELOW WITH ACTUAL IMPLEMENTATION)
-    supps = supports(pref, label = All)
-    exprs = Vector{JuMP.AbstractJuMPScalar}(undef, length(supps) - 1)
-    for i in eachindex(exprs)
-        d = InfiniteOpt.make_reduced_expr(dref, pref, supps[i], write_model)
-        v1 = InfiniteOpt.make_reduced_expr(vref, pref, supps[i], write_model)
-        v2 = InfiniteOpt.make_reduced_expr(vref, pref, supps[i + 1], write_model)
-        change = supps[i + 1] - supps[i]
-        exprs[i] = JuMP.@expression(write_model, -change * d + v2 - v1)
-    end
-    return exprs
+# Extend `derivative_expr_data` (see docs for details)
+function InfiniteOpt.derivative_expr_data(
+    dref::GeneralVariableRef, # the dervative
+    order::Int, # the derivative order
+    supps::Vector{Float64}, # the ordered supports of infinite parameter
+    method::MyDerivMethod
+    )
+    # generate the support indices to be used for each call of `make_indexed_derivative_expr`
+    idxs = 1:length(supps)-1 # TODO REPLACE WITH ACTUAL IMPLEMENTATION
+    # generate any additional data that is needed as interators
+    supp_diffs = (supps[i + 1] - supps[i] for i in idxs) # TODO REPLACE WITH ACTUAL IMPLEMENTATION
+    # return the indexes and the other iterators
+    return idxs, supp_diffs # TODO MODIFY AS NEEDED BASED ON ABOVE
+end
+
+# Extend `make_indexed_derivative_expr` (see docs for details)
+function InfiniteOpt.make_indexed_derivative_expr(
+    dref::GeneralVariableRef,
+    vref::GeneralVariableRef,
+    pref::GeneralVariableRef,
+    order::Int,
+    idx,
+    supps::Vector{Float64}, # ordered
+    write_model::Union{InfiniteModel, AbstractTransformationBackend},
+    ::MyDerivMethod,
+    supp_diff
+    )
+    # generate the derivative expression h corresponding to the equation of 
+    # the form h = 0 (REPLACE BELOW WITH ACTUAL IMPLEMENTATION)
+    d = InfiniteOpt.make_reduced_expr(dref, pref, supps[idx], write_model)
+    v1 = InfiniteOpt.make_reduced_expr(vref, pref, supps[idx], write_model)
+    v2 = InfiniteOpt.make_reduced_expr(vref, pref, supps[idx + 1], write_model)
+    return JuMP.@expression(write_model, -supp_diff * d + v2 - v1)
 end

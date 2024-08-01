@@ -59,18 +59,18 @@
     end
     # _core_variable_object
     @testset "_core_variable_object" begin
-        @test InfiniteOpt._core_variable_object(vref) === var
-        @test InfiniteOpt._core_variable_object(gvref) === var
+        @test core_object(vref) === var
+        @test core_object(gvref) === var
     end
-    # _set_core_variable_object
-    @testset "_set_core_variable_object" begin
-        @test InfiniteOpt._set_core_variable_object(vref, var) isa Nothing
-        @test InfiniteOpt._set_core_variable_object(vref, var2) isa Nothing
-        @test InfiniteOpt._set_core_variable_object(vref, var) isa Nothing
+    # _set_core_object
+    @testset "_set_core_object" begin
+        @test InfiniteOpt._set_core_object(vref, var) isa Nothing
+        @test InfiniteOpt._set_core_object(vref, var2) isa Nothing
+        @test InfiniteOpt._set_core_object(vref, var) isa Nothing
     end
-    # _object_numbers
-    @testset "_object_numbers" begin
-        @test InfiniteOpt._object_numbers(vref) == [1:6...]
+    # parameter_group_int_indices
+    @testset "parameter_group_int_indices" begin
+        @test InfiniteOpt.parameter_group_int_indices(vref) == [1:6...]
     end
     # _parameter_numbers
     @testset "_parameter_numbers" begin
@@ -148,9 +148,9 @@
         @test isa(set_name(gvref, "new"), Nothing)
         @test name(vref) == "new"
     end
-    # _make_variable_ref
-    @testset "_make_variable_ref" begin
-        @test isequal(InfiniteOpt._make_variable_ref(m, idx), gvref)
+    # GeneralVariableRef
+    @testset "GeneralVariableRef" begin
+        @test isequal(InfiniteOpt.GeneralVariableRef(m, idx), gvref)
     end
     # _var_name_dict
     @testset "_var_name_dict" begin
@@ -291,7 +291,7 @@ end
         tuple = IC.VectorTuple(prefs)
         @test isequal(build_variable(error, info, Infinite(prefs)).parameter_refs, tuple)
         @test isequal(build_variable(error, info, Infinite(prefs)).parameter_nums, [3, 4])
-        @test isequal(build_variable(error, info, Infinite(prefs)).object_nums, [3])
+        @test isequal(build_variable(error, info, Infinite(prefs)).group_int_idxs, [3])
     end
     # _check_parameters_valid
     @testset "_check_parameters_valid" begin
@@ -333,10 +333,10 @@ end
         # test normal
         idx = InfiniteVariableIndex(1)
         vref = InfiniteVariableRef(m, idx)
-        gvref = InfiniteOpt._make_variable_ref(m, idx)
+        gvref = InfiniteOpt.GeneralVariableRef(m, idx)
         @test isequal(add_variable(m, v, "name"), gvref)
         @test haskey(InfiniteOpt._data_dictionary(vref), idx)
-        @test InfiniteOpt._core_variable_object(vref) == v
+        @test core_object(vref) == v
         @test InfiniteOpt._infinite_variable_dependencies(pref) == [idx]
         @test name(vref) == "name"
         # prepare infinite variable with all the possible info additions
@@ -344,9 +344,9 @@ end
         # test info addition functions
         idx = InfiniteVariableIndex(2)
         vref = InfiniteVariableRef(m, idx)
-        gvref = InfiniteOpt._make_variable_ref(m, idx)
+        gvref = InfiniteOpt.GeneralVariableRef(m, idx)
         @test isequal(add_variable(m, v, "name"), gvref)
-        @test !optimizer_model_ready(m)
+        @test !transformation_backend_ready(m)
         @test !InfiniteOpt._is_vector_start(vref)
         @test InfiniteOpt._variable_info(vref).start == func1
         # lower bound
@@ -388,9 +388,9 @@ end
         # test integer addition functions
         idx = InfiniteVariableIndex(3)
         vref = InfiniteVariableRef(m, idx)
-        gvref = InfiniteOpt._make_variable_ref(m, idx)
+        gvref = InfiniteOpt.GeneralVariableRef(m, idx)
         @test isequal(add_variable(m, v, "name"), gvref)
-        @test !optimizer_model_ready(m)
+        @test !transformation_backend_ready(m)
         @test InfiniteOpt._is_vector_start(vref)
         @test InfiniteOpt._variable_info(vref).start isa Function
         cindex = InfOptConstraintIndex(8)
@@ -416,13 +416,13 @@ end
         # test basic defaults
         idx = InfiniteVariableIndex(1)
         vref = InfiniteVariableRef(m, idx)
-        gvref = InfiniteOpt._make_variable_ref(m, idx)
+        gvref = InfiniteOpt.GeneralVariableRef(m, idx)
         @test isequal(@variable(m, variable_type = Infinite(t)), gvref)
         @test name(vref) == ""
         # test more tuple input and variable details
         idx = InfiniteVariableIndex(2)
         vref = InfiniteVariableRef(m, idx)
-        gvref = InfiniteOpt._make_variable_ref(m, idx)
+        gvref = InfiniteOpt.GeneralVariableRef(m, idx)
         @test isequal(@variable(m, variable_type = Infinite(t, x), base_name = "test",
                         binary = true), gvref)
         @test name(vref) == "test"
@@ -430,13 +430,13 @@ end
         # test nonanonymous with simple single arg
         idx = InfiniteVariableIndex(3)
         vref = InfiniteVariableRef(m, idx)
-        gvref = InfiniteOpt._make_variable_ref(m, idx)
+        gvref = InfiniteOpt.GeneralVariableRef(m, idx)
         @test isequal(@variable(m, a, Infinite(x)), gvref)
         @test name(vref) == "a"
         # test nonanonymous with complex single arg
         idx = InfiniteVariableIndex(4)
         vref = InfiniteVariableRef(m, idx)
-        gvref = InfiniteOpt._make_variable_ref(m, idx)
+        gvref = InfiniteOpt.GeneralVariableRef(m, idx)
         @test isequal(@variable(m, 0 <= b <= 1, Infinite(x)), gvref)
         @test name(vref) == "b"
         @test lower_bound(vref) == 0
@@ -444,21 +444,21 @@ end
         # test nonanonymous with reversed single arg
         idx = InfiniteVariableIndex(5)
         vref = InfiniteVariableRef(m, idx)
-        gvref = InfiniteOpt._make_variable_ref(m, idx)
+        gvref = InfiniteOpt.GeneralVariableRef(m, idx)
         @test isequal(@variable(m, 0 <= c, Infinite(t)), gvref)
         @test name(vref) == "c"
         @test lower_bound(vref) == 0
         # test multi-argument expr 1
         idx = InfiniteVariableIndex(6)
         vref = InfiniteVariableRef(m, idx)
-        gvref = InfiniteOpt._make_variable_ref(m, idx)
+        gvref = InfiniteOpt.GeneralVariableRef(m, idx)
         @test isequal(@variable(m, d == 0, Infinite(t), Int, base_name = "test"), gvref)
         @test name(vref) == "test"
         @test fix_value(vref) == 0
         # test single start value
         idx = InfiniteVariableIndex(7)
         vref = InfiniteVariableRef(m, idx)
-        gvref = InfiniteOpt._make_variable_ref(m, idx)
+        gvref = InfiniteOpt.GeneralVariableRef(m, idx)
         @test isequal(@variable(m, aa, Infinite(t), Int, start = 42), gvref)
         @test name(vref) == "aa"
         @test start_value_function(vref) isa Function
@@ -467,7 +467,7 @@ end
         # test function start value
         idx = InfiniteVariableIndex(8)
         vref = InfiniteVariableRef(m, idx)
-        gvref = InfiniteOpt._make_variable_ref(m, idx)
+        gvref = InfiniteOpt.GeneralVariableRef(m, idx)
         func = (a) -> a
         @test isequal(@variable(m, ab, Infinite(t), Int, start = func), gvref)
         @test name(vref) == "ab"
@@ -479,19 +479,19 @@ end
         # test anonymous array
         idxs = [InfiniteVariableIndex(9), InfiniteVariableIndex(10)]
         vrefs = [InfiniteVariableRef(m, idx) for idx in idxs]
-        gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
+        gvrefs = [InfiniteOpt.GeneralVariableRef(m, idx) for idx in idxs]
         @test isequal(@variable(m, [1:2], variable_type = Infinite(t)), gvrefs)
         @test name(vrefs[1]) == ""
         # test basic param expression
         idxs = [InfiniteVariableIndex(11), InfiniteVariableIndex(12)]
         vrefs = [InfiniteVariableRef(m, idx) for idx in idxs]
-        gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
+        gvrefs = [InfiniteOpt.GeneralVariableRef(m, idx) for idx in idxs]
         @test isequal(@variable(m, e[1:2], variable_type = Infinite(t, x)), gvrefs)
         @test name(vrefs[2]) == "e[2]"
         # test comparison without params
         idxs = [InfiniteVariableIndex(13), InfiniteVariableIndex(14)]
         vrefs = [InfiniteVariableRef(m, idx) for idx in idxs]
-        gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
+        gvrefs = [InfiniteOpt.GeneralVariableRef(m, idx) for idx in idxs]
         @test isequal(@variable(m, 0 <= f[1:2] <= 1, Infinite(t, x)), gvrefs)
         @test name(vrefs[2]) == "f[2]"
         @test lower_bound(vrefs[1]) == 0
@@ -499,7 +499,7 @@ end
         # test comparison with call
         idxs = [InfiniteVariableIndex(15), InfiniteVariableIndex(16)]
         vrefs = [InfiniteVariableRef(m, idx) for idx in idxs]
-        gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
+        gvrefs = [InfiniteOpt.GeneralVariableRef(m, idx) for idx in idxs]
         @test @variable(m, 0 <= g[1:2] <= 1, Infinite(t)) == gvrefs
         @test name(vrefs[1]) == "g[1]"
         @test lower_bound(vrefs[1]) == 0
@@ -507,14 +507,14 @@ end
         # test fixed
         idxs = [InfiniteVariableIndex(17), InfiniteVariableIndex(18)]
         vrefs = [InfiniteVariableRef(m, idx) for idx in idxs]
-        gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
+        gvrefs = [InfiniteOpt.GeneralVariableRef(m, idx) for idx in idxs]
         @test isequal(@variable(m, h[i = 1:2] == ones(2)[i], Infinite(t)), gvrefs)
         @test name(vrefs[1]) == "h[1]"
         @test fix_value(vrefs[1]) == 1
         # test containers
         idxs = [InfiniteVariableIndex(19), InfiniteVariableIndex(20)]
         vrefs = [InfiniteVariableRef(m, idx) for idx in idxs]
-        gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
+        gvrefs = [InfiniteOpt.GeneralVariableRef(m, idx) for idx in idxs]
         svrefs = convert(JuMP.Containers.SparseAxisArray, gvrefs)
         @test @variable(m, [1:2], Infinite(t),
                         container = SparseAxisArray) isa JuMPC.SparseAxisArray
@@ -522,7 +522,7 @@ end
         # test scalar starts
         idxs = [InfiniteVariableIndex(21), InfiniteVariableIndex(22)]
         vrefs = [InfiniteVariableRef(m, idx) for idx in idxs]
-        gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
+        gvrefs = [InfiniteOpt.GeneralVariableRef(m, idx) for idx in idxs]
         starts = [2, 5]
         @test isequal(@variable(m, w[i = 1:2], Infinite(t), start = starts[i]), gvrefs)
         @test start_value_function(vrefs[1])([0]) == 2
@@ -530,7 +530,7 @@ end
         # test mixed starts
         idxs = [InfiniteVariableIndex(23), InfiniteVariableIndex(24)]
         vrefs = [InfiniteVariableRef(m, idx) for idx in idxs]
-        gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
+        gvrefs = [InfiniteOpt.GeneralVariableRef(m, idx) for idx in idxs]
         starts = [(a) -> 2, 5]
         @test isequal(@variable(m, cat[i = 1:2], Infinite(t), 
                         start = starts[i]), gvrefs)
@@ -539,7 +539,7 @@ end
         # test with set 
         idxs = [InfiniteVariableIndex(i) for i in 25:27]
         vrefs = [InfiniteVariableRef(m, idx) for idx in idxs]
-        gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
+        gvrefs = [InfiniteOpt.GeneralVariableRef(m, idx) for idx in idxs]
         @test isequal(gvrefs, @variable(m, [1:3], Infinite(t), set = SecondOrderCone()))
         @test num_constraints(m, Vector{GeneralVariableRef}, MOI.SecondOrderCone) == 1
     end
@@ -717,7 +717,7 @@ end
         func = (x) -> NaN
         num = 0.
         info = VariableInfo(true, num, true, num, true, num, false, func, true, true)
-        deriv = Derivative(info, true, y, t)
+        deriv = Derivative(info, true, y, t, 1)
         object = VariableData(deriv)
         idx = DerivativeIndex(1)
         dref = DerivativeRef(m, idx)

@@ -10,8 +10,8 @@
     func2 = (a...) -> 1
     info = VariableInfo(false, num, false, num, false, num, false, func, false, false)
     new_info = VariableInfo(true, 0., true, 0., true, 0., true, func2, false, false)
-    deriv = Derivative(info, true, x, a)
-    deriv2 = Derivative(new_info, true, x, a)
+    deriv = Derivative(info, true, x, a, 1)
+    deriv2 = Derivative(new_info, true, x, a, 2)
     object = VariableData(deriv, "var")
     dref = DerivativeRef(m, idx)
     gvref = GeneralVariableRef(m, 1, DerivativeIndex)
@@ -54,24 +54,24 @@
     end
     # _existing_derivative_index
     @testset "_existing_derivative_index" begin
-        @test InfiniteOpt._existing_derivative_index(x, a) === nothing
-        m.deriv_lookup[(x, a)] = idx
-        @test InfiniteOpt._existing_derivative_index(x, a) === idx
+        @test InfiniteOpt._existing_derivative_index(x, a, 1) === nothing
+        m.deriv_lookup[(x, a, 1)] = idx
+        @test InfiniteOpt._existing_derivative_index(x, a, 1) === idx
     end
     # _core_variable_object
     @testset "_core_variable_object" begin
-        @test InfiniteOpt._core_variable_object(dref) === deriv
-        @test InfiniteOpt._core_variable_object(gvref) === deriv
+        @test core_object(dref) === deriv
+        @test core_object(gvref) === deriv
     end
-    # _set_core_variable_object
-    @testset "_set_core_variable_object" begin
-        @test InfiniteOpt._set_core_variable_object(dref, deriv) isa Nothing
-        @test InfiniteOpt._set_core_variable_object(dref, deriv2) isa Nothing
-        @test InfiniteOpt._set_core_variable_object(dref, deriv) isa Nothing
+    # _set_core_object
+    @testset "_set_core_object" begin
+        @test InfiniteOpt._set_core_object(dref, deriv) isa Nothing
+        @test InfiniteOpt._set_core_object(dref, deriv2) isa Nothing
+        @test InfiniteOpt._set_core_object(dref, deriv) isa Nothing
     end
-    # _object_numbers
-    @testset "_object_numbers" begin
-        @test InfiniteOpt._object_numbers(dref) == [1]
+    # parameter_group_int_indices
+    @testset "parameter_group_int_indices" begin
+        @test InfiniteOpt.parameter_group_int_indices(dref) == [1]
     end
     # _parameter_numbers
     @testset "_parameter_numbers" begin
@@ -146,6 +146,11 @@
         @test isequal(operator_parameter(dref), a)
         @test isequal(operator_parameter(gvref), a)
     end
+    # derivative_order
+    @testset "derivative_order" begin
+        @test isequal(derivative_order(dref), 1)
+        @test isequal(derivative_order(gvref), 1)
+    end
     # derivative_method
     @testset "derivative_method" begin
         @test derivative_method(dref) == TestMethod()
@@ -170,10 +175,6 @@
     @testset "parameter_list" begin
         @test isequal(parameter_list(dref), [a])
         @test isequal(parameter_list(gvref), [a])
-    end
-    # _make_variable_ref
-    @testset "_make_variable_ref" begin
-        @test isequal(InfiniteOpt._make_variable_ref(m, idx), gvref)
     end
     # _var_name_dict
     @testset "_var_name_dict" begin
@@ -214,12 +215,14 @@ end
         @test_throws ErrorException build_derivative(error, info, y, fin)
         @test_throws ErrorException build_derivative(error, info, y, pref)
         @test_throws ErrorException build_derivative(error, info, pref, pref)
+        @test_throws ErrorException build_derivative(error, info, y, pref2, -1)
         func = (a, b, c) -> a + sum(c)
         bad_info = VariableInfo(true, num, true, num, true, num, true, func, false, false)
         @test_throws ErrorException build_derivative(error, bad_info, x, pref)
         # test for expected output
         @test build_derivative(error, info, x, pref).info isa VariableInfo
         @test build_derivative(error, info, x, pref).is_vector_start
+        @test build_derivative(error, info, x, pref).order == 1
         @test isequal(build_derivative(error, info, x, pref).variable_ref, x)
         @test isequal(build_derivative(error, info, x, pref).parameter_ref, pref)
     end
@@ -227,6 +230,8 @@ end
     @testset "Deriv{V, P}" begin
         @test isequal(Deriv(x, pref).argument, x)
         @test isequal(Deriv(x, pref).operator_parameter, pref)
+        @test isequal(Deriv(x, pref).order, 1)
+        @test isequal(Deriv(x, pref, 3).order, 3)
     end
     # build_variable
     @testset "JuMP.build_variable" begin
@@ -235,8 +240,10 @@ end
                                                    bob = 42)
         @test_throws ErrorException build_variable(error, info, Deriv(0, prefs[1]))
         @test_throws ErrorException build_variable(error, info, Deriv(x, 0))
+        @test_throws ErrorException build_variable(error, info, Deriv(x, prefs[1], 0))
         # test for expected output
         @test build_variable(error, info, Deriv(x, prefs[1])) isa Derivative
+        @test build_variable(error, info, Deriv(x, prefs[1], 3)) isa Derivative
     end
     # add_derivative
     @testset "add_derivative" begin
@@ -252,27 +259,27 @@ end
         # test normal
         idx = DerivativeIndex(1)
         dref = DerivativeRef(m, idx)
-        gvref = InfiniteOpt._make_variable_ref(m, idx)
+        gvref = GeneralVariableRef(m, idx)
         @test isequal(add_derivative(m, d, "name"), gvref)
         @test haskey(InfiniteOpt._data_dictionary(dref), idx)
-        @test InfiniteOpt._core_variable_object(dref) == d
+        @test core_object(dref) == d
         @test InfiniteOpt._derivative_dependencies(pref) == [idx]
         @test InfiniteOpt._derivative_dependencies(x) == [idx]
         @test name(dref) == "name"
-        @test InfiniteOpt._existing_derivative_index(x, pref) == idx
+        @test InfiniteOpt._existing_derivative_index(x, pref, 1) == idx
         # prepare infinite variable with all the possible info additions
-        d = build_derivative(error, info2, x, prefs[1])
+        d = build_derivative(error, info2, x, prefs[1], 2)
         # test info addition functions
         idx = DerivativeIndex(2)
         dref = DerivativeRef(m, idx)
-        gvref = InfiniteOpt._make_variable_ref(m, idx)
+        gvref = GeneralVariableRef(m, idx)
         @test isequal(add_derivative(m, d, "name"), gvref)
-        @test !optimizer_model_ready(m)
+        @test !transformation_backend_ready(m)
         @test InfiniteOpt._derivative_dependencies(prefs[1]) == [idx]
         @test InfiniteOpt._derivative_dependencies(x) == [DerivativeIndex(i) for i = 1:2]
         @test !InfiniteOpt._is_vector_start(dref)
         @test InfiniteOpt._variable_info(dref).start == func1
-        @test InfiniteOpt._existing_derivative_index(x, prefs[1]) == idx
+        @test InfiniteOpt._existing_derivative_index(x, prefs[1], 2) == idx
         # lower bound
         cindex = InfOptConstraintIndex(1)
         cref = InfOptConstraintRef(m, cindex)
@@ -302,83 +309,90 @@ end
         # test redundant build 
         idx = DerivativeIndex(1)
         dref = DerivativeRef(m, idx)
-        gvref = InfiniteOpt._make_variable_ref(m, idx)
-        d = Derivative(info4, false, x, pref)
+        gvref = GeneralVariableRef(m, idx)
+        d = Derivative(info4, false, x, pref, 1)
         @test isequal(add_derivative(m, d, "name2"), gvref)
         @test haskey(InfiniteOpt._data_dictionary(dref), idx)
-        @test InfiniteOpt._core_variable_object(dref) == d
+        @test core_object(dref) == d
         @test name(dref) == "name2"
         @test lower_bound(dref) == 0
         # test redundant build with warning 
         idx = DerivativeIndex(1)
         dref = DerivativeRef(m, idx)
-        d = Derivative(info5, true, x, pref)
+        d = Derivative(info5, true, x, pref, 1)
         warn = "Overwriting name2(pref, prefs), any previous properties (e.g., lower bound " * 
                "or start value) will be lost/changed."
         @test_logs (:warn, warn) add_derivative(m, d, "name3")
         @test haskey(InfiniteOpt._data_dictionary(dref), idx)
-        @test InfiniteOpt._core_variable_object(dref) == d
+        @test core_object(dref) == d
         @test name(dref) == "name3"
     end
     # test JuMP.add_variable 
     @testset "JuMP.add_variable" begin 
         # prepare normal variable
-        d = build_derivative(error, info, x, prefs[2])
+        d = build_derivative(error, info, x, prefs[2], 1)
         # test normal
         idx = DerivativeIndex(3)
         dref = DerivativeRef(m, idx)
-        gvref = InfiniteOpt._make_variable_ref(m, idx)
+        gvref = GeneralVariableRef(m, idx)
         @test isequal(add_variable(m, d, "name"), gvref)
         @test haskey(InfiniteOpt._data_dictionary(dref), idx)
-        @test InfiniteOpt._core_variable_object(dref) == d
+        @test core_object(dref) == d
         @test InfiniteOpt._derivative_dependencies(prefs[2]) == [idx]
         @test InfiniteOpt._derivative_dependencies(x) == [DerivativeIndex(i) for i = 1:3]
         @test name(dref) == "name"
-        @test InfiniteOpt._existing_derivative_index(x, prefs[2]) == idx
+        @test InfiniteOpt._existing_derivative_index(x, prefs[2], 1) == idx
     end
     # test "_build_deriv_expr (GeneralVariableRef)"
     @testset "_build_deriv_expr (GeneralVariableRef)" begin
+        # test zero order 
+        @test InfiniteOpt._build_deriv_expr(pref, pref, 0) == pref
         # test with same parameters 
-        @test InfiniteOpt._build_deriv_expr(pref, pref) == 1
-        @test InfiniteOpt._build_deriv_expr(prefs[2], prefs[2]) == 1
+        @test InfiniteOpt._build_deriv_expr(pref, pref, 1) == 1
+        @test InfiniteOpt._build_deriv_expr(pref, pref, 2) == 0
+        @test InfiniteOpt._build_deriv_expr(prefs[2], prefs[2], 1) == 1
         # test with new derivative 
         gvref = GeneralVariableRef(m, 4, DerivativeIndex)
-        @test isequal(InfiniteOpt._build_deriv_expr(y, pref2), gvref)
+        @test isequal(InfiniteOpt._build_deriv_expr(y, pref2, 1), gvref)
         # test returning existing derivative 
-        @test isequal(InfiniteOpt._build_deriv_expr(y, pref2), gvref)
+        @test isequal(InfiniteOpt._build_deriv_expr(y, pref2, 1), gvref)
         # test others 
-        @test InfiniteOpt._build_deriv_expr(pref, pref2) == 0
-        @test InfiniteOpt._build_deriv_expr(fin, pref2) == 0
-        @test InfiniteOpt._build_deriv_expr(x, pref2) == 0
+        @test InfiniteOpt._build_deriv_expr(pref, pref2, 1) == 0
+        @test InfiniteOpt._build_deriv_expr(fin, pref2, 1) == 0
+        @test InfiniteOpt._build_deriv_expr(x, pref2, 1) == 0
     end
     # test "_build_deriv_expr (AffExpr)"
     @testset "_build_deriv_expr (AffExpr)" begin
-        @test InfiniteOpt._build_deriv_expr(2x+42, pref2) == 0
-        @test InfiniteOpt._build_deriv_expr(2pref2 - 23, pref2) == 2
+        @test InfiniteOpt._build_deriv_expr(2x+42, pref2, 1) == 0
+        @test InfiniteOpt._build_deriv_expr(2pref2 - 23, pref2, 1) == 2
+        @test InfiniteOpt._build_deriv_expr(2pref2 - 23, pref2, 2) == 0
         gvref = GeneralVariableRef(m, 1, DerivativeIndex)
-        @test isequal(InfiniteOpt._build_deriv_expr(-4x, pref), -4gvref)
+        @test isequal(InfiniteOpt._build_deriv_expr(-4x, pref, 1), -4gvref)
     end
     # test "_build_deriv_expr (QuadExpr)"
     @testset "_build_deriv_expr (QuadExpr)" begin
-        @test isequal(InfiniteOpt._build_deriv_expr(2x^2 + 42, pref2), @expression(m, 0*x))
-        @test isequal(InfiniteOpt._build_deriv_expr(2pref2^2 -pref2 - 23, pref2), 4pref2 - 1)
+        @test isequal(InfiniteOpt._build_deriv_expr(2x^2 + 42, pref2, 1), @expression(m, 0*x))
+        @test isequal(InfiniteOpt._build_deriv_expr(2pref2^2 -pref2 - 23, pref2, 1), 4pref2 - 1)
+        @test isequal(InfiniteOpt._build_deriv_expr(2pref2^2 -pref2 - 23, pref2, 2), 4)
         gvref = GeneralVariableRef(m, 1, DerivativeIndex)
-        @test isequal(InfiniteOpt._build_deriv_expr(-4x^2, pref).terms, (-8 * x * gvref).terms)
+        @test isequal(InfiniteOpt._build_deriv_expr(-4x^2, pref, 1).terms, (-8 * x * gvref).terms)
+        gvref2 = GeneralVariableRef(m, 5, DerivativeIndex)
+        @test isequal(InfiniteOpt._build_deriv_expr(-4x^2, pref, 2).terms, (-8 * gvref2 * x - 8 * gvref^2).terms)
     end
     # test "_build_deriv_expr (Number)"
     @testset "_build_deriv_expr (Number)" begin
-        @test InfiniteOpt._build_deriv_expr(42, pref2) == 0
+        @test InfiniteOpt._build_deriv_expr(42, pref2, 1) == 0
     end
     # test "_build_deriv_expr (Fallback)"
     @testset "_build_deriv_expr (Fallback)" begin
-        @test_throws ErrorException InfiniteOpt._build_deriv_expr("bob", pref2)
+        @test_throws ErrorException InfiniteOpt._build_deriv_expr("bob", pref2, 2)
     end
     # test "_recursive_deriv_build"
     @testset "_recursive_deriv_build" begin
-        @test InfiniteOpt._recursive_deriv_build(2pref^2 + pref, [pref, pref]) == 4
-        @test InfiniteOpt._recursive_deriv_build(2pref^2 + pref, [pref, pref2]) == 0.
+        @test InfiniteOpt._recursive_deriv_build(2pref^2 + pref, [pref], [2]) == 4
+        @test InfiniteOpt._recursive_deriv_build(2pref^2 + pref, [pref, pref2], [1, 1]) == 0.
         gvref = GeneralVariableRef(m, 5, DerivativeIndex)
-        @test isequal(InfiniteOpt._recursive_deriv_build(x + pref, [pref, pref]), gvref + 0)
+        @test isequal(InfiniteOpt._recursive_deriv_build(x + pref, [pref], [2]), gvref + 0)
     end
     # test "deriv"
     @testset "deriv" begin
@@ -391,8 +405,11 @@ end
         @test deriv(pref, pref) == 1 
         @test isequal_canonical(deriv(x^2 + pref, pref), 2 * gvref * x + 1)
         @test deriv(pref^2, pref, pref) == 2
+        @test deriv(pref^2, pref, pref, pref2) == 0
+        @test deriv(pref^2, pref, pref2) == 0
         @test deriv(pref^2, pref, pref, pref) == 0
         @test deriv(42, pref, pref) == 0
+        @test deriv(deriv(x, pref), pref) == deriv(x, pref, pref) # test unnesting
     end
     # test "∂"
     @testset "∂" begin
@@ -514,7 +531,7 @@ end
         @test set_start_value_function(d1, 1.5) isa Nothing
         @test start_value_function(d1)([0]) == 1.5
         @test InfiniteOpt._is_vector_start(dref)
-        @test !optimizer_model_ready(m)
+        @test !transformation_backend_ready(m)
         func = (a) -> 1
         @test set_start_value_function(d1, func) isa Nothing
         @test start_value_function(d1)(0) == 1
@@ -525,7 +542,7 @@ end
         @test reset_start_value_function(d1) isa Nothing
         @test start_value_function(d1) isa Nothing
         @test InfiniteOpt._is_vector_start(dref)
-        @test !optimizer_model_ready(m)
+        @test !transformation_backend_ready(m)
     end
 end
 
@@ -542,25 +559,27 @@ end
         # test simple anon case
         idx = DerivativeIndex(1)
         dref = DerivativeRef(m, idx)
-        gvref = InfiniteOpt._make_variable_ref(m, idx)
+        gvref = GeneralVariableRef(m, idx)
         @test isequal(@variable(m, variable_type = Deriv(y, t)), gvref)
         @test isequal(derivative_argument(dref), y)
         @test isequal(operator_parameter(dref), t)
+        @test isequal(derivative_order(dref), 1)
         # test anon with changes to fixed
         idx = DerivativeIndex(2)
         dref = DerivativeRef(m, idx)
-        gvref = InfiniteOpt._make_variable_ref(m, idx)
-        @test isequal(@variable(m, variable_type = Deriv(y, x[1]), lower_bound = -5, 
+        gvref = GeneralVariableRef(m, idx)
+        @test isequal(@variable(m, variable_type = Deriv(y, x[1], 3), lower_bound = -5, 
                         upper_bound = 10, start = 2), gvref)
         @test isequal(derivative_argument(dref), y)
         @test isequal(operator_parameter(dref), x[1])
+        @test isequal(derivative_order(dref), 3)
         @test lower_bound(dref) == -5
         @test upper_bound(dref) == 10
         @test start_value_function(dref) isa Function 
         # test regular with alias
         idx = DerivativeIndex(1)
         dref = DerivativeRef(m, idx)
-        gvref = InfiniteOpt._make_variable_ref(m, idx)
+        gvref = GeneralVariableRef(m, idx)
         @test isequal(@variable(m, dx <= 0, Deriv(y, t)), gvref)
         @test isequal(derivative_argument(dref), y)
         @test isequal(operator_parameter(dref), t)
@@ -574,7 +593,7 @@ end
         # test anon array with one parameter
         idxs = [DerivativeIndex(3), DerivativeIndex(4)]
         drefs = [DerivativeRef(m, idx) for idx in idxs]
-        gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
+        gvrefs = [GeneralVariableRef(m, idx) for idx in idxs]
         @test isequal(@variable(m, [i = 1:2], Deriv(q[i], t), lower_bound = 0), gvrefs)
         @test isequal(derivative_argument(drefs[1]), q[1])
         @test isequal(operator_parameter(drefs[2]), t)
@@ -582,7 +601,7 @@ end
         # test explicit array 
         idxs = [DerivativeIndex(5), DerivativeIndex(6)]
         drefs = [DerivativeRef(m, idx) for idx in idxs]
-        gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
+        gvrefs = [GeneralVariableRef(m, idx) for idx in idxs]
         @test isequal(@variable(m, q4[i = 1:2] == 3, Deriv(q[i+1], x[i])), gvrefs)
         @test isequal(derivative_argument(drefs[1]), q[2])
         @test isequal(operator_parameter(drefs[2]), x[2])
@@ -591,7 +610,7 @@ end
         # test semi anon array
         idxs = [DerivativeIndex(7), DerivativeIndex(8)]
         drefs = [DerivativeRef(m, idx) for idx in idxs]
-        gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
+        gvrefs = [GeneralVariableRef(m, idx) for idx in idxs]
         @test isequal(@variable(m, [i = 1:2], Deriv(q[i], x[i]), lower_bound = -5), gvrefs)
         @test isequal(derivative_argument(drefs[2]), q[2])
         @test isequal(operator_parameter(drefs[1]), x[1])
@@ -612,7 +631,7 @@ end
     @infinite_parameter(m, t in [0, 1])
     @infinite_parameter(m, x[1:2] in [-1, 1])
     @variable(m, y, Infinite(t, x))
-    d = @deriv(y, t)
+    d = deriv(y, t)
     vref = dispatch_variable_ref(d)
     # test used_by_semi_infinite_variable
     @testset "used_by_semi_infinite_variable" begin
@@ -714,9 +733,9 @@ end
     @infinite_parameter(m, t in [0, 1])
     @infinite_parameter(m, x[1:2] in [0, 1])
     @variable(m, y, Infinite(t, x))
-    d1 = @deriv(y, t)
-    d2 = @deriv(y, x[1])
-    d3 = @deriv(d2, t)
+    d1 = deriv(y, t)
+    d2 = deriv(y, x[1])
+    d3 = deriv(d2, t)
     cref = @constraint(m, d1 == 0)
     push!(InfiniteOpt._derivative_constraint_dependencies(d1), index(cref))
     InfiniteOpt._set_has_derivative_constraints(t, true)
@@ -748,7 +767,7 @@ end
     @infinite_parameter(m, t in [0, 1])
     @infinite_parameter(m, x[1:2] in [0, 1])
     @variable(m, y, Infinite(t, x))
-    d = @deriv(y, t)
+    d = deriv(y, t)
     # test semi-infinite derivatives
     @testset "Semi-infinite Derivatives" begin 
         dref = GeneralVariableRef(m, 1, SemiInfiniteVariableIndex)

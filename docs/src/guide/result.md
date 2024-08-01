@@ -11,7 +11,7 @@ A guide for querying optimized `InfiniteOpt` models. See the respective
 So far we have covered defining, transforming, and optimizing `InfiniteModel`s. 
 Now comes the point to extract information from our optimized model. This is done 
 following extended versions of `JuMP`s querying functions in combination with 
-the mapping information stored in the optimizer model. Thus, this page will 
+the mapping information stored in the transformation backend. Thus, this page will 
 walk through the use of these result query functions.
 
 ## Basic Usage
@@ -21,7 +21,7 @@ julia> using InfiniteOpt, Ipopt;
 
 julia> model = InfiniteModel(Ipopt.Optimizer);
 
-julia> set_optimizer_attribute(model, "print_level", 0);
+julia> set_attribute(model, "print_level", 0);
 
 julia> @infinite_parameter(model, t in [0, 10], num_supports = 10);
 
@@ -157,7 +157,7 @@ julia> dual(c1)
  1.1930560126841273e-10
  1.1930560126841273e-10
 ```
-`c1` is an infinite constraint and thus we obtain the duals of its transcribed 
+`c1` is an infinite constraint, and thus we obtain the duals of its transcribed 
 versions. The underlying infinite parameter(s) and support values are queried 
 via `parameter_refs` and `supports`:
 ```jldoctest results
@@ -181,9 +181,7 @@ These again all have a 1-to-1 correspondence.
 
 !!! note
     In the case that our variables/constraints depend on multiple infinite 
-    parameter it is typically convenient to add the keyword statement 
-    `ndarray = true` when calling any variable/constraint queries (e.g., `value` 
-    and `dual`). This will reformat the output vector into a n-dimensional array 
+    parameters, an n-dimensional array will typically be returned
     whose dimensions correspond to the supports of the infinite parameters. 
 
 ## Termination Queries
@@ -197,7 +195,7 @@ The commonly used queries include [`termination_status`](@ref),
 exemplified in the Basic Usage section above and are helpful in quickly 
 understanding the optimality status of a given model following the many possible 
 statuses reported by `MathOptInterface` which are documented 
-[here](https://jump.dev/MathOptInterface.jl/v0.9.22/manual/solutions/#Solutions). 
+[here](https://jump.dev/MathOptInterface.jl/v1/manual/solutions/#Solutions). 
 We use `result_count` to determine how many solutions are recorded in the 
 optimizer.
 ```jldoctest results
@@ -235,26 +233,18 @@ if the optimizer supplies this information which again Ipopt does not.
 ## Variable Queries
 Information about the optimized variables is gathered consistently in comparison 
 to typical `JuMP` models. With `InfiniteModel`s this is done by querying the 
-optimizer model and using its stored variable mappings to return the correct 
+transformation backend and using its stored variable mappings to return the correct 
 information. Thus, here the queries are extended to work with the specifics of 
-the optimizer model to return the appropriate info.
+the transformation backend to return the appropriate info.
 
 !!! note 
-    1. Like `supports` the all variable based query methods below also employ the 
-       `label::Type{AbstractSupportLabel} = PublicLabel` keyword argument that by 
-       default will return the desired information associated with public 
-       supports. The full set (e.g., ones corresponding to internal collocation nodes) 
-       is obtained via `label = All`.
-    2. These methods also employ the `ndarray::Bool` keyword argument that will cause the 
-       output to be formatted as a n-dimensional array where the dimensions 
-       correspond to the infinite parameter dependencies. For example, if we have an 
-       infinite variable `y(t, ξ)` and we invoke a query method with `ndarray = true` 
-       then we'll get a matrix whose dimensions correspond to the supports of `t` and 
-       `ξ`, respectively. Also, if `ndarray = true` then `label` correspond to the 
-       intersection of supports labels in contrast to its default of invoking the union 
-       of the labels.
+    Like `supports` the all variable based query methods below also employ the 
+    `label::Type{AbstractSupportLabel} = PublicLabel` keyword argument that by 
+    default will return the desired information associated with public 
+    supports. The full set (e.g., ones corresponding to internal collocation nodes) 
+    is obtained via `label = All`.
 
-First, we should verify that the optimized model in fact has variable values 
+First, we should verify that the transformed variable in fact has variable values 
 via [`has_values`](@ref). In our example, we have:
 ```jldoctest results
 julia> has_values(model)
@@ -264,10 +254,10 @@ So we have values readily available to be extracted.
 
 Now [`value`](@ref JuMP.value(::GeneralVariableRef)) can be used to query the 
 values as shown above in the Basic Usage section. This works by calling the 
-appropriate [`map_value`](@ref InfiniteOpt.map_value) defined by the optimizer 
-model. By default this, employs the `map_value` fallback which uses 
-`optimizer_model_variable` to do the mapping. Details on how to extend these 
-methods for user-defined optimizer models is explained on the Extensions page.
+appropriate [`map_value`](@ref InfiniteOpt.map_value) defined by the transformation
+backend. By default, this employs the `map_value` fallback which uses 
+`transformation_variable` to do the mapping. Details on how to extend these 
+methods for user-defined transformation backends is explained on the Extensions page.
 
 We also, support call to `value` that use an expression of variables as input.
 
@@ -300,19 +290,11 @@ appropriate versions of [`map_optimizer_index`](@ref InfiniteOpt.map_optimizer_i
 Like variables, a variety of information can be queried about constraints.
 
 !!! note 
-    1. Like `supports` the all constraint query methods below also employ the 
-       `label::Type{AbstractSupportLabel} = PublicLabel` keyword argument that by 
-       default will return the desired information associated with public 
-       supports. The full set (e.g., ones corresponding to internal collocation nodes) 
-       is obtained via `label = All`.
-    2. These methods also employ the `ndarray::Bool` keyword argument that will cause the 
-       output to be formatted as a n-dimensional array where the dimensions 
-       correspond to the infinite parameter dependencies. For example, if we have an 
-       infinite constraint that depends on `t` and `ξ)` and we invoke a query method 
-       with `ndarray = true` then we'll get a matrix whose dimensions correspond to 
-       the supports of `t` and `ξ`, respectively. Also, if `ndarray = true` then 
-       `label` correspond to the intersection of supports labels in contrast to its 
-       default of invoking the union of the labels.
+    Like `supports`, all the constraint query methods below also employ the 
+    `label::Type{AbstractSupportLabel} = PublicLabel` keyword argument that by 
+    default will return the desired information associated with public 
+    supports. The full set (e.g., ones corresponding to internal collocation nodes) 
+    is obtained via `label = All`.
 
 First, recall that constraints are stored in the form `function-in-set` where 
 generally `function` contains the variables and coefficients and the set contains 
@@ -360,9 +342,6 @@ julia> optimizer_index(c1)
 Here 10 indices are given in accordance with the transcription constraints. 
 The mapping between these and the original infinite constraints is managed via 
 the appropriate extensions of [`map_optimizer_index`](@ref InfiniteOpt.map_optimizer_index).
-
-!!! note
-    `optimizer_index` does not work for constraints that contain `NLPExprs`.
 
 We can also query dual information from our constraints if it is available. 
 First, we should verify that dual information is available via 
@@ -413,7 +392,7 @@ This is computed via interrogating the duals and the objective sense.
 We also conduct sensitivity analysis for linear problems using 
 [`lp_sensitivity_report`](@ref JuMP.lp_sensitivity_report(::InfiniteModel)). This 
 will generate a [`InfOptSensitivityReport`](@ref) which contains mapping to the 
-ranges indicating how much a constraint RHS constant or a objective 
+ranges indicating how much a constraint RHS constant or an objective 
 coefficient can be changed without violating the feasibility of the solution. 
 This is further explained in the `JuMP` documentation 
 [here](https://jump.dev/JuMP.jl/v1/manual/solutions/#Sensitivity-analysis-for-LP). 
@@ -441,7 +420,7 @@ julia> report[z]
 ```
 Note that like other query methods, an array of ranges will be provided with
 testing the sensitivity of an infinite constraint RHS in accordance with the
-discretization scheme. Also, keyword arguments (like `ndarray` and `label`) can 
+discretization scheme. Also, keyword arguments (like `label`) can 
 be invoked when indexing the report:
 ```julia-repl
 julia> report[c1, label = All]
@@ -458,12 +437,13 @@ julia> report[c1, label = All]
  (-Inf, 42.0)
 ```
 
-## Other Queries
-Any other queries supported by `JuMP` can be accessed by simply interrogating the 
-optimizer model directly using [`optimizer_model`](@ref) to access it. For 
-example, we can get the solution summary of the optimizer model:
+## Direct Queries
+ We can directly interrogate the transformation backend to get more
+ information. For instance, with `TranscriptionBackend`s we can get
+ the underlying `JuMP.Model` via [`transformation_model`](@ref) and
+ then call whatever `JuMP` query we want:
 ```julia-repl
-julia> solution_summary(optimizer_model(model))
+julia> solution_summary(transformation_model(model))
 * Solver : Ipopt
 
 * Status

@@ -46,7 +46,7 @@ include("constraints.jl")
 include("objective.jl")
 include("measure_expansions.jl")
 include("derivative_evaluations.jl")
-include("optimize.jl")
+include("backends.jl")
 include("results.jl")
 include("show.jl")
 include("utilities.jl")
@@ -62,9 +62,20 @@ macro register(args...)
            "the nonlinear documenation page for details.")
 end
 Base.@deprecate map_nlp_to_ast(f, expr) map_expression_to_ast(f, expr)
+Base.@deprecate optimizer_model_variable(v; kwargs...) transformation_variable(v; kwargs...)
+Base.@deprecate optimizer_model_expression(e; kwargs...) transformation_expression(e; kwargs...)
+Base.@deprecate optimizer_model_constraint(c; kwargs...) transformation_constraint(c; kwargs...)
+Base.@deprecate optimizer_model(m) transformation_model(m)
 
 # Define additional stuff that should not be exported
-const _EXCLUDE_SYMBOLS = [Symbol(@__MODULE__), :eval, :include]
+const _EXCLUDE_SYMBOLS = [
+    Symbol(@__MODULE__), 
+    :eval, 
+    :include,
+    :derivative_expr_data,
+    :make_indexed_derivative_expr,
+    :allows_high_order_derivatives
+    ]
 
 # Following JuMP, export everything that doesn't start with a _ 
 for sym in names(@__MODULE__, all = true)

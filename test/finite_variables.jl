@@ -49,8 +49,8 @@
     end
     # _core_variable_object
     @testset "_core_variable_object" begin
-        @test InfiniteOpt._core_variable_object(vref) === var
-        @test InfiniteOpt._core_variable_object(gvref) === var
+        @test core_object(vref) === var
+        @test core_object(gvref) === var
     end
     @testset "_variable_info" begin
         @test InfiniteOpt._variable_info(vref) == info
@@ -60,9 +60,9 @@
         @test isa(InfiniteOpt._update_variable_info(vref, new_info), Nothing)
         @test InfiniteOpt._variable_info(vref) == new_info
     end
-    # _set_core_variable_object
-    @testset "_set_core_variable_object" begin
-        @test InfiniteOpt._set_core_variable_object(vref, var) isa Nothing
+    # _set_core_object
+    @testset "_set_core_object" begin
+        @test InfiniteOpt._set_core_object(vref, var) isa Nothing
     end
     # JuMP.name
     @testset "JuMP.name" begin
@@ -82,10 +82,6 @@
     @testset "parameter_refs" begin
         @test parameter_refs(vref) == ()
         @test parameter_refs(gvref) == ()
-    end
-    # _make_variable_ref
-    @testset "_make_variable_ref" begin
-        @test isequal(InfiniteOpt._make_variable_ref(m, idx), gvref)
     end
     # _var_name_dict
     @testset "_var_name_dict" begin
@@ -137,7 +133,7 @@ end
     @testset "JuMP.add_variable" begin
         idx = FiniteVariableIndex(1)
         vref = FiniteVariableRef(m, idx)
-        gvref = InfiniteOpt._make_variable_ref(m, idx)
+        gvref = GeneralVariableRef(m, idx)
         v = build_variable(error, info)
         @test isequal(add_variable(m, v, "name"), gvref)
         @test haskey(InfiniteOpt._data_dictionary(vref), idx)
@@ -147,9 +143,9 @@ end
         # test info addition functions
         idx = FiniteVariableIndex(2)
         vref = FiniteVariableRef(m, idx)
-        gvref = InfiniteOpt._make_variable_ref(m, idx)
+        gvref = GeneralVariableRef(m, idx)
         @test isequal(add_variable(m, v, "name"), gvref)
-        @test !optimizer_model_ready(m)
+        @test !transformation_backend_ready(m)
         # lower bound
         cindex = InfOptConstraintIndex(1)
         cref = InfOptConstraintRef(m, cindex)
@@ -195,7 +191,7 @@ end
         # test regular
         idx = FiniteVariableIndex(1)
         vref = FiniteVariableRef(m, idx)
-        gvref = InfiniteOpt._make_variable_ref(m, idx)
+        gvref = GeneralVariableRef(m, idx)
         @test isequal(@variable(m, x >= 1, Bin), gvref)
         @test name(vref) == "x"
         @test lower_bound(vref) == 1
@@ -203,7 +199,7 @@ end
         # test anan
         idx = FiniteVariableIndex(2)
         vref = FiniteVariableRef(m, idx)
-        gvref = InfiniteOpt._make_variable_ref(m, idx)
+        gvref = GeneralVariableRef(m, idx)
         @test isequal(@variable(m, binary = true, lower_bound = 1,
                         base_name = "x"), gvref)
         @test name(vref) == "x"
@@ -212,7 +208,7 @@ end
         # test array
         idxs = [FiniteVariableIndex(3), FiniteVariableIndex(4)]
         vrefs = [FiniteVariableRef(m, idx) for idx in idxs]
-        gvrefs = [InfiniteOpt._make_variable_ref(m, idx) for idx in idxs]
+        gvrefs = [GeneralVariableRef(m, idx) for idx in idxs]
         @test isequal(@variable(m, y[1:2] == 2, Int), gvrefs)
         @test name(vrefs[1]) == "y[1]"
         @test fix_value(vrefs[2]) == 2

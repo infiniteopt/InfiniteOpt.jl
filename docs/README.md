@@ -5,7 +5,7 @@ To install it, run the following command in a Julia session:
 ```julia
 julia> ] 
 
-(v1.8) pkg> add Documenter
+(v1.10) pkg> add Documenter
 ```
 
 You'll also need to make sure you have `JuMP.jl`, `Distributions.jl`, and `Ipopt.jl`

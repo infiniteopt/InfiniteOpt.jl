@@ -33,6 +33,9 @@ has_domain_restrictions
 domain_restrictions
 JuMP.normalized_rhs(::InfOptConstraintRef)
 JuMP.normalized_coefficient(::InfOptConstraintRef, ::GeneralVariableRef)
+parameter_group_int_indices(::InfOptConstraintRef)
+core_object(::InfOptConstraintRef)
+is_variable_domain_constraint
 ```
 
 ## Modification

@@ -45,9 +45,13 @@ function _data_object(
     return object
 end
 
-# Extend _core_variable_object
-function _core_variable_object(vref::PointVariableRef
-    )::PointVariable{GeneralVariableRef}
+"""
+    core_object(vref::PointVariableRef)::PointVariable
+
+Retrieve the underlying core [`PointVariable`] object for `vref`. 
+This is intended as an advanced method for developers.
+"""
+function core_object(vref::PointVariableRef)
     return _data_object(vref).variable
 end
 
@@ -323,8 +327,8 @@ function _update_info_constraints(info::JuMP.VariableInfo, gvref, vref)::Nothing
         constr = JuMP.ScalarConstraint(gvref, MOI.GreaterThan(info.lower_bound))
         if old_info.has_lb
             cindex = _lower_bound_index(vref)
-            cref = _make_constraint_ref(model, cindex)
-            _set_core_constraint_object(cref, constr)
+            cref = InfOptConstraintRef(model, cindex)
+            _set_core_object(cref, constr)
         else
             cref = JuMP.add_constraint(model, constr, is_info_constr = true)
             _set_lower_bound_index(vref, JuMP.index(cref))
@@ -339,8 +343,8 @@ function _update_info_constraints(info::JuMP.VariableInfo, gvref, vref)::Nothing
         constr = JuMP.ScalarConstraint(gvref, MOI.LessThan(info.upper_bound))
         if old_info.has_ub
             cindex = _upper_bound_index(vref)
-            cref = _make_constraint_ref(model, cindex)
-            _set_core_constraint_object(cref, constr)
+            cref = InfOptConstraintRef(model, cindex)
+            _set_core_object(cref, constr)
         else
             cref = JuMP.add_constraint(model, constr, is_info_constr = true)
             _set_upper_bound_index(vref, JuMP.index(cref))
@@ -355,8 +359,8 @@ function _update_info_constraints(info::JuMP.VariableInfo, gvref, vref)::Nothing
         constr = JuMP.ScalarConstraint(gvref, MOI.EqualTo(info.fixed_value))
         if old_info.has_fix
             cindex = _fix_index(vref)
-            cref = _make_constraint_ref(model, cindex)
-            _set_core_constraint_object(cref, constr)
+            cref = InfOptConstraintRef(model, cindex)
+            _set_core_object(cref, constr)
         else
             cref = JuMP.add_constraint(model, constr, is_info_constr = true)
             _set_fix_index(vref, JuMP.index(cref))
@@ -388,7 +392,7 @@ function _update_info_constraints(info::JuMP.VariableInfo, gvref, vref)::Nothing
 
     # finalize the update
     _update_variable_info(vref, info)
-    set_optimizer_model_ready(model, false)
+    set_transformation_backend_ready(model, false)
     return
 end
 
@@ -440,10 +444,10 @@ function JuMP.add_variable(
         end
         _update_infinite_point_mapping(vref, divref)
         model.point_lookup[(ivref, v.parameter_values)] = vindex
-        gvref = _make_variable_ref(model, vindex)
+        gvref = GeneralVariableRef(model, vindex)
         _set_info_constraints(v.info, gvref, vref)
     else
-        gvref = _make_variable_ref(model, existing_index)
+        gvref = GeneralVariableRef(model, existing_index)
         if update_info
             vref = PointVariableRef(model, existing_index)
             _update_info_constraints(v.info, gvref, vref)
@@ -477,7 +481,7 @@ T(t)
 ```
 """
 function infinite_variable_ref(vref::PointVariableRef)::GeneralVariableRef
-    return _core_variable_object(vref).infinite_variable_ref
+    return core_object(vref).infinite_variable_ref
 end
 
 
@@ -487,7 +491,7 @@ end
 Return the raw support point values associated with the point variable `vref`.
 """
 function raw_parameter_values(vref::PointVariableRef)::Vector{Float64}
-    return _core_variable_object(vref).parameter_values
+    return core_object(vref).parameter_values
 end
 
 """
@@ -520,7 +524,7 @@ function _update_variable_param_values(
     info = _variable_info(vref)
     ivref = infinite_variable_ref(vref)
     new_var = PointVariable(info, ivref, pref_vals)
-    _set_core_variable_object(vref, new_var)
+    _set_core_object(vref, new_var)
     return
 end
 
@@ -535,7 +539,7 @@ function _update_variable_info(
     ivref = infinite_variable_ref(vref)
     param_values = raw_parameter_values(vref)
     new_var = PointVariable(info, ivref, param_values)
-    _set_core_variable_object(vref, new_var)
+    _set_core_object(vref, new_var)
     return
 end
 

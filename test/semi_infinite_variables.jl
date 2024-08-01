@@ -51,12 +51,12 @@
     end
     # _core_variable_object
     @testset "_core_variable_object" begin
-        @test InfiniteOpt._core_variable_object(vref) === var
-        @test InfiniteOpt._core_variable_object(gvref) === var
+        @test core_object(vref) === var
+        @test core_object(gvref) === var
     end
-    # _set_core_variable_object
-    @testset "_set_core_variable_object" begin
-        @test InfiniteOpt._set_core_variable_object(vref, var) isa Nothing
+    # _set_core_object
+    @testset "_set_core_object" begin
+        @test InfiniteOpt._set_core_object(vref, var) isa Nothing
     end
     # _measure_dependencies
     @testset "_measure_dependencies" begin
@@ -73,9 +73,9 @@
         @test InfiniteOpt._derivative_dependencies(vref) == DerivativeIndex[]
         @test InfiniteOpt._derivative_dependencies(gvref) == DerivativeIndex[]
     end
-    # _object_numbers
-    @testset "_object_numbers" begin
-        @test InfiniteOpt._object_numbers(vref) == [2]
+    # parameter_group_int_indices
+    @testset "parameter_group_int_indices" begin
+        @test InfiniteOpt.parameter_group_int_indices(vref) == [2]
     end
     # _parameter_numbers
     @testset "_parameter_numbers" begin
@@ -121,9 +121,9 @@
         @test name(vref) == "a"
         @test name(bad_vref) == ""
     end
-    # _make_variable_ref
-    @testset "_make_variable_ref" begin
-        @test isequal(InfiniteOpt._make_variable_ref(m, idx), gvref)
+    # GeneralVariableRef
+    @testset "GeneralVariableRef" begin
+        @test isequal(InfiniteOpt.GeneralVariableRef(m, idx), gvref)
     end
     # _var_name_dict
     @testset "_var_name_dict" begin
@@ -204,7 +204,7 @@ end
     # test JuMP.build_variable
     @testset "JuMP.build_variable" begin
         # test errors
-        dvref = InfiniteOpt._make_variable_ref(m, FiniteVariableIndex(1))
+        dvref = InfiniteOpt.GeneralVariableRef(m, FiniteVariableIndex(1))
         @test_throws ErrorException build_variable(error, dvref, eval_supps)
         eval_supps[6] = 1
         @test_throws ErrorException build_variable(error, ivref, eval_supps)
@@ -215,8 +215,8 @@ end
         # test normal
         @test isequal(build_variable(error, ivref, eval_supps).infinite_variable_ref, ivref)
         @test build_variable(error, ivref, eval_supps).eval_supports === eval_supps
-        @test build_variable(error, ivref, eval_supps).object_nums == [2]
-        @test build_variable(error, ivref, eval_supps, check = false).object_nums == [2]
+        @test build_variable(error, ivref, eval_supps).group_int_idxs == [2]
+        @test build_variable(error, ivref, eval_supps, check = false).group_int_idxs == [2]
         @test build_variable(error, ivref, eval_supps, check = false).parameter_nums == [2]
     end
     # test JuMP.add_variable
@@ -236,7 +236,7 @@ end
         @test supports(b[2]) == [1]
         @test supports(c) == zeros(2, 1)
         @test supports(b[1]) == []
-        @test InfiniteOpt._object_numbers(vref) == [2]
+        @test InfiniteOpt.parameter_group_int_indices(vref) == [2]
         @test InfiniteOpt._semi_infinite_variable_dependencies(ivref) == [idx]
         # test with set name (redundant add)
         @test isequal(add_variable(m, var, "cat"), gvref)
@@ -479,7 +479,7 @@ end
         func = (x) -> NaN
         num = 0.
         info = VariableInfo(true, num, true, num, true, num, false, func, true, true)
-        deriv = Derivative(info, true, y, t)
+        deriv = Derivative(info, true, y, t, 1)
         object = VariableData(deriv)
         idx = DerivativeIndex(1)
         dref = DerivativeRef(m, idx)

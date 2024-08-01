@@ -12,16 +12,11 @@ as needed. Furthermore, at the optimization step these parameters are replaced
 with their numeric values. Thus, not adding unnecessary decision variables as is
 typically done in `JuMP` models using `JuMP.fix` on placeholder variables.  
 
-!!! note 
-    The syntax of [`@finite_parameter`](@ref) has changed with from previous 
-    versions for enhanced long term support. Please consult the documentation 
-    below for the updated syntax.
-
 !!! warning 
     In some cases, using [`@finite_parameter`](@ref) can unexpectedly make 
-    the underlying `JuMP` model contain nonlinear constraints/objectives. This 
+    the underlying transformation backend contain nonlinear constraints/objectives. This 
     occurs when a quadratic expression is mutliplied by a finite parameter 
-    (making a `NLPExpr`):
+    (making a `GenericNonlinearExpr`):
     ```julia-repl
     julia> model = InfiniteModel(); @variable(model, z); @finite_parameter(model, p == 2);
 
@@ -88,4 +83,4 @@ converted into the appropriate affine expression when transcribed.
     `InfiniteOpt`'s implementation of finite parameters should not be a reason to 
     use `InfiniteOpt` to model non-infinite-dimensional problems, since the added 
     overhead will make it slower than just iteratively building `JuMP` models. For 
-    this behavior, we recommend looking into using `ParameterJuMP`.
+    this behavior, we recommend looking into using `ParametricOptInterface`.

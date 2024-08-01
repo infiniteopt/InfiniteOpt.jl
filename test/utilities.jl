@@ -36,6 +36,8 @@ struct TestGenInfo <: AbstractGenerativeInfo end
 struct BadData <: AbstractMeasureData end
 struct Bad end
 struct NotADomainType end
+struct TestJuMPTag <: AbstractJuMPTag end
+struct TestBackend <: AbstractTransformationBackend end
 struct TestIndex <: ObjectIndex
     value::Int
 end
@@ -59,6 +61,11 @@ InfiniteOpt.support_label(::TestGenMethod) = InternalLabel
 
 # Define test functions
 function new_fn end
+
+# Define some fallbacks for TestBackend
+JuMP.get_attribute(::TestBackend, ::MOI.TerminationStatus) = MOI.ALMOST_LOCALLY_SOLVED
+JuMP.get_attribute(::TestBackend, ::MOI.PrimalStatus) = MOI.NEARLY_FEASIBLE_POINT
+JuMP.get_attribute(::TestBackend, ::MOI.DualStatus) = MOI.NEARLY_FEASIBLE_POINT
 
 # Helper function to test IO methods work correctly
 function show_test(mode, obj, exp_str::String; repl=:both)
@@ -94,6 +101,16 @@ io_test(f::Function, exp_str::Vector{String}, args...) = begin
     @test String(take!(io)) in exp_str
 end
 
+# Test the output of a function that prints to stdout
+function stdout_test(f::Function, exp_str, args...)
+    original_stdout = stdout
+    (read_pipe, write_pipe) = redirect_stdout()
+    @test f(args...) isa Nothing
+    redirect_stdout(original_stdout)
+    close(write_pipe)
+    @test read(read_pipe, String) == exp_str
+end
+
 # Make method for sorting matrices
 sortcols(A) = sortslices(A, dims=2, lt=(x,y)->isless(x[:],y[:]))
 
@@ -121,11 +138,11 @@ function _update_variable_param_refs(vref::InfiniteVariableRef,
     # get basic information
     info = InfiniteOpt._variable_info(vref)
     param_nums = [InfiniteOpt._parameter_number(pref) for pref in prefs]
-    # get the parameter object numbers
-    object_nums = InfiniteOpt._object_numbers(parameter_list(prefs))
+    # get the parameter group integer indices
+    group_int_idxs = InfiniteOpt.parameter_group_int_indices(parameter_list(prefs))
     is_vect_func = InfiniteOpt._is_vector_start(vref)
-    new_var = InfiniteVariable(info, prefs, param_nums, object_nums, is_vect_func)
-    InfiniteOpt._set_core_variable_object(vref, new_var)
+    new_var = InfiniteVariable(info, prefs, param_nums, group_int_idxs, is_vect_func)
+    InfiniteOpt._set_core_object(vref, new_var)
     return
 end
 

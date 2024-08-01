@@ -89,7 +89,7 @@ end
         @test used_by_objective(x)
         @test used_by_objective(pt)
         @test used_by_objective(meas)
-        @test !optimizer_model_ready(m)
+        @test !transformation_backend_ready(m)
         @test objective_has_measures(m)
         # test reset
         @test isa(set_objective_function(m, pt), Nothing)
@@ -122,7 +122,7 @@ end
         @test used_by_objective(x)
         @test used_by_objective(pt)
         @test used_by_objective(meas)
-        @test !optimizer_model_ready(m)
+        @test !transformation_backend_ready(m)
         # test reset
         @test isa(set_objective(m, MOI.MAX_SENSE, pt), Nothing)
         @test isequal(objective_function(m), pt)

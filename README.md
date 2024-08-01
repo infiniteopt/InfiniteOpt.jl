@@ -9,10 +9,6 @@ interface for these advanced problem types that can be used by those with little
 to no background in these areas. It also it contains a wealth of capabilities
 making it a powerful and convenient tool for advanced users.  
 
-:tada: **`v0.5` introduces general nonlinear modeling!**: See the documentation for details.
-
-:mega: **`v0.5.1` now requires Julia 1.6 or newer**
-
 **Current Version:** [![](https://docs.juliahub.com/InfiniteOpt/version.svg)](https://juliahub.com/ui/Packages/InfiniteOpt/p3GvY) [![](https://docs.juliahub.com/InfiniteOpt/pkgeval.svg)](https://juliahub.com/ui/Packages/InfiniteOpt/p3GvY)
 
 | **Documentation**                                                               | **Build Status**                                                                                | **Citation** |
@@ -27,14 +23,13 @@ include:
 - Infinite variables (decision functions) (e.g., `y(t, x)`)
 - Derivatives (e.g., `∂y(t, x)/∂t`)
 - Measures (e.g., `∫y(t,x)dt`, `𝔼[y(ξ)]`)
-- **1st class nonlinear modeling**
 
 The unifying modeling abstraction behind `InfiniteOpt` captures a wide spectrum 
 of disciplines which include dynamic, PDE, stochastic, and semi-infinite 
 optimization. Moreover, we facilitate transferring techniques between these 
 to synthesize new optimization paradigms!
 
-![abstract](abstraction.gif)
+![abstract](abstraction.png)
 
 Comments, suggestions and improvements are welcome and appreciated.
 
@@ -48,7 +43,7 @@ can be installed by entering the following in the REPL.
 ```julia
 julia> ]
 
-(v1.9) pkg> add InfiniteOpt
+(v1.10) pkg> add InfiniteOpt
 ```
 
 ## Documentation
@@ -83,7 +78,7 @@ citing it.
 A pre-print version is freely available though [arXiv](https://arxiv.org/abs/2106.12689).
 
 ## Project Status
-The package is tested against Julia `1.6` and `1.9` on Linux, Mac, and Windows.
+The package is tested against Julia `1.6` and `1.10` on Linux, Mac, and Windows.
 
 ## Contributing
 `InfiniteOpt` is being actively developed and suggestions or other forms of contribution are encouraged.

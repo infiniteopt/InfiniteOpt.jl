@@ -392,7 +392,8 @@ abstract type FDTechnique end
     Forward <: FDTechnique
 
 A technique label for finite difference method that implements a forward 
-difference approximation.
+difference approximation with first order truncation error. Supports any 
+derivative order (i.e., 1st derivatives, 2nd derivatives, etc.).
 """
 struct Forward <: FDTechnique end
 
@@ -400,7 +401,8 @@ struct Forward <: FDTechnique end
     Central <: FDTechnique
 
 A technique label for finite difference method that implements a central 
-difference approximation.
+difference approximation with first order truncation error. Supports 
+derivatives of order 1, 2, 4, 6, etc.
 """
 struct Central <: FDTechnique end
 
@@ -408,7 +410,8 @@ struct Central <: FDTechnique end
     Backward <: FDTechnique
 
 A technique label for finite difference method that implements a backward 
-difference approximation.
+difference approximation with first order truncation error. Supports any
+derivative order (i.e., 1st derivatives, 2nd derivatives, etc.).
 """
 struct Backward <: FDTechnique end
 
@@ -421,14 +424,22 @@ a derivative evaluation. Note that the constructor is of the form:
     FiniteDifference([technique::FDTechnique = Backward()],
                      [add_boundary_constr::Bool = true])
 ```
-where `technique` is the indicated finite difference method to be applied and 
-`add_boundary_constr` indicates if the finite difference equation corresponding to 
-a boundary support should be included. Thus, for backward difference since
-corresponds to the terminal point and for forward difference this corresponds to 
-the initial point. We recommend using `add_boundary_constr = false` when an final 
-condition is given with a backward method or when an initial condition is given 
-with a forward method. Note that this argument is ignored for central finite 
-difference which cannot include any boundary points.
+where `technique` is the indicated finite difference method to be applied and. 
+Supported techniques include:
+- [`Forward`](@ref)
+- [`Central`](@ref)
+- [`Backward`](@ref)
+These are all first order methods in terms of truncation error. Moreover, they 
+support derivatives of any order (except `Central` does not support odd orders 
+greater than 1).
+The `add_boundary_constr` argument indicates if the finite difference equation 
+corresponding to a boundary support should be included. Thus, for backward 
+difference this corresponds to the terminal point and for forward difference 
+this corresponds to the initial point. We recommend using 
+`add_boundary_constr = false` when an final condition is given with a backward 
+method or when an initial condition is given with a forward method. Note that 
+this argument is ignored for central finite difference which cannot include 
+any boundary points. 
 
 **Fields** 
 - `technique::T`: Mathematical technqiue behind finite difference
@@ -512,7 +523,7 @@ A `DataType` for storing a collection of dependent infinite parameters.
 
 **Fields**
 - `domain::T`: The infinite domain that characterizes the parameters.
-- `supports::Dict{Vector{Float64}, Set{DataType}}`: Support dictionary where keys
+- `supports::DataStructures.OrderedDict{Vector{Float64}, Set{DataType}}`: Support dictionary where keys
               are supports and the values are the set of labels for each support.
 - `sig_digits::Int`: The number of significant digits used to round the support values.
 - `derivative_methods::Vector{M}`: The derivative evaluation methods associated with 
@@ -521,7 +532,7 @@ A `DataType` for storing a collection of dependent infinite parameters.
 struct DependentParameters{T <: InfiniteArrayDomain, 
                            M <: NonGenerativeDerivativeMethod} <: InfOptParameter
     domain::T
-    supports::Dict{Vector{Float64}, Set{DataType}} # Support to label set
+    supports::DataStructures.OrderedDict{Vector{Float64}, Set{DataType}} # Support to label set
     sig_digits::Int
     derivative_methods::Vector{M}
 end
@@ -545,8 +556,8 @@ A mutable `DataType` for storing `ScalarParameter`s and their data.
 
 **Fields**
 - `parameter::P`: The scalar parameter.
-- `object_num::Int`: The location of the corresponding `ObjectIndex` in
-    `InfiniteModel.param_object_indices` (given by `InfiniteModel.last_object_num`).
+- `group_int_idx::Int`: The location of the corresponding `ObjectIndex` in
+    `InfiniteModel.param_group_indices`.
 - `parameter_num::Int`: Given by `InfiniteModel.last_param_num` (updated when
                         prior parameters are deleted)
 - `name::String`: The name used for printing.
@@ -566,7 +577,7 @@ A mutable `DataType` for storing `ScalarParameter`s and their data.
 """
 mutable struct ScalarParameterData{P <: ScalarParameter} <: AbstractDataObject
     parameter::P
-    object_num::Int
+    group_int_idx::Int
     parameter_num::Int
     name::String
     parameter_func_indices::Vector{ParameterFunctionIndex}
@@ -582,16 +593,28 @@ mutable struct ScalarParameterData{P <: ScalarParameter} <: AbstractDataObject
 end
 
 # Convenient constructor
-function ScalarParameterData(param::P,
-                             object_num::Int,
-                             parameter_num::Int,
-                             name::String = ""
-                             ) where {P <: ScalarParameter}
-    return ScalarParameterData{P}(param, object_num, parameter_num, name,
-                                  ParameterFunctionIndex[], InfiniteVariableIndex[], 
-                                  DerivativeIndex[], MeasureIndex[], 
-                                  InfOptConstraintIndex[], false, MeasureIndex[], 
-                                  false, false, false)
+function ScalarParameterData(
+    param::P,
+    group_int_idx::Int,
+    parameter_num::Int,
+    name::String = ""
+    ) where {P <: ScalarParameter}
+    return ScalarParameterData{P}(
+        param,
+        group_int_idx,
+        parameter_num,
+        name,
+        ParameterFunctionIndex[],
+        InfiniteVariableIndex[], 
+        DerivativeIndex[],
+        MeasureIndex[], 
+        InfOptConstraintIndex[],
+        false,
+        MeasureIndex[], 
+        false,
+        false,
+        false
+        )
 end
 
 """
@@ -601,8 +624,8 @@ A mutable `DataType` for storing [`DependentParameters`](@ref) and their data.
 
 **Fields**
 - `parameters::P`: The parameter collection.
-- `object_num::Int`: The location of the corresponding `ObjectIndex` in
-   `InfiniteModel.param_object_indices` (given by `InfiniteModel.last_object_num`).
+- `group_int_idx::Int`: The location of the corresponding `ObjectIndex` in
+   `InfiniteModel.param_group_indices`.
 - `parameter_nums::UnitRange{Int}`: Given by `InfiniteModel.last_param_num`
                                     (updated when prior parameters are deleted)
 - `names::Vector{String}`: The names used for printing each parameter.
@@ -620,7 +643,7 @@ A mutable `DataType` for storing [`DependentParameters`](@ref) and their data.
 """
 mutable struct MultiParameterData{P <: DependentParameters} <: AbstractDataObject
     parameters::P
-    object_num::Int
+    group_int_idx::Int
     parameter_nums::UnitRange{Int}
     names::Vector{String}
     parameter_func_indices::Vector{ParameterFunctionIndex}
@@ -633,17 +656,24 @@ mutable struct MultiParameterData{P <: DependentParameters} <: AbstractDataObjec
 end
 
 # Convenient constructor 
-function MultiParameterData(params::P,
-                            object_num::Int,
-                            parameter_nums::UnitRange{Int},
-                            names::Vector{String},
-                            ) where {P <: DependentParameters}
-    return MultiParameterData{P}(params, object_num, parameter_nums, names,
-                                 ParameterFunctionIndex[], InfiniteVariableIndex[],
-                                 [DerivativeIndex[] for i in eachindex(names)],
-                                 [MeasureIndex[] for i in eachindex(names)],
-                                 [InfOptConstraintIndex[] for i in eachindex(names)],
-                                 false, zeros(Bool, length(names)))
+function MultiParameterData(
+    params::P,
+    group_int_idx::Int,
+    parameter_nums::UnitRange{Int},
+    names::Vector{String},
+    ) where {P <: DependentParameters}
+    return MultiParameterData{P}(
+        params,
+        group_int_idx,
+        parameter_nums, names,
+        ParameterFunctionIndex[], 
+        InfiniteVariableIndex[],
+        [DerivativeIndex[] for i in eachindex(names)],
+        [MeasureIndex[] for i in eachindex(names)],
+        [InfOptConstraintIndex[] for i in eachindex(names)],
+        false,
+        zeros(Bool, length(names))
+        )
 end
 
 ################################################################################
@@ -661,15 +691,15 @@ incorporated in expressions via [`ParameterFunctionRef`](@ref)s.
 - `func::F`: The function the takes infinite parameters as input and provide a 
             scalar number as output.
 - `parameter_refs::VT`: The infinite parameter references that serve as 
-                                   inputs to `func`. Their formatting is analagous 
-                                   to those of infinite variables. 
+                        inputs to `func`. Their formatting is analagous 
+                        to those of infinite variables. 
 - `parameter_nums::Vector{Int}`: The parameter numbers of `parameter_refs`.
-- `object_nums::Vector{Int}`: The parameter object numbers associated with `parameter_refs`.
+- `group_int_idxs::Vector{Int}`: The parameter group integer indices associated with `parameter_refs`.
 """
 struct ParameterFunction{F <: Union{Function, Real}, VT <: Collections.VectorTuple}
     func::F
     parameter_refs::VT
-    object_nums::Vector{Int}
+    group_int_idxs::Vector{Int}
     parameter_nums::Vector{Int}
 end
 
@@ -723,7 +753,7 @@ variable.
 - `parameter_refs::VT`: The infinite parameter references that parameterize the 
   variable.
 - `parameter_nums::Vector{Int}`: The parameter numbers of `parameter_refs`.
-- `object_nums::Vector{Int}`: The parameter object numbers associated with `parameter_refs`.
+- `group_int_idxs::Vector{Int}`: The parameter group integer indices associated with `parameter_refs`.
 - `is_vector_start::Bool`: Does the start function take support values formatted as vectors?
 """
 struct InfiniteVariable{
@@ -741,7 +771,7 @@ struct InfiniteVariable{
         }
     parameter_refs::VT
     parameter_nums::Vector{Int}
-    object_nums::Vector{Int}
+    group_int_idxs::Vector{Int}
 end
 
 """
@@ -756,14 +786,14 @@ infinite variable.
                                      to the evaluation supports.
 - `parameter_nums::Vector{Int}`: The parameter numbers associated with the evaluated
                                  `parameter_refs`.
-- `object_nums::Vector{Int}`: The parameter object numbers associated with the
+- `group_int_idxs::Vector{Int}`: The parameter group integer indices associated with the
                               evaluated `parameter_refs`.
 """
 struct SemiInfiniteVariable{I <: JuMP.AbstractVariableRef} <: JuMP.AbstractVariable
     infinite_variable_ref::I
     eval_supports::Dict{Int, Float64}
     parameter_nums::Vector{Int}
-    object_nums::Vector{Int}
+    group_int_idxs::Vector{Int}
 end
 
 """
@@ -849,9 +879,10 @@ end
         } <: JuMP.AbstractVariable
 
 A `DataType` for storing core infinite derivative information. This follows a 
-derivative of the form: ``\\frac{\\partial x(\\alpha, \\hdots)}{\\partial \\alpha}`` 
-where ``x(\\alpha, \\hdots)`` is an infinite variable and ``\\alpha`` is an infinite 
-parameter. Here, both ``x`` and ``\\alpha`` must be scalars. 
+derivative of the form: ``\\frac{\\partial y(\\alpha, \\hdots)}{\\partial \\alpha}`` 
+where ``y(\\alpha, \\hdots)`` is an infinite variable and ``\\alpha`` is an infinite 
+parameter. Here, both ``y`` and ``\\alpha`` must be scalars. Higher-order derivatives 
+are also supported: ``\\frac{\\partial^n y(\\alpha, \\hdots)}{\\partial \\alpha^n}``. 
 
 It is important to note that `info.start` should contain a start value function
 that generates the start value for a given infinite parameter support. This
@@ -864,8 +895,9 @@ infinite variables and parameters.
 - `info::JuMP.VariableInfo`: JuMP variable information. Here each value should be 
   a [`ParameterFunction`](@ref).
 - `variable_ref::V`: The variable reference of the infinite variable argument.
-- `parameter_ref::V`: The variable reference of the infinite parameter the defines the
+- `parameter_ref::V`: The variable reference of the infinite parameter that defines the
    differential operator.
+- `order::Int`: The order of the derivative.
 """
 struct Derivative{
     LB <: Union{Function, Float64}, 
@@ -882,7 +914,8 @@ struct Derivative{
         ParameterFunction{ST, VT}
         }
     variable_ref::V # could be ref of infinite/semi-infinite variable/derivative or measure (top of derivative)
-    parameter_ref::V # a scalar infinite parameter ref (bottom of derivative)
+    parameter_ref::V # a scalar infinite parameter (bottom of derivative)
+    order::Int
 end
 
 ################################################################################
@@ -1097,22 +1130,22 @@ and is enacted on `func` when the measure is evaluated (expended).
 - `func::T` The `InfiniteOpt` expression to be measured.
 - `data::V` Data of the abstraction as described in a `AbstractMeasureData`
             concrete subtype.
-- `object_nums::Vector{Int}`: The parameter object numbers of the evaluated
-                              measure expression (i.e., the object numbers of
+- `group_int_idxs::Vector{Int}`: The parameter group integer indices of the evaluated
+                              measure expression (i.e., the group integer indices of
                               `func` excluding those that belong to `data`).
 - `parameter_nums::Vector{Int}`: The parameter numbers that parameterize the
                                  evaluated measure expression. (i.e., the
                                  parameter numbers of `func` excluding those
                                  that belong to `data`).
 - `constant_func::Bool`: Indicates if `func` is not parameterized by the infinite
-                         parameters in `data`. (i.e., do the object numbers of
+                         parameters in `data`. (i.e., do the group integer indices of
                          `func` and `data` have no intersection?) This is useful
                          to enable analytic evaluations if possible.
 """
 struct Measure{T <: JuMP.AbstractJuMPScalar, V <: AbstractMeasureData}
     func::T
     data::V
-    object_nums::Vector{Int}
+    group_int_idxs::Vector{Int}
     parameter_nums::Vector{Int}
     constant_func::Bool
 end
@@ -1177,8 +1210,8 @@ A mutable `DataType` for storing constraints and their data.
 
 **Fields**
 - `constraint::C`: The constraint.
-- `object_nums::Vector{Int}`: The object numbers of the parameter objects that the
-                              constraint depends on.
+- `group_int_idxs::Vector{Int}`: The group integer indices of the parameter objects that the
+                                 constraint depends on.
 - `name::String`: The name used for printing.
 - `measure_indices::Vector{MeasureIndex}`: Indices of dependent measures.
 - `is_info_constraint::Bool`: Is this is constraint based on variable info 
@@ -1186,7 +1219,7 @@ A mutable `DataType` for storing constraints and their data.
 """
 mutable struct ConstraintData{C <: JuMP.AbstractConstraint} <: AbstractDataObject
     constraint::C
-    object_nums::Vector{Int}
+    group_int_idxs::Vector{Int}
     name::String
     measure_indices::Vector{MeasureIndex}
     is_info_constraint::Bool
@@ -1260,6 +1293,53 @@ struct NLPOperator{F <: Function, G, H}
 end
 
 ################################################################################
+#                            TRANSFORMATION BACKEND
+################################################################################
+"""
+    AbstractTransformationBackend
+
+Abstract type for transformation backends to `InfiniteModel`s. Any user-defined 
+backend type should inherit this type. 
+"""
+abstract type AbstractTransformationBackend end
+
+"""
+    AbstractJuMPTag
+
+Abstract type to enable dispatch between differnent transformation backends that 
+use the extension API provided by [`JuMPBackend`](@ref). 
+"""
+abstract type AbstractJuMPTag end
+
+"""
+    JuMPBackend{TAG <: AbstractJuMPTag, T, D} <: AbstractTransformationBackend 
+
+A transformation backend type for transformation backends that use JuMP `Model`s.
+This serves as the main extension point for defining new JuMP-based backends. In 
+which case a new [`AbstractJuMPTag`](@ref) should be made with which the 
+`JuMPBackend` is created:
+```julia
+backend = JuMPBackend{MyTag}(model::JuMP.GenericModel, data)
+```
+where `data` stores information used by the backend (typically mapping information 
+to the overlying `InfiniteModel`). 
+
+The JuMP `Model` can be accessed by [`transformation_model`](@ref) and the `data` 
+can be retrieved via [`transformation_data`](@ref).
+"""
+struct JuMPBackend{TAG <: AbstractJuMPTag, T, D} <: AbstractTransformationBackend
+    model::JuMP.GenericModel{T}
+    data::D
+    # constructor
+    function JuMPBackend{TYPE}(
+        model::JuMP.GenericModel{T},
+        data::D
+        ) where {TYPE <: AbstractJuMPTag, T, D}
+        return new{TYPE, T, D}(model, data)
+    end
+end
+
+################################################################################
 #                                INFINITE MODEL
 ################################################################################
 """
@@ -1275,7 +1355,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     finite_params::MOIUC.CleverDict{FiniteParameterIndex, ScalarParameterData{FiniteParameter}}
     name_to_param::Union{Dict{String, AbstractInfOptIndex}, Nothing}
     last_param_num::Int
-    param_object_indices::Vector{Union{IndependentParameterIndex, DependentParametersIndex}}
+    param_group_indices::Vector{Union{IndependentParameterIndex, DependentParametersIndex}}
     param_functions::MOIUC.CleverDict{ParameterFunctionIndex, <:ParameterFunctionData}
     piecewise_vars::Dict{IndependentParameterIndex, Set{InfiniteVariableIndex}}
 
@@ -1312,9 +1392,8 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     # Objects
     obj_dict::Dict{Symbol, Any}
 
-    # Optimize Data
-    optimizer_constructor::Any
-    optimizer_model::JuMP.Model
+    # Backend Data
+    backend::AbstractTransformationBackend
     ready_to_optimize::Bool
 
     # Extensions
@@ -1323,16 +1402,22 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
 end
 
 """
-    InfiniteModel([optimizer_constructor];
-                  [OptimizerModel::Function = TranscriptionModel,
-                  add_bridges::Bool = true, optimizer_model_kwargs...])
+    InfiniteModel([backend::AbstractTransformationBackend = TranscriptionBackend()])
 
-Return a new infinite model where an optimizer is specified if an
-`optimizer_constructor` is given. The optimizer
-can also later be set with the [`JuMP.set_optimizer`](@ref) call. By default
-the `optimizer_model` data field is initialized with a
-[`TranscriptionModel`](@ref), but a different type of model can be assigned via
-[`set_optimizer_model`](@ref) as can be required by extensions.
+Return a new infinite model that uses `backend`. For the default case with 
+`TranscriptionBackend`, the `opimizer_constructor` and other arguments can be 
+given directly:
+```julia
+InfiniteModel(
+    optimizer_constructor;
+    [add_bridges::Bool = true]
+    )
+```
+where `optimizer_constructor` and `add_bridges` are passed on to the underying 
+JuMP `Model`. 
+
+A different transformation backend can be specified later on using
+[`set_transformation_backend`](@ref).
 
 **Example**
 ```jldoctest
@@ -1341,102 +1426,79 @@ julia> using InfiniteOpt, JuMP, Ipopt;
 julia> model = InfiniteModel()
 An InfiniteOpt Model
 Feasibility problem with:
-Finite Parameters: 0
-Infinite Parameters: 0
-Variables: 0
-Measures: 0
-Derivatives: 0
-Optimizer model backend information:
-Model mode: AUTOMATIC
-CachingOptimizer state: NO_OPTIMIZER
-Solver name: No optimizer attached.
+  Finite parameters: 0
+  Infinite parameters: 0
+  Variables: 0
+  Derivatives: 0
+  Measures: 0
+Transformation backend information:
+  Backend type: TranscriptionBackend
+  Solver name: No optimizer attached.
+  Transformation built and up-to-date: false
 
 julia> model = InfiniteModel(Ipopt.Optimizer)
 An InfiniteOpt Model
 Feasibility problem with:
-Finite Parameters: 0
-Infinite Parameters: 0
-Variables: 0
-Measures: 0
-Derivatives: 0
-Optimizer model backend information:
-Model mode: AUTOMATIC
-CachingOptimizer state: EMPTY_OPTIMIZER
-Solver name: Ipopt
+  Finite parameters: 0
+  Infinite parameters: 0
+  Variables: 0
+  Derivatives: 0
+  Measures: 0
+Transformation backend information:
+  Backend type: TranscriptionBackend
+  Solver name: Ipopt
+  Transformation built and up-to-date: false
 ```
 """
-function InfiniteModel(; 
-    OptimizerModel::Function = TranscriptionModel,
-    kwargs...
-    )::InfiniteModel
-    return InfiniteModel(# Parameters
-                         MOIUC.CleverDict{IndependentParameterIndex, ScalarParameterData{<:IndependentParameter}}(),
-                         MOIUC.CleverDict{DependentParametersIndex, MultiParameterData}(),
-                         MOIUC.CleverDict{FiniteParameterIndex, ScalarParameterData{FiniteParameter}}(),
-                         nothing, 0,
-                         Union{IndependentParameterIndex, DependentParametersIndex}[],
-                         MOIUC.CleverDict{ParameterFunctionIndex, ParameterFunctionData{<:ParameterFunction}}(),
-                         Dict{IndependentParameterIndex, Set{InfiniteVariableIndex}}(),
-                         # Variables
-                         MOIUC.CleverDict{InfiniteVariableIndex, VariableData{<:InfiniteVariable}}(),
-                         MOIUC.CleverDict{SemiInfiniteVariableIndex, VariableData{SemiInfiniteVariable{GeneralVariableRef}}}(),
-                         Dict{Tuple{GeneralVariableRef, Dict{Int, Float64}}, SemiInfiniteVariableIndex}(),
-                         MOIUC.CleverDict{PointVariableIndex, VariableData{PointVariable{GeneralVariableRef}}}(),
-                         Dict{Tuple{GeneralVariableRef, Vector{Float64}}, PointVariableIndex}(),
-                         MOIUC.CleverDict{FiniteVariableIndex, VariableData{JuMP.ScalarVariable{Float64, Float64, Float64, Float64}}}(),
-                         nothing,
-                         # Derivatives
-                         MOIUC.CleverDict{DerivativeIndex, VariableData{<:Derivative}}(),
-                         Dict{Tuple{GeneralVariableRef, GeneralVariableRef}, DerivativeIndex}(),
-                         # Measures
-                         MOIUC.CleverDict{MeasureIndex, MeasureData{<:Measure}}(),
-                         # Constraints
-                         MOIUC.CleverDict{InfOptConstraintIndex, ConstraintData{<:JuMP.AbstractConstraint}}(),
-                         Dict{InfOptConstraintIndex, <:ParameterFunction}(),
-                         nothing,
-                         # Objective
-                         MOI.FEASIBILITY_SENSE,
-                         zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}),
-                         false,
-                         # registration
-                         NLPOperator[],
-                         Dict{Symbol, Tuple{Function, Int}}(),
-                         # Object dictionary
-                         Dict{Symbol, Any}(),
-                         # Optimize data
-                         nothing, OptimizerModel(; kwargs...), false,
-                         # Extensions
-                         Dict{Symbol, Any}(),
-                         nothing
-                         )
-end
-
-## Set the optimizer_constructor depending on what it is
-# MOI.OptimizerWithAttributes
-function _set_optimizer_constructor(
-    model::InfiniteModel,
-    constructor::MOI.OptimizerWithAttributes
+function InfiniteModel(backend::AbstractTransformationBackend = TranscriptionBackend())
+    return InfiniteModel(
+        # Parameters
+        MOIUC.CleverDict{IndependentParameterIndex, ScalarParameterData{<:IndependentParameter}}(),
+        MOIUC.CleverDict{DependentParametersIndex, MultiParameterData}(),
+        MOIUC.CleverDict{FiniteParameterIndex, ScalarParameterData{FiniteParameter}}(),
+        nothing, 0,
+        Union{IndependentParameterIndex, DependentParametersIndex}[],
+        MOIUC.CleverDict{ParameterFunctionIndex, ParameterFunctionData{<:ParameterFunction}}(),
+        Dict{IndependentParameterIndex, Set{InfiniteVariableIndex}}(),
+        # Variables
+        MOIUC.CleverDict{InfiniteVariableIndex, VariableData{<:InfiniteVariable}}(),
+        MOIUC.CleverDict{SemiInfiniteVariableIndex, VariableData{SemiInfiniteVariable{GeneralVariableRef}}}(),
+        Dict{Tuple{GeneralVariableRef, Dict{Int, Float64}}, SemiInfiniteVariableIndex}(),
+        MOIUC.CleverDict{PointVariableIndex, VariableData{PointVariable{GeneralVariableRef}}}(),
+        Dict{Tuple{GeneralVariableRef, Vector{Float64}}, PointVariableIndex}(),
+        MOIUC.CleverDict{FiniteVariableIndex, VariableData{JuMP.ScalarVariable{Float64, Float64, Float64, Float64}}}(),
+        nothing,
+        # Derivatives
+        MOIUC.CleverDict{DerivativeIndex, VariableData{<:Derivative}}(),
+        Dict{Tuple{GeneralVariableRef, GeneralVariableRef, Int}, DerivativeIndex}(),
+        # Measures
+        MOIUC.CleverDict{MeasureIndex, MeasureData{<:Measure}}(),
+        # Constraints
+        MOIUC.CleverDict{InfOptConstraintIndex, ConstraintData{<:JuMP.AbstractConstraint}}(),
+        Dict{InfOptConstraintIndex, <:ParameterFunction}(),
+        nothing,
+        # Objective
+        MOI.FEASIBILITY_SENSE,
+        zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}),
+        false,
+        # registration
+        NLPOperator[],
+        Dict{Symbol, Tuple{Function, Int}}(),
+        # Object dictionary
+        Dict{Symbol, Any}(),
+        # Backend data
+        backend, 
+        false,
+        # Extensions
+        Dict{Symbol, Any}(),
+        nothing
     )
-    model.optimizer_constructor = constructor.optimizer_constructor
-    return
-end
-
-# No attributes
-function _set_optimizer_constructor(model::InfiniteModel, constructor)
-    model.optimizer_constructor = constructor
-    return
 end
 
 # Dispatch for InfiniteModel call with optimizer constructor
-function InfiniteModel(
-    optimizer_constructor;
-    OptimizerModel::Function = TranscriptionModel,
-    kwargs...
-    )
-    model = InfiniteModel()
-    model.optimizer_model = OptimizerModel(optimizer_constructor; kwargs...)
-    _set_optimizer_constructor(model, optimizer_constructor)
-    return model
+function InfiniteModel(optimizer_constructor; kwargs...)
+    backend = TranscriptionBackend(optimizer_constructor; kwargs...)
+    return InfiniteModel(backend)
 end
 
 # Define basic InfiniteModel extension functions
@@ -1468,7 +1530,7 @@ function Base.empty!(model::InfiniteModel)
     empty!(model.finite_params)
     model.name_to_param = nothing
     model.last_param_num = 0
-    empty!(model.param_object_indices)
+    empty!(model.param_group_indices)
     empty!(model.param_functions)
     empty!(model.piecewise_vars)
     # variables
@@ -1495,7 +1557,7 @@ function Base.empty!(model::InfiniteModel)
     empty!(model.operators)
     empty!(model.op_lookup)
     empty!(model.obj_dict)
-    empty!(model.optimizer_model)
+    empty!(model.backend)
     model.ready_to_optimize = false
     empty!(model.ext)
     model.optimize_hook = nothing
@@ -1504,7 +1566,57 @@ end
 
 # Define basic accessors
 _last_param_num(model::InfiniteModel) = model.last_param_num
-_param_object_indices(model::InfiniteModel) = model.param_object_indices
+
+"""
+    parameter_group_indices(model::InfiniteModel)::Vector{Union{IndependentParameterIndex, DependentParametersIndex}}
+
+Return a list the indices that correspond to the independent infinite parameter
+groups that have been added to `model`. This provides the infinite parameter
+indicies that correspond to the integer indices reported by
+[`parameter_group_int_indices`](@ref). For instance, a group integer index of 
+`2` corresponds to the infinite parameter index stored at 
+`parameter_group_indices(model)[2]`. This is intended for advanced users writing 
+new types of [`AbstractTransformationBackend`](@ref)s.
+"""
+parameter_group_indices(model::InfiniteModel) = model.param_group_indices
+
+## Return an element of a parameter reference tuple given the model and index
+# IndependentParameterIndex
+function _make_param_tuple_element(
+    model::InfiniteModel,
+    idx::IndependentParameterIndex,
+    )
+    return GeneralVariableRef(model, idx)
+end
+# DependentParametersIndex
+function _make_param_tuple_element(
+    model::InfiniteModel,
+    idx::DependentParametersIndex,
+    )
+    num_params = length(model.dependent_params[idx].parameter_nums)
+    return [GeneralVariableRef(model, idx.value, DependentParameterIndex, i)
+            for i in 1:num_params]
+end
+
+"""
+    parameter_refs(model::InfiniteModel)::Tuple
+
+Returns a tuple of the infinite parameters used by `model`.
+
+For developers, note that the integer index of each element is what is referred
+to as an infinite parameter group integer index which corresponds to
+[`parameter_group_int_indices`](@ref).
+
+**Example**
+```julia-repl
+julia> parameter_refs(model)
+(t, x)
+```
+"""
+function parameter_refs(model::InfiniteModel)
+    group_idxs = parameter_group_indices(model)
+    return Tuple(_make_param_tuple_element(model, idx) for idx in group_idxs)
+end
 
 ################################################################################
 #                             OBJECT REFERENCES
@@ -1519,6 +1631,11 @@ via [`dispatch_variable_ref`](@ref) to obtain the correct subtype of
 [`DispatchVariableRef`](@ref) based off of `index_type`. This allows us to
 construct expressions using concrete containers unlike previous versions of
 `InfiniteOpt` which provides us a significant performance boost.
+
+A convenient constructor is:
+```julia
+    GeneralVariableRef(model::InfiniteModel, index::ObjectIndex)
+```
 
 **Fields**
 - `model::InfiniteModel`: Infinite model.
@@ -1535,6 +1652,12 @@ struct GeneralVariableRef <: JuMP.AbstractVariableRef
     function GeneralVariableRef(model::InfiniteModel, raw_index,
                                index_type::DataType, param_index::Int = -1)
        return new(model, Int64(raw_index), index_type, param_index)
+    end
+    function GeneralVariableRef(model::InfiniteModel, index::ObjectIndex)
+        return new(model, Int64(index.value), typeof(index), -1)
+    end
+    function GeneralVariableRef(model::InfiniteModel, index::DependentParameterIndex)
+        return new(model, index.object_index.value, typeof(index), index.param_index)
     end
 end
 

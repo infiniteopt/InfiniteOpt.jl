@@ -55,8 +55,11 @@ derivative_method(::IndependentParameterRef)
 is_used(::ScalarParameterRef)
 used_by_infinite_variable(::IndependentParameterRef)
 used_by_parameter_function(::IndependentParameterRef)
+used_by_derivative(::IndependentParameterRef)
 used_by_measure(::ScalarParameterRef)
 used_by_constraint(::ScalarParameterRef)
+parameter_group_int_index(::IndependentParameterRef)
+core_object(::IndependentParameterRef)
 ```
 
 ### Dependent Parameters
@@ -79,8 +82,11 @@ derivative_method(::DependentParameterRef)
 is_used(::DependentParameterRef)
 used_by_infinite_variable(::DependentParameterRef)
 used_by_parameter_function(::DependentParameterRef)
+used_by_derivative(::DependentParameterRef)
 used_by_measure(::DependentParameterRef)
 used_by_constraint(::DependentParameterRef)
+parameter_group_int_index(::DependentParameterRef)
+core_object(::DependentParameterRef)
 ```
 
 ## Modification

@@ -1,58 +1,24 @@
 ################################################################################
-#                              BASIC MODEL DEFINITION
+#                             BASIC BACKEND DEFINITION
 ################################################################################
 """
     TranscriptionData
 
 A DataType for storing the data mapping an [`InfiniteOpt.InfiniteModel`](@ref)
 that has been transcribed to a regular `JuMP.Model` that contains the
-transcribed variables. This is stored in the `ext` field of a `JuMP.Model` to
-make what is called a `TranscriptionModel` via the [`TranscriptionModel`](@ref)
-constructor.
-
-**Fields**
-- `infvar_lookup::Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}`:
-   A lookup table of infinite variable transcriptions via support value.
-- `infvar_mappings::Dict{InfiniteOpt.GeneralVariableRef, Vector{JuMP.VariableRef}}`:
-   Map infinite variables to their transcription variables.
-- `infvar_supports::Dict{InfiniteOpt.GeneralVariableRef, Vector{Tuple}}`:
-   Map infinite variables to their support values.
-- `infvar_support_labels::Dict{InfiniteOpt.GeneralVariableRef, Vector{Set{DataType}}}`: 
-   Map the infinite variables to their support labels.
-- `finvar_mappings::Dict{InfiniteOpt.GeneralVariableRef, JuMP.VariableRef}`:
-   Map finite variables to their transcription variables.
-- `semi_infinite_vars::Vector{InfiniteOpt.SemiInfiniteVariable{InfiniteOpt.GeneralVariableRef}}`:
-   Store the core semi-infinite variable objects of semi-infinite variables formed on transcription.
-- `semi_lookup::Dict{Tuple{InfiniteOpt.GeneralVariableRef, Dict{Int, Float64}}, InfiniteOpt.GeneralVariableRef}`: 
-  Lookup which semi-infinite variables have already been added.
-- `last_point_index::Int`: The last internal point variable index added.
-- `point_lookup::Dict{Tuple{InfiniteOpt.GeneralVariableRef, Vector{Float64}}, InfiniteOpt.GeneralVariableRef}`: 
-  Lookup which point variables have already been created internally.
-- `measure_lookup::Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}`:
-   A lookup table of measure transcriptions via support value.
-- `measure_mappings::Dict{InfiniteOpt.GeneralVariableRef, Vector{JuMP.AbstractJuMPScalar}}`:
-   Map measures to transcription expressions.
-- `measure_supports::Dict{InfiniteOpt.GeneralVariableRef, Vector{Tuple}}`:
-   Map measures to their supports values (if the transcribed measure is still infinite).
-- `measure_support_labels::Dict{InfiniteOpt.GeneralVariableRef, Vector{Set{DataType}}}`: 
-   Map measures to their support labels if they have any.
-- `constr_mappings::Dict{InfiniteOpt.InfOptConstraintRef, Vector{JuMP.ConstraintRef}}`:
-   Map constraints to their transcriptions.
-- `constr_supports::Dict{InfiniteOpt.InfOptConstraintRef, Vector{Tuple}}`:
-   Map constraints to their support values.
-- `constr_support_labels::Dict{InfiniteOpt.InfOptConstraintRef, Vector{Set{DataType}}}`: 
-   Map constraints to their support labels.
-- `supports::Tuple`: Store the collected parameter supports here.
-- `support_labels::Tuple`: Store the collected parameter labels here.
-- `has_internal_supports::Bool`: Where any internal supports collected?
+transcribed variables. This is stored in the `data` field of 
+[`InfiniteOpt.JuMPBackend`](@ref) to make what is called a `TranscriptionBackend` 
+via the [`TranscriptionBackend`](@ref) constructor.
 """
 mutable struct TranscriptionData
     # Variable information
-    infvar_lookup::Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}
-    infvar_mappings::Dict{InfiniteOpt.GeneralVariableRef, Vector{JuMP.VariableRef}}
-    infvar_supports::Dict{InfiniteOpt.GeneralVariableRef, Vector{Tuple}}
-    infvar_support_labels::Dict{InfiniteOpt.GeneralVariableRef, Vector{Set{DataType}}}
+    infvar_lookup::Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, JuMP.VariableRef}}
+    infvar_mappings::Dict{InfiniteOpt.GeneralVariableRef, Array{JuMP.VariableRef}}
+    infvar_supports::Dict{InfiniteOpt.GeneralVariableRef, Array{Tuple}}
     finvar_mappings::Dict{InfiniteOpt.GeneralVariableRef, JuMP.VariableRef}
+
+    # Metadata
+    valid_indices::Dict{Any, Array{Bool}}
 
     # Internal variables (created via internal measure expansions)
     semi_infinite_vars::Vector{InfiniteOpt.SemiInfiniteVariable{InfiniteOpt.GeneralVariableRef}}
@@ -62,17 +28,14 @@ mutable struct TranscriptionData
 
     # Measure information
     measure_lookup::Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}
-    measure_mappings::Dict{InfiniteOpt.GeneralVariableRef, Vector{JuMP.AbstractJuMPScalar}}
-    measure_supports::Dict{InfiniteOpt.GeneralVariableRef, Vector{Tuple}}
-    measure_support_labels::Dict{InfiniteOpt.GeneralVariableRef, Vector{Set{DataType}}}
+    measure_mappings::Dict{InfiniteOpt.GeneralVariableRef, Array{JuMP.AbstractJuMPScalar}}
+    measure_supports::Dict{InfiniteOpt.GeneralVariableRef, Array{Tuple}}
 
     # Constraint information
     constr_mappings::Dict{InfiniteOpt.InfOptConstraintRef,
-                          Vector{JuMP.ConstraintRef}}
+                          Array{JuMP.ConstraintRef}}
     constr_supports::Dict{InfiniteOpt.InfOptConstraintRef,
-                          Vector{Tuple}}
-    constr_support_labels::Dict{InfiniteOpt.InfOptConstraintRef,
-                                Vector{Set{DataType}}}
+                          Array{Tuple}}
 
     # Collected Supports
     supports::Tuple
@@ -81,100 +44,141 @@ mutable struct TranscriptionData
 
     # Default constructor
     function TranscriptionData()
-        return new( # variable info
-                   Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}(),
-                   Dict{InfiniteOpt.GeneralVariableRef, Vector{JuMP.VariableRef}}(),
-                   Dict{InfiniteOpt.GeneralVariableRef, Vector{Tuple}}(),
-                   Dict{InfiniteOpt.GeneralVariableRef, Vector{Set{DataType}}}(),
-                   Dict{InfiniteOpt.GeneralVariableRef, JuMP.VariableRef}(),
-                   # internal variables
-                   Vector{InfiniteOpt.SemiInfiniteVariable{InfiniteOpt.GeneralVariableRef}}(),
-                   Dict{Tuple{InfiniteOpt.GeneralVariableRef, Dict{Int, Float64}}, InfiniteOpt.GeneralVariableRef}(),
-                   0,
-                   Dict{Tuple{InfiniteOpt.GeneralVariableRef, Vector{Float64}}, InfiniteOpt.GeneralVariableRef}(),
-                   # measure info
-                   Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}(),
-                   Dict{InfiniteOpt.GeneralVariableRef, Vector{JuMP.AbstractJuMPScalar}}(),
-                   Dict{InfiniteOpt.GeneralVariableRef, Vector{Tuple}}(),
-                   Dict{InfiniteOpt.GeneralVariableRef, Vector{Set{DataType}}}(),
-                   # constraint info
-                   Dict{InfiniteOpt.InfOptConstraintRef, Vector{JuMP.ConstraintRef}}(),
-                   Dict{InfiniteOpt.InfOptConstraintRef, Vector{Vector{Float64}}}(),
-                   Dict{InfiniteOpt.InfOptConstraintRef, Vector{Set{DataType}}}(),
-                   # support storage
-                   (), (), false)
+        return new( 
+            # variable info
+            Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, JuMP.VariableRef}}(),
+            Dict{InfiniteOpt.GeneralVariableRef, Array{JuMP.VariableRef}}(),
+            Dict{InfiniteOpt.GeneralVariableRef, Array{Tuple}}(),
+            Dict{InfiniteOpt.GeneralVariableRef, JuMP.VariableRef}(),
+            # meta data
+            Dict{Any, Array{Bool}}(),
+            # internal variables
+            Vector{InfiniteOpt.SemiInfiniteVariable{InfiniteOpt.GeneralVariableRef}}(),
+            Dict{Tuple{InfiniteOpt.GeneralVariableRef, Dict{Int, Float64}}, InfiniteOpt.GeneralVariableRef}(),
+            0,
+            Dict{Tuple{InfiniteOpt.GeneralVariableRef, Vector{Float64}}, InfiniteOpt.GeneralVariableRef}(),
+            # measure info
+            Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}(),
+            Dict{InfiniteOpt.GeneralVariableRef, Array{JuMP.AbstractJuMPScalar}}(),
+            Dict{InfiniteOpt.GeneralVariableRef, Array{Tuple}}(),
+            # constraint info
+            Dict{InfiniteOpt.InfOptConstraintRef, Array{JuMP.ConstraintRef}}(),
+            Dict{InfiniteOpt.InfOptConstraintRef, Array{Tuple}}(),
+            # support storage
+            (), 
+            (), 
+            false,
+            )
     end
 end
 
-"""
-    TranscriptionModel([optimizer_constructor;
-                       caching_mode::MOIU.CachingOptimizerMode = MOIU.AUTOMATIC,
-                       bridge_constraints::Bool = true])::JuMP.Model
+# Extend Base.empty!
+function Base.empty!(data::TranscriptionData)
+    empty!(data.infvar_lookup)
+    empty!(data.infvar_mappings)
+    empty!(data.infvar_supports)
+    empty!(data.finvar_mappings)
+    empty!(data.valid_indices)
+    empty!(data.semi_infinite_vars)
+    empty!(data.semi_lookup)
+    data.last_point_index = 0
+    empty!(data.point_lookup)
+    empty!(data.measure_lookup)
+    empty!(data.measure_mappings)
+    empty!(data.measure_supports)
+    empty!(data.constr_mappings)
+    empty!(data.constr_supports)
+    data.supports = ()
+    data.support_labels = ()
+    data.has_internal_supports = false
+    return data
+end
 
-Return a `JuMP.Model` with [`TranscriptionData`](@ref) included in the
-`ext` data field. Accepts the same arguments as a typical JuMP `Model`.
-More detailed variable and constraint naming can be enabled via `verbose_naming`.
+"""
+    Transcription <: InfiniteOpt.AbstractJuMPTag
+
+Dispatch tag needed for [`TranscriptionBackend`](@ref) to be based on 
+[`InfiniteOpt.JuMPBackend`](@ref).
+"""
+struct Transcription <: InfiniteOpt.AbstractJuMPTag end 
+
+"""
+    TranscriptionBackend(
+        [optimizer_constructor];
+        [add_bridges::Bool = true]
+        )::InfiniteOpt.JuMPBackend{Transcription}
+
+Return an `InfiniteOpt.JuMPBackend` that uses [`TranscriptionData`](@ref) 
+and the [`Transcription`](@ref) tag. Accepts the same arguments as a typical 
+`JuMP.Model`. More detailed variable and constraint naming can be enabled 
+via `verbose_naming`.
 
 **Example**
 ```julia-repl
-julia> TranscriptionModel()
-A JuMP Model
-Feasibility problem with:
-Variables: 0
-Model mode: AUTOMATIC
-CachingOptimizer state: NO_OPTIMIZER
-Solver name: No optimizer attached.
+julia> backend = TranscriptionBackend();
 ```
 """
-function TranscriptionModel(; kwargs...)
+const TranscriptionBackend = InfiniteOpt.JuMPBackend{Transcription, Float64, TranscriptionData}
+
+# Constructors
+function TranscriptionBackend(; kwargs...)
     model = JuMP.Model(; kwargs...)
-    model.ext[:TransData] = TranscriptionData()
-    return model
+    return InfiniteOpt.JuMPBackend{Transcription}(model, TranscriptionData())
 end
-# Accept optimizer constructors
-function TranscriptionModel(optimizer_constructor;
-                            kwargs...)
+function TranscriptionBackend(optimizer_constructor; kwargs...)
     model = JuMP.Model(optimizer_constructor; kwargs...)
-    model.ext[:TransData] = TranscriptionData()
-    return model
+    return InfiniteOpt.JuMPBackend{Transcription}(model, TranscriptionData())
+end
+
+# Printing
+function JuMP.show_backend_summary(
+    io::IO,
+    model::InfiniteOpt.InfiniteModel,
+    backend::TranscriptionBackend
+    )
+    println(io, "  Backend type: TranscriptionBackend")
+    # reformulation information
+    data = transcription_data(backend)
+    supp_tuple = data.supports
+    prefs = InfiniteOpt.parameter_refs(model)
+    for (i, supps) in enumerate(supp_tuple)
+        # support info
+        param_name = InfiniteOpt._get_param_group_name(prefs[i])
+        println(io, "  `", param_name, "` transcribed over ", length(supps) - 1, " supports")
+        # TODO add approximation method info (requires InfiniteOpt refactoring)
+    end
+    # solver name
+    moi_summary = sprint(JuMP.show_backend_summary, backend.model)
+    solver_str = filter(startswith("Solver"), split(moi_summary, "\n"))[1]
+    println(io, "  ", solver_str)
+    return
+end
+
+# Showing the backend
+function Base.show(io::IO, backend::TranscriptionBackend)
+    println(io, "A TranscriptionBackend that uses a")
+    show(io, backend.model)
 end
 
 ################################################################################
 #                                BASIC QUERIES
 ################################################################################
 """
-    is_transcription_model(model::JuMP.Model)::Bool
+    transcription_data(backend::TranscriptionBackend)::TranscriptionData
 
-Return true if `model` is a `TranscriptionModel` or false otherwise.
-
-**Example**
-```julia-repl
-julia> is_transcription_model(model)
-true
-```
+Return the mapping data used by `backend`.
 """
-function is_transcription_model(model::JuMP.Model)
-    return haskey(model.ext, :TransData)
+function transcription_data(backend::TranscriptionBackend)
+    return InfiniteOpt.transformation_data(backend)
 end
 
 """
-    transcription_data(model::JuMP.Model)::TranscriptionData
+    has_internal_supports(backend::TranscriptionBackend)::Bool
 
-Return the `TranscriptionData` from a `TranscriptionModel`. Errors if it is not
-a `TranscriptionModel`.
+Return a `Bool` whether `backend` has any internal supports that were collected.
 """
-function transcription_data(model::JuMP.Model)::TranscriptionData
-    !is_transcription_model(model) && error("Model is not a transcription model.")
-    return model.ext[:TransData]
-end
-
-"""
-    has_internal_supports(model::JuMP.Model)::Bool
-
-Return a `Bool` whether `model` has any internal supports that were collected.
-"""
-function has_internal_supports(model::JuMP.Model)
-    return transcription_data(model).has_internal_supports
+function has_internal_supports(backend::TranscriptionBackend)
+    return transcription_data(backend).has_internal_supports
 end
 
 ################################################################################
@@ -182,324 +186,370 @@ end
 ################################################################################
 # Define method for checking if the label needs to be accounted for 
 function _ignore_label(
-    model::JuMP.Model, 
+    backend::TranscriptionBackend, 
     label::Type{<:InfiniteOpt.AbstractSupportLabel}
     )
     return label == InfiniteOpt.All || 
-           (!has_internal_supports(model) && 
+           (!has_internal_supports(backend) && 
            label == InfiniteOpt.PublicLabel)
 end
 
+## truncate a collection according to a label
+# 0-Array
+function _truncate_by_label(
+    arr::Array{T, 0},
+    labels::Tuple{},
+    label,
+    ::Nothing
+    ) where {T}
+    return arr
+end
+
+# Vector (no valid indices to worry about)
+function _truncate_by_label(
+    arr::Vector,
+    labels::Tuple{Vector{Set{DataType}}},
+    label,
+    ::Nothing
+    )
+    inds = map(s -> any(l -> l <: label, s), labels[1])
+    return all(inds) ? arr : arr[inds]
+end
+
+# Vector (has 1-D valid indices to enforce)
+function _truncate_by_label(
+    arr::Vector,
+    labels::Tuple{Vector{Set{DataType}}},
+    label,
+    valid_idxs::Vector{Bool}
+    )
+    new_labels = (labels[1][valid_idxs], )
+    return _truncate_by_label(arr, new_labels, label, nothing)
+end
+
+# Vector (has N-D valid indices to enforce)
+function _truncate_by_label(
+    arr::Vector,
+    labels::NTuple{N, Vector{Set{DataType}}},
+    label,
+    valid_idxs::Array{Bool, N}
+    ) where {N}
+    label_idx_array = zeros(Bool, size(valid_idxs)...)
+    label_idxs = (map(s -> any(l -> l <: label, s), sets) for sets in labels)
+    label_idx_array[label_idxs...] .= true
+    return arr[label_idx_array[valid_idxs]]
+end
+
+# Array
+function _truncate_by_label(
+    arr::Array{T, N},
+    labels::NTuple{N, Vector{Set{DataType}}},
+    label,
+    ::Nothing
+    ) where {T, N}
+    return arr[(map(s -> any(l -> l <: label, s), sets) for sets in labels)...]
+end
+
+# High-level
+function _truncate_by_label(arr, ref, label, group_idxs, backend)
+    data = backend.data
+    labels = Tuple(data.support_labels[i][1:end-1] for i in group_idxs)
+    valid_idxs = get(data.valid_indices, ref, nothing)
+    return _truncate_by_label(arr, labels, label, valid_idxs)
+end
+
 """
-    transcription_variable(model::JuMP.Model,
-        vref::InfiniteOpt.GeneralVariableRef;
-        [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
-         ndarray::Bool = false])
+    transcription_variable(
+        vref::InfiniteOpt.GeneralVariableRef,
+        backend::TranscriptionBackend;
+        [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel]
+         )
 
 Return the transcribed variable reference(s) corresponding to `vref`. Errors
 if no transcription variable is found. Also can query via the syntax:
 ```julia
-transcription_variable(vref::InfiniteOpt.GeneralVariableRef; 
-    [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
-     ndarray::Bool = false])
+transcription_variable(
+    vref::InfiniteOpt.GeneralVariableRef;
+    [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel]
+    )
 ```
-If the infinite model contains a built transcription model. By default, this
+If the infinite model contains a built `TranscriptionBackend`. By default, this
 method returns only transcribed variables associated with public supports. All the 
 variables can be returned by setting `label = All`. 
 
-If `vref` is infinite and `ndarray = true` then an n-dimensional array will be 
-returned in accordance with the infinite parameters that have unique object 
-numbers. In this case, `label` will be used to search the intersection of variable 
+If `vref` is infinite, then `label` will be used to search the intersection of variable 
 supports that use the label. This is defers from the default behavior which 
 considers the union.
 
 **Example**
 ```julia-repl
-julia> transcription_variable(trans_model, infvar)
+julia> transcription_variable(infvar, trans_backend)
 2-element Array{VariableRef,1}:
- infvar(support: 1)
- infvar(support: 2)
+ infvar[1]
+ infvar[2]
 
-julia> transcription_variable(trans_model, hdvar)
+julia> transcription_variable(hdvar, trans_backend)
 hdvar
 
 julia> transcription_variable(infvar)
 2-element Array{VariableRef,1}:
- infvar(support: 1)
- infvar(support: 2)
+ infvar[1]
+ infvar[2]
 
 julia> transcription_variable(hdvar)
 hdvar
 ```
 """
 function transcription_variable(
-    model::JuMP.Model,
-    vref::InfiniteOpt.GeneralVariableRef;
-    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
-    ndarray::Bool = false
+    vref::InfiniteOpt.GeneralVariableRef,
+    backend::TranscriptionBackend;
+    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel
     )
-    return transcription_variable(model, vref, InfiniteOpt._index_type(vref), 
-                                  label, ndarray)
+    return transcription_variable(
+        vref,
+        InfiniteOpt._index_type(vref),
+        backend,
+        label
+        )
 end
 
 # define convenient aliases
-const InfVarIndex = Union{InfiniteOpt.InfiniteVariableIndex,
-                          InfiniteOpt.SemiInfiniteVariableIndex,
-                          InfiniteOpt.DerivativeIndex}
-const FinVarIndex = Union{InfiniteOpt.FiniteVariableIndex,
-                          InfiniteOpt.PointVariableIndex}
+const InfVarIndex = Union{
+    InfiniteOpt.InfiniteVariableIndex,
+    InfiniteOpt.SemiInfiniteVariableIndex,
+    InfiniteOpt.DerivativeIndex
+    }
+const FinVarIndex = Union{
+    InfiniteOpt.FiniteVariableIndex,
+    InfiniteOpt.PointVariableIndex
+    }
 
 ## Define the variable mapping functions
 # FinVarIndex
 function transcription_variable(
-    model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
-    index_type::Type{V},
-    label::Type{<:InfiniteOpt.AbstractSupportLabel},
-    ndarray::Bool
+    ::Type{V},
+    backend::TranscriptionBackend,
+    label::Type{<:InfiniteOpt.AbstractSupportLabel}
     ) where {V <: FinVarIndex}
-    var = get(transcription_data(model).finvar_mappings, vref, nothing)
+    var = get(transcription_data(backend).finvar_mappings, vref, nothing)
     if isnothing(var)
-        error("Variable reference $vref not used in transcription model.")
+        error("Variable reference $vref not used in transcription backend.")
     end
     return var
 end
 
 # InfVarIndex
 function transcription_variable(
-    model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
-    index_type::Type{V},
-    label::Type{<:InfiniteOpt.AbstractSupportLabel},
-    ndarray::Bool
+    ::Type{V},
+    backend::TranscriptionBackend,
+    label::Type{<:InfiniteOpt.AbstractSupportLabel}
     ) where {V <: InfVarIndex}
-    vars = get(transcription_data(model).infvar_mappings, vref, nothing)
+    vars = get(transcription_data(backend).infvar_mappings, vref, nothing)
     if isnothing(vars)
-        error("Variable reference $vref not used in transcription model.")
+        error("Variable reference $vref not used in transcription backend.")
     end
-    if ndarray 
-        return make_ndarray(model, vref, vars, label)
-    elseif _ignore_label(model, label)
+    if _ignore_label(backend, label)
         return vars
     else 
-        labels = transcription_data(model).infvar_support_labels[vref]
-        inds = map(s -> any(l -> l <: label, s), labels)
-        return vars[inds]
+        group_idxs = InfiniteOpt.parameter_group_int_indices(vref)
+        return _truncate_by_label(vars, vref, label, group_idxs, backend)
     end
 end
 
 # ParameterFunctionIndex
 function transcription_variable(
-    model::JuMP.Model,
     fref::InfiniteOpt.GeneralVariableRef,
-    index_type::Type{InfiniteOpt.ParameterFunctionIndex},
-    label::Type{<:InfiniteOpt.AbstractSupportLabel},
-    ndarray::Bool
+    ::Type{InfiniteOpt.ParameterFunctionIndex},
+    backend::TranscriptionBackend,
+    label::Type{<:InfiniteOpt.AbstractSupportLabel}
     )
-    # get the object numbers of the expression and form the support iterator
-    obj_nums = InfiniteOpt._object_numbers(fref)
-    support_indices = support_index_iterator(model, obj_nums)
-    vals = Vector{Float64}(undef, length(support_indices))
-    check_labels = length(vals) > 1 && !_ignore_label(model, label)
-    label_inds = ones(Bool, length(vals))
+    # get the parameter group integer indices of the expression and form the support iterator
+    group_idxs = InfiniteOpt.parameter_group_int_indices(fref)
+    support_indices = support_index_iterator(backend, group_idxs)
+    dims = size(support_indices)[group_idxs]
+    vals = Array{Float64, length(dims)}(undef, dims...)
     # iterate over the indices and compute the values
-    for (i, idx) in enumerate(support_indices)
-        supp = index_to_support(model, idx)
-        if check_labels && !any(l -> l <: label, index_to_labels(model, idx))
-            @inbounds label_inds[i] = false
-        end
-        @inbounds vals[i] = transcription_expression(model, fref, supp)
+    for idx in support_indices
+        supp = index_to_support(backend, idx)
+        val_idx = idx.I[group_idxs]
+        @inbounds vals[val_idx...] = transcription_expression(fref, backend, supp)
     end
     # return the values
-    if ndarray
-        return make_ndarray(model, fref, vals, label)
+    if _ignore_label(backend, label)
+        return vals
     else
-        return vals[label_inds]
+        return _truncate_by_label(vals, fref, label, group_idxs, backend)
     end
 end
 
 # Fallback
-function transcription_variable(model::JuMP.Model,
+function transcription_variable(
     vref::InfiniteOpt.GeneralVariableRef,
     index_type,
-    label,
-    ndarray
+    backend::TranscriptionBackend,
+    label
     )
     error("`transcription_variable` not defined for variables with indices of " *
           "type $(index_type) and/or is not defined for labels of type $(label).")
 end
 
-# Dispatch for internal models
+# Dispatch for internal backends
 function transcription_variable(
     vref::InfiniteOpt.GeneralVariableRef; 
-    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel, 
-    ndarray::Bool = false
+    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel
     )
-    trans_model = InfiniteOpt.optimizer_model(JuMP.owner_model(vref))
-    return transcription_variable(trans_model, vref, label = label, 
-                                  ndarray = ndarray)
+    return transcription_variable(
+        vref,
+        JuMP.owner_model(vref).backend,
+        label = label
+        )
 end
 
 """
-    InfiniteOpt.optimizer_model_variable(vref::InfiniteOpt.GeneralVariableRef,
-        ::Val{:TransData};
-        [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
-        ndarray::Bool = false])
+    InfiniteOpt.transformation_variable(
+        vref::InfiniteOpt.GeneralVariableRef,
+        [backend::TranscriptionBackend];
+        [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel]
+        )
 
-Proper extension of [`InfiniteOpt.optimizer_model_variable`](@ref) for
-`TranscriptionModel`s. This simply dispatches to [`transcription_variable`](@ref).
+Proper extension of [`InfiniteOpt.transformation_variable`](@ref) for
+`TranscriptionBackend`s. This simply dispatches to [`transcription_variable`](@ref).
 """
-function InfiniteOpt.optimizer_model_variable(
+function InfiniteOpt.transformation_variable(
     vref::InfiniteOpt.GeneralVariableRef,
-    ::Val{:TransData};
-    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
-    ndarray::Bool = false
+    backend::TranscriptionBackend;
+    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel
     )
-    return transcription_variable(vref, label = label, ndarray = ndarray)
+    return transcription_variable(vref, backend, label = label)
 end
 
 """
-    InfiniteOpt.variable_supports(model::JuMP.Model,
+    InfiniteOpt.variable_supports(
         vref::InfiniteOpt.DecisionVariableRef,
-        key::Val{:TransData} = Val(:TransData);
-        [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
-        ndarray::Bool = false])
+        backend::TranscriptionBackend;
+        [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel]
+        )
 
-Return the support alias mapping associated with `vref` in the transcription model.
-Errors if `vref` does not have transcripted variables. See `transcription_variable` 
-for an explanation of `ndarray`.
+Return the support alias mapping associated with `vref` in the transcription backend.
+Errors if `vref` does not have transcripted variables.
 """
 function InfiniteOpt.variable_supports(
-    model::JuMP.Model,
-    dvref::Union{InfiniteOpt.InfiniteVariableRef, InfiniteOpt.SemiInfiniteVariableRef, 
-                 InfiniteOpt.DerivativeRef},
-    key::Val{:TransData} = Val(:TransData);
-    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
-    ndarray::Bool = false
+    dvref::Union{
+        InfiniteOpt.InfiniteVariableRef,
+        InfiniteOpt.SemiInfiniteVariableRef, 
+        InfiniteOpt.DerivativeRef
+        },
+    backend::TranscriptionBackend;
+    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel
     )
-    vref = InfiniteOpt._make_variable_ref(JuMP.owner_model(dvref), JuMP.index(dvref))
-    if !haskey(transcription_data(model).infvar_mappings, vref)
-        error("Variable reference $vref not used in transcription model.")
-    elseif !haskey(transcription_data(model).infvar_supports, vref)
-        prefs = InfiniteOpt.raw_parameter_refs(dvref)
-        lookups = transcription_data(model).infvar_lookup[vref]
-        type = typeof(Tuple(first(keys(lookups)), prefs))
-        supps = Vector{type}(undef, length(lookups))
-        for (s, i) in lookups
-            supps[i] = Tuple(s, prefs)
-        end
-        transcription_data(model).infvar_supports[vref] = supps
+    vref = InfiniteOpt.GeneralVariableRef(JuMP.owner_model(dvref), JuMP.index(dvref))
+    if !haskey(transcription_data(backend).infvar_mappings, vref)
+        error("Variable reference $vref not used in transcription backend.")
     end
-    supps = transcription_data(model).infvar_supports[vref]
-    if ndarray 
-        return make_ndarray(model, dvref, supps, label)
-    elseif _ignore_label(model, label)
+    supps = transcription_data(backend).infvar_supports[vref]
+    if _ignore_label(backend, label)
         return supps
-    else 
-        labels = transcription_data(model).infvar_support_labels[vref]
-        inds = map(s -> any(l -> l <: label, s), labels)
-        return supps[inds]
+    else
+        group_idxs = InfiniteOpt.parameter_group_int_indices(dvref)
+        return _truncate_by_label(supps, vref, label, group_idxs, backend)
     end
 end
 
 # ParameterFunctionRef 
 function InfiniteOpt.variable_supports(
-    model::JuMP.Model,
-    dvref::InfiniteOpt.ParameterFunctionRef,
-    key::Val{:TransData} = Val(:TransData);
-    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
-    ndarray::Bool = false
+    fref::InfiniteOpt.ParameterFunctionRef,
+    backend::TranscriptionBackend;
+    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel
     )
-    # get the object numbers of the expression and form the support iterator
-    obj_nums = sort(InfiniteOpt._object_numbers(dvref))
-    support_indices = support_index_iterator(model, obj_nums)
-    supps = Vector{Tuple}(undef, length(support_indices))
-    check_labels = length(supps) > 1 && !_ignore_label(model, label)
-    param_supps = parameter_supports(model)
-    label_inds = ones(Bool, length(supps))
+    # get the parameter group integer indices of the expression and form the support iterator
+    group_idxs = InfiniteOpt.parameter_group_int_indices(fref)
+    support_indices = support_index_iterator(backend, group_idxs)
+    dims = size(support_indices)[group_idxs]
+    supps = Array{Tuple, length(dims)}(undef, dims...)
+    param_supps = parameter_supports(backend)
     # iterate over the indices and compute the values
-    for (i, idx) in enumerate(support_indices)
-        if check_labels && !any(l -> l <: label, index_to_labels(model, idx))
-            @inbounds label_inds[i] = false
-        end
-        @inbounds supps[i] = Tuple(param_supps[j][idx[j]] for j in obj_nums)
+    for idx in support_indices
+        val_idx = idx.I[group_idxs]
+        @inbounds supps[val_idx...] = Tuple(param_supps[j][idx[j]] for j in group_idxs)
     end
-    # return the supports
-    if ndarray
-        return make_ndarray(model, dvref, supps, label)
+    # return the values
+    if _ignore_label(backend, label)
+        return supps
     else
-        return supps[label_inds]
+        return _truncate_by_label(supps, fref, label, group_idxs, backend)
     end
 end
 
 """
-    lookup_by_support(model::JuMP.Model,
-                      vref::InfiniteOpt.GeneralVariableRef,
-                      support::Vector)
+    lookup_by_support(
+        vref::InfiniteOpt.GeneralVariableRef,
+        backend::TranscriptionBackend,
+        support::Vector
+        )
 
 Return the transcription expression of `vref` defined at its `support`. This is
 intended as a helper method for automated transcription.
 """
 function lookup_by_support(
-    model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
+    backend::TranscriptionBackend,
     support::Vector
     )
-    return lookup_by_support(model, vref, InfiniteOpt._index_type(vref), support)
+    return lookup_by_support(vref, InfiniteOpt._index_type(vref), backend, support)
 end
 
 # define error function for not being able to find a variable by its support
-_supp_error() = error("Unable to locate transcription variable by support, ", 
-                      "consider rebuilding the infinite model with less ", 
-                      "significant digits. Note this might be due to partially ",
-                      "evaluating dependent parameters which is not supported ", 
-                      "by TranscriptionOpt. Such is the case with " * 
-                      "derivatives/measures that dependent on single ", 
-                      "dependent parameters.")
+_supp_error() = error("""
+    Unable to locate transcription variable by support, consider rebuilding the 
+    infinite model with less significant digits. Note this might be due to partially
+    evaluating dependent parameters which is not supported by TranscriptionOpt. Such 
+    is the case with derivatives/measures that dependent on single dependent 
+    parameters.
+    """)
 
 # InfiniteIndex
 function lookup_by_support(
-    model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
-    index_type::Type{V},
+    ::Type{V},
+    backend::TranscriptionBackend,
     support::Vector
     ) where {V <: InfVarIndex}
-    if !haskey(transcription_data(model).infvar_lookup, vref)
-        error("Variable reference $vref not used in transcription model.")
+    if !haskey(transcription_data(backend).infvar_lookup, vref)
+        error("Variable reference $vref not used in transcription backend.")
     end
-    idx = get(_supp_error, transcription_data(model).infvar_lookup[vref], support)
-    return transcription_data(model).infvar_mappings[vref][idx]
+    return get(_supp_error, transcription_data(backend).infvar_lookup[vref], support)
 end
 
 # ParameterFunctionIndex
 function lookup_by_support(
-    model::JuMP.Model,
     fref::InfiniteOpt.GeneralVariableRef,
-    index_type::Type{InfiniteOpt.ParameterFunctionIndex},
+    ::Type{InfiniteOpt.ParameterFunctionIndex},
+    backend::TranscriptionBackend,
     support::Vector
     )
     prefs = InfiniteOpt.raw_parameter_refs(fref)
-    func = InfiniteOpt.raw_function(fref)
     return InfiniteOpt.call_function(fref, Tuple(support, prefs)...)
 end
 
 # FiniteIndex
 function lookup_by_support(
-    model::JuMP.Model,
     vref::InfiniteOpt.GeneralVariableRef,
-    index_type::Type{V},
+    ::Type{V},
+    backend::TranscriptionBackend,
     support::Vector
     ) where {V <: FinVarIndex}
-    if !haskey(transcription_data(model).finvar_mappings, vref)
-        error("Variable reference $vref not used in transcription model.")
+    if !haskey(transcription_data(backend).finvar_mappings, vref)
+        error("Variable reference $vref not used in transcription backend.")
     end
-    return transcription_data(model).finvar_mappings[vref]
+    return transcription_data(backend).finvar_mappings[vref]
 end
 
 """
     InfiniteOpt.internal_semi_infinite_variable(
         vref::InfiniteOpt.SemiInfiniteVariableRef,
-        ::Val{:TransData}
+        backend::TranscriptionBackend
         )::InfiniteOpt.SemiInfiniteVariable{InfiniteOpt.GeneralVariableRef}
 
 Return the internal semi-infinite variable associated with `vref`, assuming it was
@@ -509,10 +559,9 @@ docstring. Errors, if no such variable can be found.
 """
 function InfiniteOpt.internal_semi_infinite_variable(
     vref::InfiniteOpt.SemiInfiniteVariableRef,
-    ::Val{:TransData}
+    backend::TranscriptionBackend
     )
-    trans_model = InfiniteOpt.optimizer_model(JuMP.owner_model(vref))
-    semi_infinite_vars = transcription_data(trans_model).semi_infinite_vars
+    semi_infinite_vars = transcription_data(backend).semi_infinite_vars
     idx = -1 * JuMP.index(vref).value
     if idx in keys(semi_infinite_vars)
         return semi_infinite_vars[idx]
@@ -527,24 +576,20 @@ end
 ################################################################################
 # MeasureIndex
 function transcription_variable(
-    model::JuMP.Model,
     mref::InfiniteOpt.GeneralVariableRef,
-    index_type::Type{InfiniteOpt.MeasureIndex},
-    label::Type{<:InfiniteOpt.AbstractSupportLabel},
-    ndarray::Bool = false
+    ::Type{InfiniteOpt.MeasureIndex},
+    backend::TranscriptionBackend,
+    label::Type{<:InfiniteOpt.AbstractSupportLabel}
     )
-    exprs = get(transcription_data(model).measure_mappings, mref, nothing)
+    exprs = get(transcription_data(backend).measure_mappings, mref, nothing)
     if isnothing(exprs)
-        error("Measure reference $mref not used in transcription model.")
+        error("Measure reference $mref not used in transcription backend.")
     end
-    if ndarray 
-        return make_ndarray(model, mref, exprs, label)
-    elseif length(exprs) > 1 && _ignore_label(model, label)
+    if length(exprs) > 1 && _ignore_label(backend, label)
         return exprs
     elseif length(exprs) > 1
-        labels = transcription_data(model).measure_support_labels[mref]
-        inds = map(s -> any(l -> l <: label, s), labels)
-        return exprs[inds]
+        group_idxs = InfiniteOpt.parameter_group_int_indices(mref)
+        return _truncate_by_label(exprs, mref, label, group_idxs, backend)
     else 
         return first(exprs)
     end
@@ -552,49 +597,34 @@ end
 
 # Extend transcription_expression
 function lookup_by_support(
-    model::JuMP.Model,
     mref::InfiniteOpt.GeneralVariableRef,
-    index_type::Type{InfiniteOpt.MeasureIndex},
+    ::Type{InfiniteOpt.MeasureIndex},
+    backend::TranscriptionBackend,
     support::Vector
     )
-    if !haskey(transcription_data(model).measure_lookup, mref)
-        error("Measure reference $mref not used in transcription model.")
+    if !haskey(transcription_data(backend).measure_lookup, mref)
+        error("Measure reference $mref not used in transcription backend.")
     end
-    idx = get(_supp_error, transcription_data(model).measure_lookup[mref], support)
-    return transcription_data(model).measure_mappings[mref][idx]
+    idx = get(_supp_error, transcription_data(backend).measure_lookup[mref], support)
+    return transcription_data(backend).measure_mappings[mref][idx]
 end
 
 # Extend variable_supports
 function InfiniteOpt.variable_supports(
-    model::JuMP.Model,
     dmref::InfiniteOpt.MeasureRef,
-    key::Val{:TransData} = Val(:TransData);
-    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
-    ndarray::Bool = false
+    backend::TranscriptionBackend;
+    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel
     )
-    mref = InfiniteOpt._make_variable_ref(JuMP.owner_model(dmref), JuMP.index(dmref))
-    if !haskey(transcription_data(model).measure_mappings, mref)
-        error("Measure reference $mref not used in transcription model.")
-    elseif !haskey(transcription_data(model).measure_supports, mref)
-        lookups = transcription_data(model).measure_lookup[mref]
-        prefs = InfiniteOpt.parameter_refs(dmref)
-        vt_prefs = InfiniteOpt.Collections.VectorTuple(prefs)
-        type = typeof(Tuple(first(keys(lookups)), vt_prefs))
-        supps = Vector{type}(undef, length(lookups))
-        for (supp, i) in lookups
-            supps[i] = Tuple(supp, vt_prefs)
-        end
-        transcription_data(model).measure_supports[mref] = supps
+    mref = InfiniteOpt.GeneralVariableRef(JuMP.owner_model(dmref), JuMP.index(dmref))
+    if !haskey(transcription_data(backend).measure_mappings, mref)
+        error("Measure reference $mref not used in transcription backend.")
     end
-    supps = transcription_data(model).measure_supports[mref]
-    if ndarray
-        return make_ndarray(model, dmref, supps, label)
-    elseif length(supps) > 1 && _ignore_label(model, label)
+    supps = transcription_data(backend).measure_supports[mref]
+    if length(supps) > 1 && _ignore_label(backend, label)
         return supps
     elseif length(supps) > 1
-        labels = transcription_data(model).measure_support_labels[mref]
-        inds = map(s -> any(l -> l <: label, s), labels)
-        return supps[inds]
+        group_idxs = InfiniteOpt.parameter_group_int_indices(mref)
+        return _truncate_by_label(supps, mref, label, group_idxs, backend)
     else 
         return first(supps)
     end
@@ -605,265 +635,239 @@ end
 ################################################################################
 """
     transcription_expression(
-        model::JuMP.Model,
-        expr::JuMP.AbstractJuMPScalar;
-        [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
-        ndarray::Bool = false])
+        expr::JuMP.AbstractJuMPScalar,
+        backend::TranscriptionBackend;
+        [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel]
+        )
 
 Return the transcribed expression(s) corresponding to `expr`. Errors
 if `expr` cannot be transcribed. Also can query via the syntax:
 ```julia
-transcription_expression(expr::JuMP.AbstractJuMPScalar;
-                         [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
-                         ndarray::Bool = false])
+transcription_expression(
+    expr::JuMP.AbstractJuMPScalar;
+    [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel]
+    )
 ```
-If the infinite model contains a built transcription model. By default, this
+If the infinite model contains a built transcription backend. By default, this
 method returns only transcribed expressions associated with public supports. All the 
 expressions can be returned by setting `label = All`.
 
-If `expr` is infinite and `ndarray = true` then an n-dimensional array will be 
-returned in accordance with the infinite parameters that have unique object 
-numbers. In this case, `label` will be used to search the intersection of the
+If `expr` is infinite, then `label` will be used to search the intersection of the
 supports that use the label. This is defers from the default behavior which 
 considers the union.
 
 **Example**
 ```julia-repl
-julia> transcription_expression(trans_model, my_expr)
-x(support: 1) - y
+julia> transcription_expression(my_expr, backend)
+x[1] - y
 
 julia> transcription_expression(my_expr)
-x(support: 1) - y
+x[1] - y
 ```
 """
 function transcription_expression(
-    model::JuMP.Model,
-    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr, JuMP.GenericNonlinearExpr};
-    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
-    ndarray::Bool = false
+    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr, JuMP.GenericNonlinearExpr},
+    backend::TranscriptionBackend;
+    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel
     )
-    # get the object numbers of the expression and form the support iterator
-    obj_nums = InfiniteOpt._object_numbers(expr)
-    support_indices = support_index_iterator(model, obj_nums)
-    exprs = Vector{JuMP.AbstractJuMPScalar}(undef, length(support_indices))
-    check_labels = length(exprs) > 1 && !_ignore_label(model, label)
-    label_inds = ones(Bool, length(exprs))
+    # get the parameter group integer indices of the expression and form the support iterator
+    group_idxs = InfiniteOpt.parameter_group_int_indices(expr)
+    support_indices = support_index_iterator(backend, group_idxs)
+    dims = size(support_indices)[group_idxs]
+    exprs = Array{JuMP.AbstractJuMPScalar, length(dims)}(undef, dims...)
     # iterate over the indices and compute the values
-    for (i, idx) in enumerate(support_indices)
-        supp = index_to_support(model, idx)
-        if check_labels && !any(l -> l <: label, index_to_labels(model, idx))
-            @inbounds label_inds[i] = false
-        end
-        @inbounds exprs[i] = transcription_expression(model, expr, supp)
+    for idx in support_indices
+        supp = index_to_support(backend, idx)
+        expr_idx = idx.I[group_idxs]
+        @inbounds exprs[expr_idx...] = transcription_expression(expr, backend, supp)
     end
-    # return the expressions
-    if ndarray
-        return make_ndarray(model, expr, exprs, label)
-    else
-        exprs = exprs[label_inds]
-        return length(support_indices) > 1 ? exprs : first(exprs)
+    # return the values
+    if !_ignore_label(backend, label)
+        exprs = _truncate_by_label(exprs, nothing, label, group_idxs, backend)
     end
+    return length(support_indices) > 1 ? exprs : first(exprs)
 end
 
 # Define for variables
 function transcription_expression(
-    model::JuMP.Model,
-    vref::InfiniteOpt.GeneralVariableRef; 
-    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
-    ndarray::Bool = false)
-    return transcription_variable(model, vref, label = label, ndarray = ndarray)
+    vref::InfiniteOpt.GeneralVariableRef,
+    backend::TranscriptionBackend; 
+    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel)
+    return transcription_variable(vref, backend, label = label)
 end
 
-# Dispatch for internal models
+# Dispatch for internal backends
 function transcription_expression(
     expr::JuMP.AbstractJuMPScalar; 
-    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
-    ndarray::Bool = false
+    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel
     )
     model = JuMP.owner_model(expr)
-    if isnothing(model)
-        return zero(JuMP.AffExpr) + JuMP.constant(expr)
-    else
-        trans_model = InfiniteOpt.optimizer_model(model)
-    end
-    return transcription_expression(trans_model, expr, label = label, 
-                                    ndarray = ndarray)
+    isnothing(model) && return zero(JuMP.AffExpr) + JuMP.constant(expr)
+    return transcription_expression(
+        expr,
+        model.backend,
+        label = label
+        )
 end
 
 """
-    InfiniteOpt.optimizer_model_expression(expr::JuMP.AbstractJuMPScalar,
-        ::Val{:TransData};
-        [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
-        ndarray::Bool = false])
-
-Proper extension of [`InfiniteOpt.optimizer_model_expression`](@ref) for
-`TranscriptionModel`s. This simply dispatches to [`transcription_expression`](@ref).
-"""
-function InfiniteOpt.optimizer_model_expression(
-    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr, JuMP.GenericNonlinearExpr},
-    ::Val{:TransData};
-    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
-    ndarray::Bool = false)
-    return transcription_expression(expr, label = label, ndarray = ndarray)
-end
-
-"""
-    InfiniteOpt.expression_supports(model::JuMP.Model,
+    InfiniteOpt.transformation_expression(
         expr::JuMP.AbstractJuMPScalar,
-        key::Val{:TransData} = Val(:TransData);
-        [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
-        ndarray::Bool = false])
+        backend::TranscriptionBackend;
+        [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel]
+        )
+
+Proper extension of [`InfiniteOpt.transformation_expression`](@ref) for
+`TranscriptionBackend`s. This simply dispatches to [`transcription_expression`](@ref).
+"""
+function InfiniteOpt.transformation_expression(
+    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr, JuMP.GenericNonlinearExpr},
+    backend::TranscriptionBackend;
+    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel
+    )
+    return transcription_expression(expr, backend, label = label)
+end
+
+"""
+    InfiniteOpt.expression_supports(
+        expr::JuMP.AbstractJuMPScalar,
+        backend::TranscriptionBackend;
+        [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel]
+        )
 
 Return the support alias mappings associated with `expr`. Errors if `expr` cannot
 be transcribed.
 """
 function InfiniteOpt.expression_supports(
-    model::JuMP.Model,
     expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr, JuMP.GenericNonlinearExpr},
-    key::Val{:TransData} = Val(:TransData);
-    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
-    ndarray::Bool = false
+    backend::TranscriptionBackend;
+    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel
     )
-    # get the object numbers of the expression and form the support iterator
-    obj_nums = sort(InfiniteOpt._object_numbers(expr))
-    support_indices = support_index_iterator(model, obj_nums)
-    supps = Vector{Tuple}(undef, length(support_indices))
-    check_labels = length(supps) > 1 && !_ignore_label(model, label)
-    param_supps = parameter_supports(model)
-    label_inds = ones(Bool, length(supps))
+    # get the parameter group integer indices of the expression and form the support iterator
+    group_idxs = InfiniteOpt.parameter_group_int_indices(expr)
+    support_indices = support_index_iterator(backend, group_idxs)
+    dims = size(support_indices)[group_idxs]
+    supps = Array{Tuple, length(dims)}(undef, dims...)
+    param_supps = parameter_supports(backend)
     # iterate over the indices and compute the values
-    for (i, idx) in enumerate(support_indices)
-        if check_labels && !any(l -> l <: label, index_to_labels(model, idx))
-            @inbounds label_inds[i] = false
-        end
-        @inbounds supps[i] = Tuple(param_supps[j][idx[j]] for j in obj_nums)
+    for idx in support_indices
+        expr_idx = idx.I[group_idxs]
+        @inbounds supps[expr_idx...] = Tuple(param_supps[j][idx[j]] for j in group_idxs)
     end
-    # return the supports
-    if ndarray
-        return make_ndarray(model, expr, supps, label)
-    else
-        supps = supps[label_inds]
-        return length(support_indices) > 1 ? supps : first(supps)
+    # return the values
+    if !_ignore_label(backend, label)
+        supps = _truncate_by_label(supps, nothing, label, group_idxs, backend)
     end
+    return length(support_indices) > 1 ? supps : first(supps)
 end
 
 ################################################################################
 #                             CONSTRAINT QUERIES
 ################################################################################
 """
-    transcription_constraint(model::JuMP.Model,
-        cref::InfiniteOpt.InfOptConstraintRef;
-        [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
-        ndarray::Bool = false])
+    transcription_constraint(
+        cref::InfiniteOpt.InfOptConstraintRef,
+        backend::TranscriptionBackend;
+        [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel]
+        )
 
 Return the transcribed constraint reference(s) corresponding to `cref`. Errors
 if `cref` has not been transcribed. Also can query via the syntax:
 ```julia
-transcription_constraint(cref::InfiniteOpt.InfOptConstraintRef;
-    [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
-    ndarray::Bool = false])
+transcription_constraint(
+    cref::InfiniteOpt.InfOptConstraintRef;
+    [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel]
+    )
 ```
-If the infinite model contains a built transcription model. By default, this
+If the infinite model contains a built transcription backend. By default, this
 method returns only transcribed constraints associated with public supports. All the 
 constraints can be returned by setting `label = All`.
 
-If `cref` is infinite and `ndarray = true` then an n-dimensional array will be 
-returned in accordance with the infinite parameters that have unique object 
-numbers. In this case, `label` will be used to search the intersection of the
+If `cref` is infinite, then `label` will be used to search the intersection of the
 supports that use the label. This is defers from the default behavior which 
 considers the union.
 
 **Example**
 ```julia-repl
-julia> transcription_constraint(trans_model, fin_con)
-fin_con : x(support: 1) - y <= 3.0
+julia> transcription_constraint(fin_con, backend)
+fin_con : x[1] - y <= 3.0
 
 julia> transcription_constraint(fin_con)
-fin_con : x(support: 1) - y <= 3.0
+fin_con : x[1] - y <= 3.0
 ```
 """
 function transcription_constraint(
-    model::JuMP.Model,
-    cref::InfiniteOpt.InfOptConstraintRef;
-    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
-    ndarray::Bool = false
+    cref::InfiniteOpt.InfOptConstraintRef,
+    backend::TranscriptionBackend;
+    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel
     )
-    constr = get(transcription_data(model).constr_mappings, cref, nothing)
+    constr = get(transcription_data(backend).constr_mappings, cref, nothing)
     if isnothing(constr)
-        error("Constraint reference $cref not used in transcription model.")
+        error("Constraint reference $cref not used in transcription backend.")
     end
-    if ndarray 
-        return make_ndarray(model, cref, constr, label)
-    elseif length(constr) > 1 && _ignore_label(model, label)
+    if length(constr) > 1 && _ignore_label(backend, label)
         return constr
     elseif length(constr) > 1
-        labels = transcription_data(model).constr_support_labels[cref]
-        inds = map(s -> any(l -> l <: label, s), labels)
-        return constr[inds]
+        group_idxs = InfiniteOpt.parameter_group_int_indices(cref)
+        return _truncate_by_label(constr, cref, label, group_idxs, backend)
     else 
         return first(constr)
     end
 end
 
-# Dispatch for internal models
+# Dispatch for internal backends
 function transcription_constraint(
     cref::InfiniteOpt.InfOptConstraintRef;
-    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
-    ndarray::Bool = false
+    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel
     )
-    trans_model = InfiniteOpt.optimizer_model(JuMP.owner_model(cref))
-    return transcription_constraint(trans_model, cref, label = label, 
-                                    ndarray = ndarray)
+    return transcription_constraint(
+        cref,
+        JuMP.owner_model(cref).backend,
+        label = label
+        )
 end
 
 """
-    InfiniteOpt.optimizer_model_constraint(
+    InfiniteOpt.transformation_constraint(
         cref::InfiniteOpt.InfOptConstraintRef,
-        ::Val{:TransData};
-        [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel
-        ndarray::Bool = false])
+        backend::TranscriptionBackend;
+        [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel]
+        )
 
-Proper extension of [`InfiniteOpt.optimizer_model_constraint`](@ref) for
-`TranscriptionModel`s. This simply dispatches to [`transcription_constraint`](@ref).
+Proper extension of [`InfiniteOpt.transformation_constraint`](@ref) for
+`TranscriptionBackend`s. This simply dispatches to [`transcription_constraint`](@ref).
 """
-function InfiniteOpt.optimizer_model_constraint(
+function InfiniteOpt.transformation_constraint(
     cref::InfiniteOpt.InfOptConstraintRef,
-    ::Val{:TransData};
-    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
-    ndarray::Bool = false
+    backend::TranscriptionBackend;
+    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel
     )
-    return transcription_constraint(cref, label = label, ndarray = ndarray)
+    return transcription_constraint(cref, backend, label = label)
 end
 
 """
-    InfiniteOpt.constraint_supports(model::JuMP.Model,
+    InfiniteOpt.constraint_supports(
         cref::InfiniteOpt.InfOptConstraintRef,
-        key::Val{:TransData} = Val(:TransData);
-        [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
-        ndarray::Bool = false])
+        backend::TranscriptionBackend;
+        [label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel])
 
 Return the support alias mappings associated with `cref`. Errors if `cref` is
 not transcribed.
 """
 function InfiniteOpt.constraint_supports(
-    model::JuMP.Model,
     cref::InfiniteOpt.InfOptConstraintRef,
-    key::Val{:TransData} = Val(:TransData);
-    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel,
-    ndarray::Bool = false
+    backend::TranscriptionBackend;
+    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel
     )
-    supps = get(transcription_data(model).constr_supports, cref, nothing)
+    supps = get(transcription_data(backend).constr_supports, cref, nothing)
     if isnothing(supps)
-        error("Constraint reference $cref not used in transcription model.")
+        error("Constraint reference $cref not used in transcription backend.")
     end
-    if ndarray 
-        return make_ndarray(model, cref, supps, label)
-    elseif length(supps) > 1 && _ignore_label(model, label)
+    if length(supps) > 1 && _ignore_label(backend, label)
         return supps
     elseif length(supps) > 1
-        labels = transcription_data(model).constr_support_labels[cref]
-        inds = map(s -> any(l -> l <: label, s), labels)
-        return supps[inds]
+        group_idxs = InfiniteOpt.parameter_group_int_indices(cref)
+        return _truncate_by_label(supps, cref, label, group_idxs, backend)
     else 
         return first(supps)
     end
@@ -873,142 +877,56 @@ end
 #                             OTHER QUERIES
 ################################################################################
 """
-    parameter_supports(model::JuMP.Model)::Tuple
+    parameter_supports(backend::TranscriptionBackend)::Tuple
 
 Return the collected parameter support tuple that is stored in
 `TranscriptionData.supports`.
 """
-function parameter_supports(model::JuMP.Model)
-    return transcription_data(model).supports
+function parameter_supports(backend::TranscriptionBackend)
+    return transcription_data(backend).supports
 end
 
 """
-    support_index_iterator(model::JuMP.Model, [obj_nums::Vector{Int}])::CartesianIndices
+    support_index_iterator(backend::TranscriptionBackend, [group_int_idxs::Vector{Int}])::CartesianIndices
 
 Return the `CartesianIndices` that determine the indices of the unique combinations
-of `TranscriptionData.supports` stored in `model`. If `obj_nums` is specified,
+of `TranscriptionData.supports` stored in `backend`. If `group_int_idxs` is specified,
 then the indices will only include the tuple elements uses indices are included
-in the object numbers `obj_nums` and all others will be assigned the last index
+in the parameter group integer indices `group_int_idxs` and all others will be assigned the last index
 which should correspond to an appropriately sized placeholder comprised of `NaN`s.
 Note this method assumes that [`set_parameter_supports`](@ref) has already been
 called and that the last elements of each support vector contains a placeholder
 value.
 """
-function support_index_iterator(model::JuMP.Model)
-    raw_supps = parameter_supports(model)
+function support_index_iterator(backend::TranscriptionBackend)
+    raw_supps = parameter_supports(backend)
     return CartesianIndices(ntuple(i -> 1:length(raw_supps[i])-1, length(raw_supps)))
 end
 
-# Generate for a subset of object numbers (use last index as placeholder --> support with NaNs)
+# Generate for a subset of parameter group integer indices (use last index as placeholder --> support with NaNs)
 function support_index_iterator(
-    model::JuMP.Model,
-    obj_nums::Vector{Int}
-    )::CartesianIndices
-    raw_supps = parameter_supports(model)
+    backend::TranscriptionBackend,
+    group_int_idxs::Vector{Int}
+    )
+    raw_supps = parameter_supports(backend)
     lens = map(i -> length(i), raw_supps)
     # prepare the indices of each support combo
     # note that the actual supports are from 1:length-1 and the placeholders are at the ends
-    return CartesianIndices(ntuple(i -> i in obj_nums ? (1:lens[i]-1) : (lens[i]:lens[i]),
+    return CartesianIndices(ntuple(i -> i in group_int_idxs ? (1:lens[i]-1) : (lens[i]:lens[i]),
                                    length(raw_supps)))
 end
 
 """
-    index_to_support(model::JuMP.Model, index::CartesianIndex)::Vector{Float64}
+    index_to_support(backend::TranscriptionBackend, index::CartesianIndex)::Vector{Float64}
 
 Given a particular support `index` generated via [`support_index_iterator`](@ref)
-using `model`, return the corresponding support from `TranscriptionData.supports`
+using `backend`, return the corresponding support from `TranscriptionData.supports`
 using placeholder `NaN`s as appropriate for tuple elements that are unneeded.
 """
 function index_to_support(
-    model::JuMP.Model,
-    index::CartesianIndex
-    )::Vector{Float64}
-    raw_supps = parameter_supports(model)
-    return [j for i in eachindex(index.I) for j in raw_supps[i][index[i]]]
-end
-
-"""
-    index_to_labels(model::JuMP.Model, index::CartesianIndex)::Set{DataType}
-
-Given a particular support `index` generated via [`support_index_iterator`](@ref)
-using `model`, return the corresponding support label set from `TranscriptionData.support_labels`.
-"""
-function index_to_labels(
-    model::JuMP.Model,
+    backend::TranscriptionBackend,
     index::CartesianIndex
     )
-    raw_labels = transcription_data(model).support_labels
-    labels = Set{DataType}()
-    for (i, j) in enumerate(index.I)
-        union!(labels, raw_labels[i][j])
-    end
-    return labels
-end
-
-################################################################################
-#                               QUERY FORMATERS
-################################################################################
-# Helper function for getting the array type T 
-function _get_array_type(array::Array{T, N}) where {T, N}
-    return T
-end
-
-## Helper functions to consistently get object numbers 
-# Fallback
-function _get_object_numbers(ref)
-    return InfiniteOpt._object_numbers(ref)
-end 
-
-# Expressions
-function _get_object_numbers(
-    expr::Union{JuMP.GenericAffExpr, JuMP.GenericQuadExpr}
-    )
-    return sort(InfiniteOpt._object_numbers(expr))
-end 
-
-"""
-    make_narray(model::JuMP.Model, 
-                ref::Union{JuMP.AbstractJuMPScalar, InfiniteOpt.InfOptConstraintRef}, 
-                info::Vector, 
-                label::Type{<:InfiniteOpt.AbstractSupportLabel})::Array 
-
-Take the results`info` associated with `ref` and rearrange them into an 
-n-dimensional array where the axes correspond to the infinite parameter dependencies 
-in accordance with their creation. Note that this works by querying the object 
-numbers. Thus, independent infinite parameters will each get their own dimension 
-(even if they are defined at the same time in an array) and each dependent infinite 
-parameter group will have its own dimension. 
-"""
-function make_ndarray(model::JuMP.Model, ref, info::Vector, label::DataType)
-    # get the object numbers
-    obj_nums = _get_object_numbers(ref)
-    # return result if it is from a finite object
-    if isempty(obj_nums)
-        return info
-    end
-    # determine the dimensions of the new array
-    raw_supps = parameter_supports(model)
-    dims = Tuple(length(raw_supps[i]) - 1 for i in eachindex(raw_supps) if i in obj_nums)
-    # check that the lengths match (otherwise we'll have some sparse set)
-    # TODO add capability to avoid this problem (make reduced array by looking at the supports)
-    if length(info) != prod(dims)
-        error("Unable to make `ndarray`. This is likely due to the object being " * 
-              "over a portion of the infinite-domain (e.g., bounded constraints and " * 
-              "certain semi-infinite variables.")
-    end
-    # make and populate the array
-    narray = Array{_get_array_type(info)}(undef, dims)
-    for (i, idx) in enumerate(eachindex(narray))
-        narray[idx] = info[i]
-    end
-    # rearrange the array as needed to match the object number order
-    sorted_array = issorted(obj_nums) ? narray : permutedims(narray, sortperm(obj_nums)) 
-    # consider the label specified (this will enforce the intersection of labels)
-    if _ignore_label(model, label)
-        return sorted_array
-    else 
-        labels = transcription_data(model).support_labels[obj_nums]
-        inds = map(sets -> findall(s -> any(l -> l <: label, s), sets), labels)
-        return sorted_array[inds...]
-    end
+    raw_supps = parameter_supports(backend)
+    return Float64[j for i in eachindex(index.I) for j in raw_supps[i][index[i]]]
 end

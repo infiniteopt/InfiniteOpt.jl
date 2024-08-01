@@ -1,7 +1,7 @@
 name = "InfiniteOpt"
 uuid = "20393b10-9daf-11e9-18c9-8db751c92c57"
 authors = ["Joshua Pulsipher and Weiqi Zhang"]
-version = "0.5.8"
+version = "0.5.9"
 
 [deps]
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
@@ -16,15 +16,16 @@ Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 DataStructures = "0.14.2 - 0.18"
 Distributions = "0.19 - 0.25"
 FastGaussQuadrature = "0.3.2 - 0.4, 0.5, 1"
-JuMP = "1.5"
+JuMP = "1.18"
 MutableArithmetics = "1"
 Reexport = "0.2, 1"
 julia = "^1.6"
 
 [extras]
+Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Suppressor = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "Random", "Suppressor"]
+test = ["Pkg", "Test", "Random", "Suppressor"]

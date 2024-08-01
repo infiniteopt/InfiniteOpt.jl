@@ -2,7 +2,7 @@
 #                            MATH SYMBOL METHODS
 ################################################################################
 # Support additional math symbols beyond what JuMP does
-function _math_symbol(::MIME"text/plain", name::Symbol)::String
+function _math_symbol(::MIME"text/plain", name::Symbol)
     if name == :intersect
         return Sys.iswindows() ? "and" : "∩"
     elseif name == :prop
@@ -59,7 +59,7 @@ function _math_symbol(::MIME"text/plain", name::Symbol)::String
 end
 
 # Support additional math symbols beyond what JuMP does
-function _math_symbol(::MIME"text/latex", name::Symbol)::String
+function _math_symbol(::MIME"text/latex", name::Symbol)
     if name == :intersect
         return "\\cap"
     elseif name == :prop
@@ -119,30 +119,30 @@ end
 #                            INFINITE SET METHODS
 ################################################################################
 # Return "s" if n is greater than one
-_plural(n)::String = (isone(n) ? "" : "s")
+_plural(n) = (isone(n) ? "" : "s")
 
 # Round numbers in strings
-function _string_round(f::Float64)::String
+function _string_round(f::Float64)
     iszero(f) && return "0" # strip sign off zero
     str = string(f)
     return length(str) >= 2 && str[end-1:end] == ".0" ? str[1:end-2] : str
 end
-_string_round(f)::String = string(f)
+_string_round(f) = string(f)
 
 ## Return the string of an infinite domain
 # IntervalDomain
-function domain_string(print_mode, domain::IntervalDomain)::String
+function domain_string(print_mode, domain::IntervalDomain)
     return string("[", _string_round(JuMP.lower_bound(domain)), ", ",
                   _string_round(JuMP.upper_bound(domain)), "]")
 end
 
 # DistributionDomain
-function domain_string(print_mode, domain::DistributionDomain)::String
+function domain_string(print_mode, domain::DistributionDomain)
     return string(domain.distribution)
 end
 
 # CollectionDomain
-function domain_string(print_mode, domain::CollectionDomain)::String
+function domain_string(print_mode, domain::CollectionDomain)
     domains = collection_domains(domain)
     num_domains = length(domains)
     cs_string = string("CollectionDomain with ", num_domains, " domain",
@@ -162,7 +162,7 @@ end
 
 ## Return in domain strings of infinite domains
 # Extend to return of in domain string for interval domains
-function in_domain_string(print_mode, domain::IntervalDomain)::String
+function in_domain_string(print_mode, domain::IntervalDomain)
     if JuMP.lower_bound(domain) != JuMP.upper_bound(domain)
         return string(_math_symbol(print_mode, :in), " ",
                       domain_string(print_mode, domain))
@@ -173,7 +173,7 @@ function in_domain_string(print_mode, domain::IntervalDomain)::String
 end
 
 # Extend to return of in domain string for distribution domains
-function in_domain_string(print_mode, domain::DistributionDomain)::String
+function in_domain_string(print_mode, domain::DistributionDomain)
     dist = domain.distribution
     name = string(typeof(dist))
     bracket_index = findfirst(isequal('{'), name)
@@ -188,7 +188,7 @@ function in_domain_string(print_mode, domain::DistributionDomain)::String
 end
 
 # Extend to return of in domain string of other domains
-function in_domain_string(print_mode, domain::AbstractInfiniteDomain)::String
+function in_domain_string(print_mode, domain::AbstractInfiniteDomain)
     return string(_math_symbol(print_mode, :in), " ",
                   domain_string(print_mode, domain))
 end
@@ -198,7 +198,7 @@ end
 function in_domain_string(print_mode,
     pref::GeneralVariableRef,
     domain::IntervalDomain,
-    restrictions::DomainRestrictions{GeneralVariableRef})::String
+    restrictions::DomainRestrictions{GeneralVariableRef})
     # determine if in restrictions
     in_restrictions = haskey(restrictions, pref)
     # make the string
@@ -210,7 +210,7 @@ end
 function in_domain_string(print_mode,
     pref::GeneralVariableRef,
     domain::InfiniteScalarDomain,
-    restrictions::DomainRestrictions{GeneralVariableRef})::String
+    restrictions::DomainRestrictions{GeneralVariableRef})
     # determine if in restrictions
     if haskey(restrictions, pref)
         bound_domain = restrictions[pref]
@@ -234,7 +234,7 @@ end
 function measure_data_string(print_mode,
     data::Union{DiscreteMeasureData{GeneralVariableRef},
                 FunctionalDiscreteMeasureData{GeneralVariableRef}}
-    )::String
+    )
     pref = parameter_refs(data)
     lb = JuMP.lower_bound(data)
     ub = JuMP.upper_bound(data)
@@ -252,7 +252,7 @@ end
 function measure_data_string(print_mode,
     data::Union{DiscreteMeasureData{Vector{GeneralVariableRef}},
                 FunctionalDiscreteMeasureData{Vector{GeneralVariableRef}}}
-    )::String
+    )
     prefs = parameter_refs(data)
     lbs = JuMP.lower_bound(data)
     ubs = JuMP.upper_bound(data)
@@ -278,7 +278,7 @@ function measure_data_string(print_mode,
 end
 
 # extract the most compact parameter name possible
-function _get_root_parameter_name(data::AbstractMeasureData)::String 
+function _get_root_parameter_name(data::AbstractMeasureData) 
     prefs = parameter_refs(data)
     names = map(p -> _remove_name_index(p), prefs)
     if _allequal(names)
@@ -289,12 +289,12 @@ function _get_root_parameter_name(data::AbstractMeasureData)::String
 end 
 
 # Fallback for measure_data_string
-function measure_data_string(print_mode, data::AbstractMeasureData)::String
+function measure_data_string(print_mode, data::AbstractMeasureData)
     return _get_root_parameter_name(data)
 end
 
 # Make strings to represent measures in REPLMode
-function variable_string(m::MIME"text/plain", mref::MeasureRef)::String
+function variable_string(m::MIME"text/plain", mref::MeasureRef)
     data = measure_data(mref)
     data_str = measure_data_string(m, data)
     func_str = JuMP.function_string(m, measure_function(mref))
@@ -308,7 +308,7 @@ function variable_string(m::MIME"text/plain", mref::MeasureRef)::String
 end
 
 # Make strings to represent measures in IJuliaMode
-function variable_string(m::MIME"text/latex", mref::MeasureRef)::String
+function variable_string(m::MIME"text/latex", mref::MeasureRef)
     data = measure_data(mref)
     data_str = measure_data_string(m, data)
     func_str = JuMP.function_string(m, measure_function(mref))
@@ -330,7 +330,7 @@ end
 ################################################################################
 ## helper function for getting the variable names
 # REPLMode
-function _get_base_name(::MIME"text/plain", vref)::String
+function _get_base_name(::MIME"text/plain", vref)
     var_name = JuMP.name(vref)
     if !isempty(var_name)
         return var_name
@@ -340,7 +340,7 @@ function _get_base_name(::MIME"text/plain", vref)::String
 end
 
 # IJuliaMode
-function _get_base_name(::MIME"text/latex", vref)::String
+function _get_base_name(::MIME"text/latex", vref)
     var_name = JuMP.name(vref)
     if !isempty(var_name)
         # TODO: This is wrong if variable name constains extra "]"
@@ -350,28 +350,32 @@ function _get_base_name(::MIME"text/latex", vref)::String
     end
 end
 
+function _get_param_group_name(element_prefs)
+    type = _index_type(first(element_prefs))
+    if type == DependentParameterIndex
+        return _remove_name_index(first(element_prefs))
+    elseif length(element_prefs) == 1
+        return JuMP.name(first(element_prefs))
+    else
+        # TODO this isn't quite right with a subset of an independent container
+        names = map(p -> _remove_name_index(p), element_prefs)
+        if _allequal(names)
+            return first(names)
+        else
+            return string("[", join(element_prefs, ", "), "]")
+        end
+    end
+end
+
 # Helper method for infinite variable construction 
 function _add_on_parameter_refs(
     base_name::String, 
     prefs::Collections.VectorTuple
-    )::String 
+    )
     param_name_tuple = "("
     for i in 1:size(prefs, 1)
         element_prefs = prefs[i, :]
-        type = _index_type(first(element_prefs))
-        if type == DependentParameterIndex
-            param_name = _remove_name_index(first(element_prefs))
-        elseif length(element_prefs) == 1
-            param_name = JuMP.name(first(element_prefs))
-        else
-            # TODO this isn't quite right with a subset of an independent container
-            names = map(p -> _remove_name_index(p), element_prefs)
-            if _allequal(names)
-                param_name = first(names)
-            else
-                param_name = string("[", join(element_prefs, ", "), "]")
-            end
-        end
+        param_name = _get_param_group_name(element_prefs)
         if i != size(prefs, 1)
             param_name_tuple *= string(param_name, ", ")
         else
@@ -382,7 +386,7 @@ function _add_on_parameter_refs(
 end
 
 # Make a string for InfiniteVariableRef
-function variable_string(print_mode, vref::InfiniteVariableRef)::String
+function variable_string(print_mode, vref::InfiniteVariableRef)
     base_name = _get_base_name(print_mode, vref)
     if !haskey(_data_dictionary(vref), JuMP.index(vref))
         return base_name
@@ -393,7 +397,7 @@ function variable_string(print_mode, vref::InfiniteVariableRef)::String
 end
 
 # Make a string for ParameterFunctionRef
-function variable_string(print_mode, vref::ParameterFunctionRef)::String
+function variable_string(print_mode, vref::ParameterFunctionRef)
     base_name = _get_base_name(print_mode, vref)
     if !haskey(_data_dictionary(vref), JuMP.index(vref))
         return base_name
@@ -405,22 +409,33 @@ end
 
 ## Make helper function for making derivative operators 
 # REPL 
-function _deriv_operator(m::MIME"text/plain", pref)::String
-    return string(_math_symbol(m, :partial), "/", 
-                  _math_symbol(m, :partial), variable_string(m, pref))
+function _deriv_operator(m::MIME"text/plain", op_char, pref, order)
+    if order == 1
+        order_str = ""
+    elseif order == 2
+        order_str = "²"
+    else
+        order_str = "^$order"
+    end
+    return string(op_char, order_str, "/", op_char, 
+                  variable_string(m, pref), order_str)
 end
 
 # IJulia 
-function _deriv_operator(m::MIME"text/latex", pref)::String
-    return string("\\frac{", _math_symbol(m, :partial), "}{", 
-                  _math_symbol(m, :partial), " ", 
-                  variable_string(m, pref), "}")
+function _deriv_operator(m::MIME"text/latex", op_char, pref, order)
+    if order == 1
+        order_str = ""
+    else
+        order_str = "^{$order}"
+    end
+    return string("\\frac{", op_char, order_str, "}{", 
+                  op_char, " ", variable_string(m, pref), 
+                  order_str, "}")
 end
 
-# TODO implement more intelligent naming for nested derivatives (i.e., use exponents)
 # TODO account for container naming when variable macro is used (maybe deal with this at the macro end)
 # Make a string for DerivativeRef 
-function variable_string(print_mode, dref::DerivativeRef)::String
+function variable_string(print_mode, dref::DerivativeRef)
     base_name = _get_base_name(print_mode, dref)
     if !haskey(_data_dictionary(dref), JuMP.index(dref))
         return base_name
@@ -430,7 +445,13 @@ function variable_string(print_mode, dref::DerivativeRef)::String
     else
         vref = dispatch_variable_ref(derivative_argument(dref))
         pref = operator_parameter(dref)
-        return string(_deriv_operator(print_mode, pref), 
+        order = derivative_order(dref)
+        if isone(length(parameter_list(vref)))
+            op_char = "d"
+        else
+            op_char = _math_symbol(print_mode, :partial)
+        end
+        return string(_deriv_operator(print_mode, op_char, pref, order), 
                       _math_symbol(print_mode, :open_rng), 
                       variable_string(print_mode, vref), 
                       _math_symbol(print_mode, :close_rng))
@@ -439,12 +460,12 @@ end
 
 ## Return the parameter value as an appropriate string
 # Number
-function _make_str_value(value)::String
+function _make_str_value(value)
     return _string_round(value)
 end
 
 # Array{<:Number}
-function _make_str_value(values::Array)::String
+function _make_str_value(values::Array)
     if length(values) == 1
         return _make_str_value(first(values))
     end
@@ -466,7 +487,7 @@ end
 
 # Make a string for PointVariableRef
 # TODO improve so numerator of derivative contains the point
-function variable_string(print_mode, vref::PointVariableRef)::String
+function variable_string(print_mode, vref::PointVariableRef)
     if !haskey(_data_dictionary(vref), JuMP.index(vref)) || !isempty(JuMP.name(vref))
         return _get_base_name(print_mode, vref)
     else
@@ -492,7 +513,7 @@ end
 
 # Make a string for SemiInfiniteVariableRef
 # TODO improve so numerator of derivative contains the parameter tuple
-function variable_string(print_mode, vref::SemiInfiniteVariableRef)::String
+function variable_string(print_mode, vref::SemiInfiniteVariableRef)
     if !haskey(_data_dictionary(vref), JuMP.index(vref)) || !isempty(JuMP.name(vref))
         return _get_base_name(print_mode, vref)
     else
@@ -520,31 +541,31 @@ function variable_string(print_mode, vref::SemiInfiniteVariableRef)::String
 end
 
 # Fallback
-function variable_string(print_mode, vref::JuMP.AbstractVariableRef)::String
+function variable_string(print_mode, vref::JuMP.AbstractVariableRef)
     return _get_base_name(print_mode, vref)
 end
 
 # Extend function string for DispatchVariableRefs (REPL)
 function JuMP.function_string(::MIME"text/plain",
-                              vref::DispatchVariableRef)::String
+                              vref::DispatchVariableRef)
     return variable_string(MIME("text/plain"), vref)
 end
 
 # Extend function string for DispatchVariableRefs (IJulia)
 function JuMP.function_string(::MIME"text/latex",
-                              vref::DispatchVariableRef)::String
+                              vref::DispatchVariableRef)
     return variable_string(MIME("text/latex"), vref)
 end
 
 # Extend function string for GeneralVariableRefs (REPL)
 function JuMP.function_string(::MIME"text/plain",
-                              vref::GeneralVariableRef)::String
+                              vref::GeneralVariableRef)
     return variable_string(MIME("text/plain"), dispatch_variable_ref(vref))
 end
 
 # Extend function string for GeneralVariableRefs (IJulia)
 function JuMP.function_string(::MIME"text/latex",
-                              vref::GeneralVariableRef)::String
+                              vref::GeneralVariableRef)
     return variable_string(MIME("text/latex"), dispatch_variable_ref(vref))
 end
 
@@ -555,7 +576,7 @@ end
 function restrict_string(
     print_mode, 
     restrictions::DomainRestrictions{GeneralVariableRef}
-    )::String
+    )
     string_list = ""
     for (pref, domain) in restrictions
         string_list *= string(JuMP.function_string(print_mode, pref), " ",
@@ -569,7 +590,7 @@ end
 function _param_domain_string(print_mode, model::InfiniteModel,
                               index::IndependentParameterIndex,
                               restrictions::DomainRestrictions{GeneralVariableRef}
-                              )::String
+                              )
     pref = dispatch_variable_ref(model, index)
     domain = infinite_domain(pref)
     gvref = GeneralVariableRef(model, MOIUC.key_to_index(index), typeof(index))
@@ -581,7 +602,7 @@ end
 function _param_domain_string(print_mode, model::InfiniteModel,
                               index::DependentParametersIndex,
                               restrictions::DomainRestrictions{GeneralVariableRef}
-                              )::String
+                              )
     # parse the infinite domain
     first_gvref = GeneralVariableRef(model, MOIUC.key_to_index(index),
                                      DependentParameterIndex, 1)
@@ -621,13 +642,13 @@ end
 function JuMP.constraint_string(print_mode, 
     cref::InfOptConstraintRef;
     in_math_mode = false
-    )::String
+    )
     # get the function and set strings
-    func_str = JuMP.function_string(print_mode, _core_constraint_object(cref))
-    in_set_str = JuMP.in_set_string(print_mode, _core_constraint_object(cref))
+    func_str = JuMP.function_string(print_mode, JuMP.constraint_object(cref))
+    in_set_str = JuMP.in_set_string(print_mode, JuMP.constraint_object(cref))
     # check if constraint if finite
-    obj_nums = _object_numbers(cref)
-    if isempty(obj_nums)
+    group_int_idxs = parameter_group_int_indices(cref)
+    if isempty(group_int_idxs)
         bound_str = ""
     else
         # get the parameter restrictions if there are any
@@ -635,7 +656,7 @@ function JuMP.constraint_string(print_mode,
         # prepare the parameter domains
         model = JuMP.owner_model(cref)
         bound_str = string(", ", _math_symbol(print_mode, :for_all), " ")
-        for index in _param_object_indices(model)[_object_numbers(cref)]
+        for index in parameter_group_indices(model)[parameter_group_int_indices(cref)]
             bound_str *= string(_param_domain_string(print_mode, model, index, restrictions),
                                 ", ")
         end
@@ -669,7 +690,7 @@ function JuMP.constraints_string(print_mode, model::InfiniteModel)::Vector{Strin
     # produce a string for each constraint
     counter = 1
     for (index, object) in model.constraints
-        cref = _make_constraint_ref(model, index)
+        cref = InfOptConstraintRef(model, index)
         strings[counter] = JuMP.constraint_string(print_mode, cref,
                                                   in_math_mode = true)
         counter += 1
@@ -724,16 +745,27 @@ function Base.show(io::IO, ::MIME"text/latex", ref::InfOptConstraintRef)
     print(io, JuMP.constraint_string(MIME("text/latex"), ref))
 end
 
-# Show the backend information associated with the optimizer model
+# Fallback for backend printing
+function JuMP.show_backend_summary(
+    io::IO,
+    model::InfiniteModel,
+    backend::AbstractTransformationBackend
+    )
+    println(io, "  Backend type: ", typeof(backend))
+    return
+end
+
+# Show the backend information associated with the transformation backend
 function JuMP.show_backend_summary(io::IO, model::InfiniteModel)
-    println(io, "Optimizer model backend information: ")
-    JuMP.show_backend_summary(io, optimizer_model(model))
+    println(io, "Transformation backend information: ")
+    JuMP.show_backend_summary(io, model, model.backend)
+    println(io, "  Transformation built and up-to-date: ", transformation_backend_ready(model))
     return
 end
 
 # Show the objective function type
 function JuMP.show_objective_function_summary(io::IO, model::InfiniteModel)
-    println(io, "Objective function type: ",
+    println(io, "  Objective function type: ",
             JuMP.objective_function_type(model))
     return
 end
@@ -742,7 +774,7 @@ end
 function JuMP.show_constraints_summary(io::IO, model::InfiniteModel)
     for (F, S) in JuMP.list_of_constraint_types(model)
         n_constraints = JuMP.num_constraints(model, F, S)
-        println(io, "`$F`-in-`$S`: $n_constraints constraint",
+        println(io, "  `$F`-in-`$S`: $n_constraints constraint",
                 _plural(n_constraints))
     end
     return
@@ -764,21 +796,21 @@ function Base.show(io::IO, model::InfiniteModel)
     println(io, " problem with:")
     # show finite parameter info
     num_finite_params = num_parameters(model, FiniteParameter)
-    println(io, "Finite Parameter", _plural(num_finite_params), ": ",
+    println(io, "  Finite parameter", _plural(num_finite_params), ": ",
             num_finite_params)
     # show infinite parameter info
     num_infinite_params = num_parameters(model, InfiniteParameter)
-    println(io, "Infinite Parameter", _plural(num_infinite_params), ": ",
+    println(io, "  Infinite parameter", _plural(num_infinite_params), ": ",
             num_infinite_params)
     # show variable info
     num_vars = JuMP.num_variables(model)
-    println(io, "Variable", _plural(num_vars), ": ", num_vars)
+    println(io, "  Variable", _plural(num_vars), ": ", num_vars)
     # show the derivative info 
     num_derivs = num_derivatives(model)
-    println(io, "Derivative", _plural(num_derivs), ": ", num_derivs)
+    println(io, "  Derivative", _plural(num_derivs), ": ", num_derivs)
     # show measure info
     num_meas = num_measures(model)
-    println(io, "Measure", _plural(num_meas), ": ", num_meas)
+    println(io, "  Measure", _plural(num_meas), ": ", num_meas)
     # show objective function info
     if sense != MOI.FEASIBILITY_SENSE
         JuMP.show_objective_function_summary(io, model)

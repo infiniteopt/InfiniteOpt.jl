@@ -11,7 +11,7 @@ function InfiniteOpt.MeasureToolbox.generate_integral_data(
     method::NewUniEvalMethod;
     num_supports::Int = InfiniteOpt.DefaultNumSupports,
     weight_func::Function = InfiniteOpt.default_weight
-    )::InfiniteOpt.AbstractMeasureData # REPLACE WITH ACTUAL ALIAS
+    ) # REPLACE WITH ACTUAL ALIAS
     # REPLACE WITH ACTUAL FUNCTIONALITY
     # ADD CHECKS IF NECESSARY
     increment = (upper_bound - lower_bound) / (num_supports - 1)
@@ -33,7 +33,7 @@ function InfiniteOpt.MeasureToolbox.generate_integral_data(
     method::NewMultiEvalMethod;
     num_supports::Int = InfiniteOpt.DefaultNumSupports,
     weight_func::Function = InfiniteOpt.default_weight
-    )::InfiniteOpt.AbstractMeasureData # REPLACE WITH ACTUAL ARGUMENTS
+    ) # REPLACE WITH ACTUAL ARGUMENTS
     # REPLACE WITH ACTUAL FUNCTIONALITY
     # ADD CHECKS IF NECESSARY
     if !all(i -> (dispatch_variable_ref(i) isa InfiniteOpt.IndependentParameterRef), prefs)

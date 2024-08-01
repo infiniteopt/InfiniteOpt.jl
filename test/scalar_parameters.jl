@@ -29,7 +29,7 @@
     @testset "_add_data_object" begin
         @test InfiniteOpt._add_data_object(m, ind_object) == ind_idx
         @test InfiniteOpt._add_data_object(m, fin_object) == fin_idx
-        @test InfiniteOpt._param_object_indices(m)[end] == ind_idx
+        @test InfiniteOpt.parameter_group_indices(m)[end] == ind_idx
     end
     # test _data_dictionary
     @testset "_data_dictionary" begin
@@ -51,10 +51,10 @@
     end
     # test _core_variable_object
     @testset "_core_variable_object" begin
-        @test InfiniteOpt._core_variable_object(ind_pref) == ind_param
-        @test InfiniteOpt._core_variable_object(ind_gvref) == ind_param
-        @test InfiniteOpt._core_variable_object(fin_pref) == fin_param
-        @test InfiniteOpt._core_variable_object(fin_gvref) == fin_param
+        @test core_object(ind_pref) == ind_param
+        @test core_object(ind_gvref) == ind_param
+        @test core_object(fin_pref) == fin_param
+        @test core_object(fin_gvref) == fin_param
     end
     # test _parameter_number
     @testset "_parameter_number" begin
@@ -66,15 +66,15 @@
         @test InfiniteOpt._parameter_numbers(ind_pref) == [1]
         @test InfiniteOpt._parameter_numbers(ind_gvref) == [1]
     end
-    # test _object_number
-    @testset "_object_number" begin
-        @test InfiniteOpt._object_number(ind_pref) == 1
-        @test InfiniteOpt._object_number(ind_gvref) == 1
+    # test parameter_group_int_index
+    @testset "parameter_group_int_index" begin
+        @test InfiniteOpt.parameter_group_int_index(ind_pref) == 1
+        @test InfiniteOpt.parameter_group_int_index(ind_gvref) == 1
     end
-    # test _object_numbers
-    @testset "_object_numbers" begin
-        @test InfiniteOpt._object_numbers(ind_pref) == [1]
-        @test InfiniteOpt._object_numbers(ind_gvref) == [1]
+    # test parameter_group_int_indices
+    @testset "parameter_group_int_indices" begin
+        @test InfiniteOpt.parameter_group_int_indices(ind_pref) == [1]
+        @test InfiniteOpt.parameter_group_int_indices(ind_gvref) == [1]
     end
     # test _adaptive_data_update
     @testset "_adaptive_data_update" begin
@@ -82,17 +82,17 @@
         p = IndependentParameter(IntervalDomain(0, 2), supps_dict, 12, method, info)
         data = InfiniteOpt._data_object(ind_pref)
         @test InfiniteOpt._adaptive_data_update(ind_pref, p, data) isa Nothing
-        @test InfiniteOpt._core_variable_object(ind_pref) == p 
+        @test core_object(ind_pref) == p 
         # test change of different types 
         p = IndependentParameter(IntervalDomain(0, 2), supps_dict, 12, TestMethod(), info)
         data = InfiniteOpt._data_object(ind_pref)
         @test InfiniteOpt._adaptive_data_update(ind_pref, p, data) isa Nothing
-        @test InfiniteOpt._core_variable_object(ind_pref) == p 
+        @test core_object(ind_pref) == p 
     end
-    # test _set_core_variable_object
-    @testset "_set_core_variable_object" begin
-        @test InfiniteOpt._set_core_variable_object(ind_pref, ind_param) isa Nothing
-        @test InfiniteOpt._set_core_variable_object(fin_pref, fin_param) isa Nothing
+    # test _set_core_object
+    @testset "_set_core_object" begin
+        @test InfiniteOpt._set_core_object(ind_pref, ind_param) isa Nothing
+        @test InfiniteOpt._set_core_object(fin_pref, fin_param) isa Nothing
     end
     # test _delete_data_object
     @testset "_delete_data_object" begin
@@ -158,19 +158,22 @@ end
 # Test parameter definition methods
 @testset "Definition" begin
     # _check_supports_in_bounds
-    @testset "_check_supports_in_bounds" begin
+    @testset "_process_scalar_supports" begin
         domain = IntervalDomain(0, 1)
-        @test isa(InfiniteOpt._check_supports_in_bounds(error, 0, domain), Nothing)
-        @test_throws ErrorException InfiniteOpt._check_supports_in_bounds(error,
-                                                                        -1, domain)
-        @test_throws ErrorException InfiniteOpt._check_supports_in_bounds(error,
-                                                                         2, domain)
+        @test InfiniteOpt._process_scalar_supports(error, 0, domain, 8) == 0
+        @test_throws ErrorException InfiniteOpt._process_scalar_supports(error, -1, domain, 8)
+        @test_throws ErrorException InfiniteOpt._process_scalar_supports(error, 2, domain, 8)
+        @test_throws ErrorException InfiniteOpt._process_scalar_supports(error, "2", domain, 8)
+        @test InfiniteOpt._process_scalar_supports(error, [0.5, 1], domain, 8) == [0.5, 1]
+        @test InfiniteOpt._process_scalar_supports(error, 0:1, domain, 8) == [0, 1]
+        @test InfiniteOpt._process_scalar_supports(error, 0:0.5:1, domain, 8) == [0, 0.5, 1]
+        @test InfiniteOpt._process_scalar_supports(error, (0, 0.5), domain, 8) == [0.0, 0.5]
+        @test InfiniteOpt._process_scalar_supports(error, (i for i in (0, 1)), domain, 8) == [0, 1]
+        @test_throws ErrorException InfiniteOpt._process_scalar_supports(error, (0, 2), domain, 8)
         domain = UniDistributionDomain(Uniform())
-        @test isa(InfiniteOpt._check_supports_in_bounds(error, 0, domain), Nothing)
-        @test_throws ErrorException InfiniteOpt._check_supports_in_bounds(error,
-                                                                        -1, domain)
-        @test_throws ErrorException InfiniteOpt._check_supports_in_bounds(error,
-                                                                         2, domain)
+        @test InfiniteOpt._process_scalar_supports(error, 0, domain, 8) == 0
+        @test_throws ErrorException InfiniteOpt._process_scalar_supports(error, -1, domain, 8)
+        @test_throws ErrorException InfiniteOpt._process_scalar_supports(error, 2, domain, 8)
     end
     # build_independent_parameter
     @testset "build_parameter (IndependentParameter)" begin
@@ -182,7 +185,7 @@ end
         @test build_parameter(error, domain, supports = supps).domain == domain
         @test build_parameter(error, domain, supports = supps).supports == supps_dict
         @test_throws ErrorException build_parameter(error, domain, bob = 42)
-        warn = "Ignoring num_supports since supports is not empty."
+        warn = "Ignoring `num_supports` since `supports` is not empty."
         @test_logs (:warn, warn) build_parameter(error, domain,
                                             supports = [0, 1], num_supports = 2)
         repeated_supps = [1, 1]
@@ -193,6 +196,7 @@ end
         domain = UniDistributionDomain(Normal())
         @test length(build_parameter(error, domain, num_supports = 5).supports) == 5
         @test build_parameter(error, domain, derivative_method = method).derivative_method == method
+        @test collect(keys(build_parameter(error, domain, supports = -1:0.5:1).supports)) == [-1, -0.5, 0, 0.5, 1]
     end
     # build_finite_parameter
     @testset "build_parameter (FiniteParameter)" begin
@@ -215,12 +219,12 @@ end
                                     method, geninfo)
         expected = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
         @test isequal(add_parameter(m, param), expected)
-        @test InfiniteOpt._core_variable_object(expected) == param
-        @test InfiniteOpt._param_object_indices(m)[InfiniteOpt._object_number(expected)] == index(expected)
+        @test core_object(expected) == param
+        @test InfiniteOpt.parameter_group_indices(m)[InfiniteOpt.parameter_group_int_index(expected)] == index(expected)
         param = FiniteParameter(1.5)
         expected = GeneralVariableRef(m, 1, FiniteParameterIndex, -1)
         @test isequal(add_parameter(m, param), expected)
-        @test InfiniteOpt._core_variable_object(expected) == param
+        @test core_object(expected) == param
     end
 end
 
@@ -310,10 +314,6 @@ end
         @test isa(set_name(dpref, "test"), Nothing)
         @test name(dpref) == "test"
     end
-    # _make_parameter_ref
-    @testset "_make_parameter_ref" begin
-        @test InfiniteOpt._make_parameter_ref(m, IndependentParameterIndex(1)) == pref
-    end
     # _param_name_dict
     @testset "_param_name_dict" begin
         @test isa(InfiniteOpt._param_name_dict(m), Nothing)
@@ -343,17 +343,17 @@ end
     @testset "Single" begin
         pref = GeneralVariableRef(m, 1, IndependentParameterIndex)
         @test isequal(@infinite_parameter(m, a in [0, 1]), pref)
-        @test InfiniteOpt._core_variable_object(pref).domain == IntervalDomain(0, 1)
+        @test core_object(pref).domain == IntervalDomain(0, 1)
         @test name(pref) == "a"
 
         pref = GeneralVariableRef(m, 2, IndependentParameterIndex)
         @test isequal(@infinite_parameter(m, b ~ Normal(), supports = [1; 2]), pref)
-        @test InfiniteOpt._core_variable_object(pref).domain == UniDistributionDomain(Normal())
-        @test InfiniteOpt._core_variable_object(pref).supports == SortedDict(i => Set{DataType}([UserDefined]) for i in [1,2])
+        @test core_object(pref).domain == UniDistributionDomain(Normal())
+        @test core_object(pref).supports == SortedDict(i => Set{DataType}([UserDefined]) for i in [1,2])
 
         pref = GeneralVariableRef(m, 3, IndependentParameterIndex)
         @test isequal(@infinite_parameter(m, c ∈ IntervalDomain(0, 1)), pref)
-        @test InfiniteOpt._core_variable_object(pref).domain == IntervalDomain(0, 1)
+        @test core_object(pref).domain == IntervalDomain(0, 1)
 
         pref = GeneralVariableRef(m, 4, IndependentParameterIndex)
         @test isequal(@infinite_parameter(m; domain = IntervalDomain(0, 1),
@@ -363,54 +363,54 @@ end
         pref = GeneralVariableRef(m, 5, IndependentParameterIndex)
         @test isequal(@infinite_parameter(m, distribution = Normal()), pref)
         @test name(pref) == ""
-        @test InfiniteOpt._core_variable_object(pref).domain == UniDistributionDomain(Normal())
+        @test core_object(pref).domain == UniDistributionDomain(Normal())
 
         pref = GeneralVariableRef(m, 6, IndependentParameterIndex)
         @test isequal(@infinite_parameter(m, z in [0, 1], derivative_method = TestMethod()), pref)
-        @test InfiniteOpt._core_variable_object(pref).domain == IntervalDomain(0, 1)
+        @test core_object(pref).domain == IntervalDomain(0, 1)
         @test name(pref) == "z"
         @test derivative_method(pref) isa TestMethod
-        @test InfiniteOpt._param_object_indices(m)[InfiniteOpt._object_number(pref)] == index(pref)
+        @test InfiniteOpt.parameter_group_indices(m)[InfiniteOpt.parameter_group_int_index(pref)] == index(pref)
     end
     # multiple parameters
     @testset "Array" begin
         prefs = [GeneralVariableRef(m, i, IndependentParameterIndex) for i in 7:8]
         @test isequal(@infinite_parameter(m, e[1:2] in [0, 1], independent = true), prefs)
-        @test InfiniteOpt._core_variable_object(prefs[1]).domain == IntervalDomain(0, 1)
-        @test InfiniteOpt._core_variable_object(prefs[2]).domain == IntervalDomain(0, 1)
+        @test core_object(prefs[1]).domain == IntervalDomain(0, 1)
+        @test core_object(prefs[2]).domain == IntervalDomain(0, 1)
 
         prefs = [GeneralVariableRef(m, i, IndependentParameterIndex) for i in 9:10]
         @test isequal(@infinite_parameter(m, [1:2]; domain = IntervalDomain(0, 1), 
                                   independent = true), prefs)
-        @test InfiniteOpt._core_variable_object(prefs[1]).domain == IntervalDomain(0, 1)
-        @test InfiniteOpt._core_variable_object(prefs[2]).domain == IntervalDomain(0, 1)
+        @test core_object(prefs[1]).domain == IntervalDomain(0, 1)
+        @test core_object(prefs[2]).domain == IntervalDomain(0, 1)
 
         prefs = [GeneralVariableRef(m, i, IndependentParameterIndex) for i in 11:12]
         domains = [IntervalDomain(0, 1), IntervalDomain(-1, 2)]
         @test isequal(@infinite_parameter(m, f[i = 1:2], domain = domains[i], 
                                   independent = true), prefs)
-        @test InfiniteOpt._core_variable_object(prefs[1]).domain == IntervalDomain(0, 1)
-        @test InfiniteOpt._core_variable_object(prefs[2]).domain == IntervalDomain(-1, 2)
+        @test core_object(prefs[1]).domain == IntervalDomain(0, 1)
+        @test core_object(prefs[2]).domain == IntervalDomain(-1, 2)
 
         prefs = [GeneralVariableRef(m, i, IndependentParameterIndex) for i in 13:14]
         @test isequal(@infinite_parameter(m, [i = 1:2], domain = domains[i], 
                                   independent = true), prefs)
-        @test InfiniteOpt._core_variable_object(prefs[1]).domain == IntervalDomain(0, 1)
-        @test InfiniteOpt._core_variable_object(prefs[2]).domain == IntervalDomain(-1, 2)
+        @test core_object(prefs[1]).domain == IntervalDomain(0, 1)
+        @test core_object(prefs[2]).domain == IntervalDomain(-1, 2)
 
         prefs = [GeneralVariableRef(m, i, IndependentParameterIndex) for i in 15:16]
         @test isequal(@infinite_parameter(m, g[i = 1:2] in [1 - i, i], 
                                   independent = true), prefs)
-        @test InfiniteOpt._core_variable_object(prefs[1]).domain == IntervalDomain(0, 1)
-        @test InfiniteOpt._core_variable_object(prefs[2]).domain == IntervalDomain(-1, 2)
+        @test core_object(prefs[1]).domain == IntervalDomain(0, 1)
+        @test core_object(prefs[2]).domain == IntervalDomain(-1, 2)
 
         prefs = [GeneralVariableRef(m, i, IndependentParameterIndex) for i in 17:18]
         prefs = convert(JuMP.Containers.SparseAxisArray, prefs)
         @test all(isequal.(@infinite_parameter(m, i[1:2] ~ Normal(); independent = true,
                                   container = SparseAxisArray), prefs))
-        @test InfiniteOpt._core_variable_object(prefs[1]).domain == UniDistributionDomain(Normal())
-        @test InfiniteOpt._core_variable_object(prefs[2]).domain == UniDistributionDomain(Normal())
-        @test InfiniteOpt._param_object_indices(m)[InfiniteOpt._object_number(prefs[2])] == index(prefs[2])
+        @test core_object(prefs[1]).domain == UniDistributionDomain(Normal())
+        @test core_object(prefs[2]).domain == UniDistributionDomain(Normal())
+        @test InfiniteOpt.parameter_group_indices(m)[InfiniteOpt.parameter_group_int_index(prefs[2])] == index(prefs[2])
     end
     # test for errors
     @testset "Errors" begin
@@ -615,7 +615,7 @@ end
                                                2.5 => Set([InternalLabel]), 
                                                5 => Set([All]))
     new_param = IndependentParameter(IntervalDomain(0, 5), supps, 6, method, info)
-    InfiniteOpt._set_core_variable_object(dpref, new_param)
+    InfiniteOpt._set_core_object(dpref, new_param)
     push!(InfiniteOpt._measure_dependencies(dpref), MeasureIndex(-1))
     # test Base.copy 
     @testset "Base.copy" begin 
@@ -695,7 +695,7 @@ end
     func = (x) -> NaN
     num = 0.
     info = VariableInfo(true, num, true, num, true, num, false, func, false, false)
-    d = Derivative(info, true, pref, pref) # this is wrong but that is ok
+    d = Derivative(info, true, pref, pref, 1) # this is wrong but that is ok
     object = VariableData(d)
     idx = InfiniteOpt._add_data_object(m, object)
     push!(InfiniteOpt._derivative_dependencies(pref), idx)
@@ -851,7 +851,7 @@ end
     @testset "set_supports" begin
         @test_throws ArgumentError set_supports(bad, [0, 1])
         @test isa(set_supports(pref_disp, [0, 1], force = true), Nothing)
-        @test isa(set_supports(pref, [0, 1], force = true), Nothing)
+        @test isa(set_supports(pref, (0, 1), force = true), Nothing)
         @test supports(pref) == [0., 1.]
         @test_throws ErrorException set_supports(pref, [2, 3])
         warn = "Support points are not unique, eliminating redundant points."
@@ -863,7 +863,7 @@ end
     @testset "add_supports" begin
         @test_throws ArgumentError add_supports(bad, 0.5)
         @test isa(add_supports(pref_disp, 0.25), Nothing)
-        @test isa(add_supports(pref, 0.5), Nothing)
+        @test isa(add_supports(pref, (i for i in [0.5])), Nothing)
         @test supports(pref) == [0.25, 0.5, 1.]
         @test isa(add_supports(pref, [0, 0.25, 1], check = false), Nothing)
         @test supports(pref) == [0, 0.25, 0.5, 1.]
@@ -895,7 +895,7 @@ end
         func = (x) -> NaN
         num = 0.
         info = VariableInfo(true, num, true, num, true, num, false, func, false, false)
-        deriv = Derivative(info, true, pref, pref)
+        deriv = Derivative(info, true, pref, pref, 1)
         object = VariableData(deriv)
         idx = InfiniteOpt._add_data_object(m, object)
         push!(InfiniteOpt._derivative_dependencies(pref), idx)
@@ -1013,24 +1013,25 @@ end
         # test anonymous definition
         pref = GeneralVariableRef(m, 1, FiniteParameterIndex)
         @test @finite_parameter(m, 42) == pref
-        @test InfiniteOpt._core_variable_object(pref).value == 42
+        @test core_object(pref).value == 42
         @test name(pref) == ""
         # test vector anonymous definition
         prefs = [GeneralVariableRef(m, i, FiniteParameterIndex) for i in 2:3]
         @test @finite_parameter(m, [1:2] == 42; base_name = "a") == prefs
-        @test InfiniteOpt._core_variable_object(prefs[1]).value == 42
+        @test core_object(prefs[1]).value == 42
         @test name.(prefs) == ["a[1]", "a[2]"]
         # test named definition
         pref = GeneralVariableRef(m, 4, FiniteParameterIndex)
         @test @finite_parameter(m, b == 42) == pref
-        @test InfiniteOpt._core_variable_object(pref).value == 42
+        @test core_object(pref).value == 42
         @test name(pref) == "b"
+        @test m[:b] == pref
         # test named vector definition
         prefs = [GeneralVariableRef(m, i, FiniteParameterIndex) for i in 5:6]
         prefs = convert(JuMPC.SparseAxisArray, prefs)
         @test @finite_parameter(m, c[i = 1:2] == [3, 7][i],
                                 container = SparseAxisArray) == prefs
-        @test InfiniteOpt._core_variable_object(prefs[2]).value == 7
+        @test core_object(prefs[2]).value == 7
         @test name(prefs[2]) == "c[2]"
     end
     # initialize the model
@@ -1091,5 +1092,13 @@ end
         @test 0.5 in supports(pref3)
         @test fill_in_supports!(pref1, num_supports = 20) isa Nothing
         @test length(supports(pref1)) == 20
+    end
+    # test sigfig changes on infinite domain
+    @testset "Sigfig support addition test" begin
+        m = InfiniteModel()
+        supps = [0.8236475079774124, 0.9103565379264364]
+        @infinite_parameter(m, p in [supps[1], supps[2]])
+        @test fill_in_supports!(p, num_supports = 8) isa Nothing
+        @test length(supports(p)) == 8
     end
 end

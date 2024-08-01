@@ -53,7 +53,7 @@ function JuMP.add_nonlinear_operator(
     end
     push!(model.operators, NLPOperator(name, dim, f, funcs...))
     model.op_lookup[name] = (f, dim)
-    # TODO should we set the optimizer model to be out of date?
+    # TODO should we set the transformation backend to be out of date?
     return JuMP.NonlinearOperator(f, name)
 end
 
@@ -120,7 +120,7 @@ end
 
 Add the additional nonlinear operators in `inf_model` to a `JuMP` model `opt_model`.
 This is intended as an internal method, but it is provided for developers that
-extend `InfiniteOpt` to use other optimizer models.
+extend `InfiniteOpt` to use new [`JuMPBackend`](@ref)s.
 """
 function add_operators_to_jump(opt_model::JuMP.Model, inf_model::InfiniteModel)
     for data in added_nonlinear_operators(inf_model)

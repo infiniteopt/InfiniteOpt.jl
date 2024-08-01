@@ -5,8 +5,8 @@ problems. Such areas include [stochastic programming](https://en.wikipedia.org/w
 [dynamic programming](https://en.wikipedia.org/wiki/Dynamic_programming),
 space-time optimization, and more. `InfiniteOpt` serves as an easy-to-use modeling
 interface for these advanced problem types that can be used by those with little
-background in these areas. It also it contains a wealth of capabilities
-making it a powerful and convenient tool for advanced users.  
+background in these areas. The package also contains a wealth of capabilities
+making `InfiniteOpt` a powerful and convenient tool for advanced users.  
 
 | **Current Version**                     | **Documentation**                                                               | **Build Status**                                                                                | **Citation** |
 |:---------------------------------------:|:-------------------------------------------------------------------------------:|:-----------------------------------------------------------------------------------------------:|:--------------------------------------:|
@@ -19,7 +19,6 @@ include:
 - Infinite variables (decision functions) (for example, ``y(t, x)``)
 - Derivatives (for example, ``\frac{\partial y(t, x)}{\partial t}``)
 - Measures (for example, ``\int_{t \in T}y(t, x)dt`` and ``\mathbb{E}[y(\xi)]``)
-- First class nonlinear modeling
 
 The unifying modeling abstraction behind `InfiniteOpt` captures a wide spectrum 
 of disciplines which include dynamic, PDE, stochastic, and semi-infinite 

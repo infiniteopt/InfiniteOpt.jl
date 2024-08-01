@@ -89,7 +89,7 @@ julia> @variable(model, w0[i = 1:3], SemiInfinite(w[i], 0, x))
  w0[2]
  w0[3]
 ```
-Thus we create a Julia array variable `w0` whose elements `w0[i]` point to their
+Thus, we create a Julia array variable `w0` whose elements `w0[i]` point to their
 respective semi-infinite variables `w[i](0, x)` stored in `model`. Alternatively, 
 we can make a semi-infinite variable via our restriction syntax:
 ```jldoctest var_basic
