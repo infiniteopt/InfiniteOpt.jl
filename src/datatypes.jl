@@ -751,7 +751,7 @@ A `DataType` for storing semi-infinite variables which partially support an
 infinite variable.
 
 **Fields**
-- `infinite_variable_ref::I`: The original infinite/derivvative variable.
+- `infinite_variable_ref::I`: The original infinite/derivative variable.
 - `eval_supports::Dict{Int, Float64}`: The original parameter tuple linear indices
                                      to the evaluation supports.
 - `parameter_nums::Vector{Int}`: The parameter numbers associated with the evaluated
@@ -1154,7 +1154,7 @@ end
                                } <: JuMP.AbstractConstraint
 
 A `DataType` for creating a constraint with enforced restrictions on its domain. 
-For example this may pertain to excluding a boundary condition.
+For example, this may pertain to excluding a boundary condition.
 
 **Fields**
 - `constraint::C`: The optimization constraint.
