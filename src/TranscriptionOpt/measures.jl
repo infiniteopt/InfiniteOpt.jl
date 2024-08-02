@@ -74,7 +74,24 @@ function InfiniteOpt.add_semi_infinite_variable(
         # make the reference and map it to a transcription variable
         rvref = InfiniteOpt.GeneralVariableRef(inf_model, raw_index, InfiniteOpt.SemiInfiniteVariableIndex)
         push!(semi_infinite_vars, var)
-        _set_semi_infinite_variable_mapping(backend, var, rvref, InfiniteOpt._index_type(ivref))
+        if ivref.index_type != InfiniteOpt.ParameterFunctionIndex
+            ivref_param_nums = InfiniteOpt._parameter_numbers(ivref)
+            param_nums = var.parameter_nums
+            supp_indices = support_index_iterator(backend, var.group_int_idxs)
+            lookup_dict = Dict{Vector{Float64}, JuMP.VariableRef}()
+            sizehint!(lookup_dict, length(supp_indices))
+            for i in supp_indices
+                raw_supp = index_to_support(backend, i)
+                if any(!isnan(raw_supp[ivref_param_nums[k]]) && raw_supp[ivref_param_nums[k]] != v for (k, v) in eval_supps)
+                    continue
+                end
+                ivref_supp = [haskey(eval_supps, j) ? eval_supps[j] : raw_supp[k] 
+                            for (j, k) in enumerate(ivref_param_nums)]
+                supp = raw_supp[param_nums]
+                lookup_dict[supp] = lookup_by_support(ivref, backend, ivref_supp)
+            end
+            data.infvar_lookup[rvref] = lookup_dict
+        end
         data.semi_lookup[(ivref, eval_supps)] = rvref
         return rvref
     end
