@@ -116,21 +116,11 @@
         @test supports(dx) == [(0,), (1,)]
         @test supports(dy) == [(0, [0, 0]) (0, [1, 1]); (1, [0, 0]) (1, [1, 1])]
     end
-    # test _set_semi_infinite_variable_mapping
-    @testset "_set_semi_infinite_variable_mapping" begin 
-        var = SemiInfiniteVariable(y, Dict{Int, Float64}(1 => 0), [1, 2], [1])
-        vref = GeneralVariableRef(m, -1, SemiInfiniteVariableIndex)
-        @test IOTO._set_semi_infinite_variable_mapping(tb, var, vref, SemiInfiniteVariableIndex) isa Nothing 
-        @test IOTO.transcription_variable(vref) isa Vector{VariableRef}
-        @test length(IOTO.transcription_data(tb).infvar_mappings) == 7
-        @test IOTO.lookup_by_support(y, tb, [0., 0, 0]) == IOTO.lookup_by_support(vref, tb, [0., 0])
-        @test IOTO._set_semi_infinite_variable_mapping(tb, var, vref, ParameterFunctionIndex) isa Nothing 
-    end
     # test transcribe_semi_infinite_variables!
     @testset "transcribe_semi_infinite_variables!" begin 
         @test IOTO.transcribe_semi_infinite_variables!(tb, m) isa Nothing
         @test IOTO.transcription_variable(yrv) isa Vector{VariableRef}
-        @test length(IOTO.transcription_data(tb).infvar_mappings) == 8
+        @test length(IOTO.transcription_data(tb).infvar_mappings) == 7
         @test IOTO.lookup_by_support(y, tb, [1., 0., 0.]) == IOTO.lookup_by_support(yrv, tb, [1., 0])
     end
     # test _update_point_info

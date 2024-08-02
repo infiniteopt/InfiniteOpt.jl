@@ -49,14 +49,18 @@
         vref = GeneralVariableRef(m, -1, SemiInfiniteVariableIndex)
         @test isequal(InfiniteOpt.add_semi_infinite_variable(tb, var), vref)
         @test isequal(data.semi_infinite_vars, [var])
-        @test c in IOTO.transcription_variable(vref)
-        @test d in IOTO.transcription_variable(vref)
-        @test sort!(supports(vref)) == [([0., 0.], ), ([1., 1.], )]
+        @test IOTO.transcription_expression(vref, tb, [1., 0., 0.]) == c
+        @test IOTO.transcription_expression(vref, tb, [1., 1., 1.]) == d
         # add one that has already been added internally
         @test isequal(InfiniteOpt.add_semi_infinite_variable(tb, var), vref)
         @test isequal(data.semi_infinite_vars, [var])
-        @test c in IOTO.transcription_variable(vref)
-        @test d in IOTO.transcription_variable(vref)
-        @test sort!(supports(vref)) == [([0., 0.], ), ([1., 1.], )]
+        @test IOTO.transcription_expression(vref, tb, [1., 0., 0.]) == c
+        @test IOTO.transcription_expression(vref, tb, [1., 1., 1.]) == d
+        # test with partially evaluated dependent parameter group
+        var2 = SemiInfiniteVariable(y, Dict(1 => 1., 2 => 1.0), [3], [2])
+        vref = GeneralVariableRef(m, -2, SemiInfiniteVariableIndex)
+        @test isequal(InfiniteOpt.add_semi_infinite_variable(tb, var2), vref)
+        @test isequal(data.semi_infinite_vars, [var, var2])
+        @test IOTO.transcription_expression(vref, tb, [1., 1., 1.]) == d
     end
 end
