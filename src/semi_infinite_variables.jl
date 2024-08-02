@@ -166,7 +166,7 @@ function JuMP.build_variable(
     info::JuMP.VariableInfo, 
     var_type::SemiInfinite; 
     extra_kwargs...
-    )::SemiInfiniteVariable{GeneralVariableRef}
+    )
     # check for unneeded keywords
     for (kwarg, _) in extra_kwargs
         _error("Keyword argument $kwarg is not for use with semi-infinite ",
@@ -221,7 +221,7 @@ function JuMP.build_variable(
     ivref::GeneralVariableRef,
     eval_supports::Dict{Int, Float64};
     check::Bool = true
-    )::SemiInfiniteVariable{GeneralVariableRef}
+    )
     # check the inputs
     dvref = dispatch_variable_ref(ivref)
     if check && !(dvref isa Union{InfiniteVariableRef, DerivativeRef, ParameterFunctionRef})

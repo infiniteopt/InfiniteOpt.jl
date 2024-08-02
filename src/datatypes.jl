@@ -680,7 +680,7 @@ end
 #                        PARAMETER FUNCTION OBJECTS
 ################################################################################
 """
-    ParameterFunction{F <: Union{Function, Real}, VT <: VectorTuple}
+    ParameterFunction{F <: Function, VT <: VectorTuple}
 
 A `DataType` for storing known functions of infinite parameters. These equate to arbitrary 
 functions that take support instances of infinite parameters `parameter_refs` in 
@@ -696,7 +696,7 @@ incorporated in expressions via [`ParameterFunctionRef`](@ref)s.
 - `parameter_nums::Vector{Int}`: The parameter numbers of `parameter_refs`.
 - `group_int_idxs::Vector{Int}`: The parameter group integer indices associated with `parameter_refs`.
 """
-struct ParameterFunction{F <: Union{Function, Real}, VT <: Collections.VectorTuple}
+struct ParameterFunction{F <: Function, VT <: Collections.VectorTuple}
     func::F
     parameter_refs::VT
     group_int_idxs::Vector{Int}
@@ -734,41 +734,35 @@ end
 ################################################################################
 """
     InfiniteVariable{
-        LB <: Union{Function, Float64}, 
-        UB <: Union{Function, Float64}, 
-        FX <: Union{Function, Float64}, 
-        ST <: Union{Function, Float64}, 
+        LB <: {Nothing, Float64, ParameterFunction}, 
+        UB <: {Nothing, Float64, ParameterFunction}, 
+        FX <: {Nothing, Float64, ParameterFunction}, 
+        ST <: {Nothing, Float64, ParameterFunction}, 
         VT <: VectorTuple
         } <: JuMP.AbstractVariable
 
 A `DataType` for storing core infinite variable information. Note that indices
 that refer to the same dependent parameter group must be in the same tuple element.
-It is important to note that the subfiels of `info` are comprised of [`ParameterFunction`](@ref)s 
-such that each evaluates to a `Float64` given a tuple of infinite parameters in the infinite 
-variable. 
+It is important to note that the subfields of `info` can be comprised of 
+[`ParameterFunction`](@ref)s such that each evaluates to a `Float64` given an
+infinite parameter support that matches the format encoded in `parameter_refs`. 
 
 **Fields**
-- `info::JuMP.VariableInfo`: JuMP variable information.
-  Here each value should be a [`ParameterFunction`](@ref).
+- `info::JuMP.VariableInfo{LB, UB, FX, ST}`: JuMP variable information.
 - `parameter_refs::VT`: The infinite parameter references that parameterize the 
   variable.
 - `parameter_nums::Vector{Int}`: The parameter numbers of `parameter_refs`.
-- `group_int_idxs::Vector{Int}`: The parameter group integer indices associated with `parameter_refs`.
-- `is_vector_start::Bool`: Does the start function take support values formatted as vectors?
+- `group_int_idxs::Vector{Int}`: The parameter group integer indices associated
+  with `parameter_refs`.
 """
 struct InfiniteVariable{
-    LB <: Union{Function, Float64}, 
-    UB <: Union{Function, Float64}, 
-    FX <: Union{Function, Float64}, 
-    ST <: Union{Function, Float64}, 
+    LB <: Union{Nothing, Float64, ParameterFunction}, 
+    UB <: Union{Nothing, Float64, ParameterFunction}, 
+    FX <: Union{Nothing, Float64, ParameterFunction}, 
+    ST <: Union{Nothing, Float64, ParameterFunction}, 
     VT <: Collections.VectorTuple
     } <: JuMP.AbstractVariable
-    info::JuMP.VariableInfo{
-        ParameterFunction{LB, VT}, 
-        ParameterFunction{UB, VT}, 
-        ParameterFunction{FX, VT},
-        ParameterFunction{ST, VT}
-        }
+    info::JuMP.VariableInfo{LB, UB, FX, ST} 
     parameter_refs::VT
     parameter_nums::Vector{Int}
     group_int_idxs::Vector{Int}
@@ -870,12 +864,11 @@ end
 ################################################################################
 """
     Derivative{
-        LB <: Union{Function, Float64}, 
-        UB <: Union{Function, Float64}, 
-        FX <: Union{Function, Float64}, 
-        ST <: Union{Function, Float64}, 
-        VT <: VectorTuple,
-        V <: GeneralVariableRef
+        V <: JuMP.AbstractVariableRef,
+        LB <: Union{Nothing, Float64, ParameterFunction}, 
+        UB <: Union{Nothing, Float64, ParameterFunction}, 
+        FX <: Union{Nothing, Float64, ParameterFunction}, 
+        ST <: Union{Nothing, Float64, ParameterFunction}
         } <: JuMP.AbstractVariable
 
 A `DataType` for storing core infinite derivative information. This follows a 
@@ -884,35 +877,25 @@ where ``y(\\alpha, \\hdots)`` is an infinite variable and ``\\alpha`` is an infi
 parameter. Here, both ``y`` and ``\\alpha`` must be scalars. Higher-order derivatives 
 are also supported: ``\\frac{\\partial^n y(\\alpha, \\hdots)}{\\partial \\alpha^n}``. 
 
-It is important to note that `info.start` should contain a start value function
-that generates the start value for a given infinite parameter support. This
-function should map a support to a start value using user-formatting if
-`is_vector_start = false`, otherwise it should do the mapping using a single
-support vector as input. Also, the variable reference type `V` must pertain to
+Variable domain info (e.g., bounds, start value) can be specified via `info` in like
+manner to `InfiniteVariable`s. Also, the variable reference type `V` must pertain to
 infinite variables and parameters.
 
 **Fields**
-- `info::JuMP.VariableInfo`: JuMP variable information. Here each value should be 
-  a [`ParameterFunction`](@ref).
+- `info::JuMP.VariableInfo`: JuMP variable information.
 - `variable_ref::V`: The variable reference of the infinite variable argument.
 - `parameter_ref::V`: The variable reference of the infinite parameter that defines the
    differential operator.
 - `order::Int`: The order of the derivative.
 """
 struct Derivative{
-    LB <: Union{Function, Float64}, 
-    UB <: Union{Function, Float64}, 
-    FX <: Union{Function, Float64}, 
-    ST <: Union{Function, Float64}, 
-    VT <: Collections.VectorTuple,
-    V <: JuMP.AbstractVariableRef
+    V <: JuMP.AbstractVariableRef,
+    LB <: Union{Nothing, Float64, ParameterFunction}, 
+    UB <: Union{Nothing, Float64, ParameterFunction}, 
+    FX <: Union{Nothing, Float64, ParameterFunction}, 
+    ST <: Union{Nothing, Float64, ParameterFunction}
     } <: JuMP.AbstractVariable
-    info::JuMP.VariableInfo{
-        ParameterFunction{LB, VT}, 
-        ParameterFunction{UB, VT}, 
-        ParameterFunction{FX, VT},
-        ParameterFunction{ST, VT}
-        }
+    info::JuMP.VariableInfo{LB, UB, FX, ST}
     variable_ref::V # could be ref of infinite/semi-infinite variable/derivative or measure (top of derivative)
     parameter_ref::V # a scalar infinite parameter (bottom of derivative)
     order::Int
