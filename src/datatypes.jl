@@ -699,8 +699,8 @@ incorporated in expressions via [`ParameterFunctionRef`](@ref)s.
 struct ParameterFunction{F <: Function, VT <: Collections.VectorTuple}
     func::F
     parameter_refs::VT
-    group_int_idxs::Vector{Int}
     parameter_nums::Vector{Int}
+    group_int_idxs::Vector{Int}
 end
 
 """
@@ -734,12 +734,12 @@ end
 ################################################################################
 """
     InfiniteVariable{
-        LB <: {Nothing, Float64, ParameterFunction}, 
-        UB <: {Nothing, Float64, ParameterFunction}, 
-        FX <: {Nothing, Float64, ParameterFunction}, 
-        ST <: {Nothing, Float64, ParameterFunction}, 
+        LB <: {Float64, ParameterFunction}, 
+        UB <: {Float64, ParameterFunction}, 
+        FX <: {Float64, ParameterFunction}, 
+        ST <: {Float64, ParameterFunction}, 
         VT <: VectorTuple
-        } <: JuMP.AbstractVariable
+    } <: JuMP.AbstractVariable
 
 A `DataType` for storing core infinite variable information. Note that indices
 that refer to the same dependent parameter group must be in the same tuple element.
@@ -756,10 +756,10 @@ infinite parameter support that matches the format encoded in `parameter_refs`.
   with `parameter_refs`.
 """
 struct InfiniteVariable{
-    LB <: Union{Nothing, Float64, ParameterFunction}, 
-    UB <: Union{Nothing, Float64, ParameterFunction}, 
-    FX <: Union{Nothing, Float64, ParameterFunction}, 
-    ST <: Union{Nothing, Float64, ParameterFunction}, 
+    LB <: Union{Float64, ParameterFunction}, 
+    UB <: Union{Float64, ParameterFunction}, 
+    FX <: Union{Float64, ParameterFunction}, 
+    ST <: Union{Float64, ParameterFunction}, 
     VT <: Collections.VectorTuple
     } <: JuMP.AbstractVariable
     info::JuMP.VariableInfo{LB, UB, FX, ST} 
@@ -769,12 +769,50 @@ struct InfiniteVariable{
 end
 
 """
-    SemiInfiniteVariable{I <: GeneralVariableRef} <: JuMP.AbstractVariable
+    RestrictedVariableDomainInfo{
+        LB <: Union{Nothing, Float64, ParameterFunction},
+        UB <: Union{Nothing, Float64, ParameterFunction},
+        FX <: Union{Nothing, Float64, ParameterFunction},
+        ST <: Union{Nothing, Float64, ParameterFunction}
+    }
+
+A structure for storing variable domain information of semi-infinite
+and point variables. By default, these variables will inherit the
+domain of their underlying infinite variable. This structure stores
+the attributes that overide the domain of the infinite variable. This
+not intended to be used by users directly unless they are creating a
+new transformation backend.
+"""
+struct RestrictedVariableDomainInfo{
+    LB <: Union{Nothing, Float64, ParameterFunction},
+    UB <: Union{Nothing, Float64, ParameterFunction},
+    FX <: Union{Nothing, Float64, ParameterFunction},
+    ST <: Union{Nothing, Float64, ParameterFunction}
+    }
+    active_lower_bound_info::Bool
+    lower_bound::LB
+    active_upper_bound_info::Bool
+    upper_bound::UB
+    active_fix_info::Bool
+    fixed_value::FX
+    active_start_info::Bool
+    start_value::ST
+end
+
+"""
+    SemiInfiniteVariable{
+        I <: GeneralVariableRef,
+        LB <: Union{Nothing, Float64, ParameterFunction},
+        UB <: Union{Nothing, Float64, ParameterFunction},
+        FX <: Union{Nothing, Float64, ParameterFunction},
+        ST <: Union{Nothing, Float64, ParameterFunction}
+    } <: JuMP.AbstractVariable
 
 A `DataType` for storing semi-infinite variables which partially support an
 infinite variable.
 
 **Fields**
+- `info::RestrictedVariableDomainInfo{LB, UB, FX, ST}`: Distinguished domain info.
 - `infinite_variable_ref::I`: The original infinite/derivative variable.
 - `eval_supports::Dict{Int, Float64}`: The original parameter tuple linear indices
                                      to the evaluation supports.
@@ -783,7 +821,14 @@ infinite variable.
 - `group_int_idxs::Vector{Int}`: The parameter group integer indices associated with the
                               evaluated `parameter_refs`.
 """
-struct SemiInfiniteVariable{I <: JuMP.AbstractVariableRef} <: JuMP.AbstractVariable
+struct SemiInfiniteVariable{
+    I <: JuMP.AbstractVariableRef,
+    LB <: Union{Nothing, Float64, ParameterFunction},
+    UB <: Union{Nothing, Float64, ParameterFunction},
+    FX <: Union{Nothing, Float64, ParameterFunction},
+    ST <: Union{Nothing, Float64, ParameterFunction}
+    } <: JuMP.AbstractVariable
+    info::RestrictedVariableDomainInfo{LB, UB, FX, ST}
     infinite_variable_ref::I
     eval_supports::Dict{Int, Float64}
     parameter_nums::Vector{Int}
@@ -791,21 +836,33 @@ struct SemiInfiniteVariable{I <: JuMP.AbstractVariableRef} <: JuMP.AbstractVaria
 end
 
 """
-    PointVariable{I <: GeneralVariableRef} <: JuMP.AbstractVariable
+    PointVariable{
+        I <: GeneralVariableRef,
+        LB <: Union{Nothing, Float64},
+        UB <: Union{Nothing, Float64},
+        FX <: Union{Nothing, Float64},
+        ST <: Union{Nothing, Float64}
+    } <: JuMP.AbstractVariable
 
 A `DataType` for storing point variable information. Note that the elements
 `parameter_values` field must match the format of the parameter reference tuple
 defined in [`InfiniteVariable`](@ref)
 
 **Fields**
-- `info::JuMP.VariableInfo{Float64, Float64, Float64, Float64}`: JuMP Variable information.
+- `info::RestrictedVariableDomainInfo{LB, UB, FX, ST}`: Domain info.
 - `infinite_variable_ref::I`: The infinite variable/derivative reference
     associated with the point variable.
 - `parameter_values::Vector{Float64}`: The infinite parameter values
     defining the point.
 """
-struct PointVariable{I <: JuMP.AbstractVariableRef} <: JuMP.AbstractVariable
-    info::JuMP.VariableInfo{Float64, Float64, Float64, Float64}
+struct PointVariable{
+    I <: JuMP.AbstractVariableRef,
+    LB <: Union{Nothing, Float64},
+    UB <: Union{Nothing, Float64},
+    FX <: Union{Nothing, Float64},
+    ST <: Union{Nothing, Float64}
+    } <: JuMP.AbstractVariable
+    info::RestrictedVariableDomainInfo{LB, UB, FX, ST}
     infinite_variable_ref::I
     parameter_values::Vector{Float64}
 end
@@ -865,10 +922,10 @@ end
 """
     Derivative{
         V <: JuMP.AbstractVariableRef,
-        LB <: Union{Nothing, Float64, ParameterFunction}, 
-        UB <: Union{Nothing, Float64, ParameterFunction}, 
-        FX <: Union{Nothing, Float64, ParameterFunction}, 
-        ST <: Union{Nothing, Float64, ParameterFunction}
+        LB <: Union{Float64, ParameterFunction}, 
+        UB <: Union{Float64, ParameterFunction}, 
+        FX <: Union{Float64, ParameterFunction}, 
+        ST <: Union{Float64, ParameterFunction}
         } <: JuMP.AbstractVariable
 
 A `DataType` for storing core infinite derivative information. This follows a 
@@ -890,10 +947,10 @@ infinite variables and parameters.
 """
 struct Derivative{
     V <: JuMP.AbstractVariableRef,
-    LB <: Union{Nothing, Float64, ParameterFunction}, 
-    UB <: Union{Nothing, Float64, ParameterFunction}, 
-    FX <: Union{Nothing, Float64, ParameterFunction}, 
-    ST <: Union{Nothing, Float64, ParameterFunction}
+    LB <: Union{Float64, ParameterFunction}, 
+    UB <: Union{Float64, ParameterFunction}, 
+    FX <: Union{Float64, ParameterFunction}, 
+    ST <: Union{Float64, ParameterFunction}
     } <: JuMP.AbstractVariable
     info::JuMP.VariableInfo{LB, UB, FX, ST}
     variable_ref::V # could be ref of infinite/semi-infinite variable/derivative or measure (top of derivative)
@@ -1445,9 +1502,9 @@ function InfiniteModel(backend::AbstractTransformationBackend = TranscriptionBac
         Dict{IndependentParameterIndex, Set{InfiniteVariableIndex}}(),
         # Variables
         MOIUC.CleverDict{InfiniteVariableIndex, VariableData{<:InfiniteVariable}}(),
-        MOIUC.CleverDict{SemiInfiniteVariableIndex, VariableData{SemiInfiniteVariable{GeneralVariableRef}}}(),
+        MOIUC.CleverDict{SemiInfiniteVariableIndex, VariableData{<:SemiInfiniteVariable{GeneralVariableRef}}}(),
         Dict{Tuple{GeneralVariableRef, Dict{Int, Float64}}, SemiInfiniteVariableIndex}(),
-        MOIUC.CleverDict{PointVariableIndex, VariableData{PointVariable{GeneralVariableRef}}}(),
+        MOIUC.CleverDict{PointVariableIndex, VariableData{<:PointVariable{GeneralVariableRef}}}(),
         Dict{Tuple{GeneralVariableRef, Vector{Float64}}, PointVariableIndex}(),
         MOIUC.CleverDict{FiniteVariableIndex, VariableData{JuMP.ScalarVariable{Float64, Float64, Float64, Float64}}}(),
         nothing,
