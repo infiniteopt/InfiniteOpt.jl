@@ -276,6 +276,9 @@
             copy_inds = [false, false, true, false, true, true, false, true]
             @test IC.restricted_copy(vt, copy_inds) == IC.VectorTuple(cs, new_d)
             @test vt == IC.VectorTuple(a, c, d)
+            # test with partial reduction of an vector
+            vt = IC.VectorTuple([1, 2])
+            @test IC.restricted_copy(vt, [true, false]) == IC.VectorTuple(1)
         end
     end
 

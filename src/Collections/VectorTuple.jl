@@ -218,6 +218,7 @@ function _update_indices(inds::ContainerIndices{1, <:Vector}, i)
     new_axes = deleteat!(copy(inds.axes), i)
     cart_inds = CartesianIndices(new_axes)
     return length(new_axes) >= 2 ? ContainerIndices(cart_inds, new_axes) : nothing
+    # return ContainerIndices(cart_inds, new_axes)
 end
 
 # DenseAxisArray
@@ -243,7 +244,7 @@ function restricted_copy(vt::VectorTuple, inds::AbstractVector{<:Bool})
     prev_sum = 0
     delete_inds = Int[]
     new_ranges = copy(vt.ranges)
-    new_indices = collect(vt.indices)
+    new_indices = collect(Any, vt.indices)
     for i in eachindex(new_ranges)
         delete_sum = sum(inv_inds[new_ranges[i]])
         if length(new_ranges[i]) == delete_sum
