@@ -582,10 +582,8 @@ function JuMP.delete_upper_bound(vref::DecisionVariableRef)
     return
 end
 
-# TODO continue from here
-
 """
-    JuMP.is_fixed(vref::UserDecisionVariableRef)::Bool
+    JuMP.is_fixed(vref::DecisionVariableRef)::Bool
 
 Extend `JuMP.is_fixed` to return `Bool` whether an `InfiniteOpt` variable is 
 fixed.
@@ -596,10 +594,10 @@ julia> is_fixed(vref)
 true
 ```
 """
-JuMP.is_fixed(vref::UserDecisionVariableRef) = _variable_info(vref).has_fix
+JuMP.is_fixed(vref::DecisionVariableRef) = _variable_info(vref).has_fix
 
 """
-    JuMP.fix_value(vref::UserDecisionVariableRef)::Float64
+    JuMP.fix_value(vref::DecisionVariableRef)::Union{Float64, ParameterFunction}
 
 Extend `JuMP.fix_value` to return the fix value of an `InfiniteOpt` variable. 
 Errors if variable is not fixed.
@@ -610,7 +608,7 @@ julia> fix_value(vref)
 0.0
 ```
 """
-function JuMP.fix_value(vref::UserDecisionVariableRef)
+function JuMP.fix_value(vref::DecisionVariableRef)
     if !JuMP.is_fixed(vref)
         error("Variable $(vref) is not fixed.")
     end
@@ -618,7 +616,7 @@ function JuMP.fix_value(vref::UserDecisionVariableRef)
 end
 
 # Extend to return the index of the fix constraint associated with `vref`.
-function _fix_index(vref::UserDecisionVariableRef)
+function _fix_index(vref::DecisionVariableRef)
     if !JuMP.is_fixed(vref)
         error("Variable $(vref) is not fixed.")
     end
@@ -627,7 +625,7 @@ end
 
 # Extend to set the index of the fix constraintassociated with `vref`.
 function _set_fix_index(
-    vref::UserDecisionVariableRef,
+    vref::DecisionVariableRef,
     cindex::Union{InfOptConstraintIndex, Nothing}
     )
     _data_object(vref).fix_index = cindex
@@ -635,8 +633,11 @@ function _set_fix_index(
 end
 
 """
-    JuMP.fix(vref::UserDecisionVariableRef, value::Real;
-             force::Bool = false)::Nothing
+    JuMP.fix(
+        vref::DecisionVariableRef,
+        value::Union{Real, Function};
+        force::Bool = false
+    )::Nothing
 
 Extend `JuMP.fix` to fix the value of an `InfiniteOpt` variable. Errors if 
 variable has a lower and/or an upper bound(s) unless `force = true`.
@@ -655,11 +656,12 @@ julia> fix_value(vref2)
 ```
 """
 function JuMP.fix(
-    vref::UserDecisionVariableRef, 
-    value::Real;
+    vref::DecisionVariableRef, 
+    value::Union{Real, Function};
     force::Bool = false
     )
-    new_set = MOI.EqualTo(convert(Float64, value))
+    processed_val = _process_info_arg(vref, value)
+    new_set = MOI.EqualTo(_info_set_value(processed_val))
     model = JuMP.owner_model(vref)
     gvref = GeneralVariableRef(model, JuMP.index(vref))
     new_constr = JuMP.ScalarConstraint(gvref, new_set)
@@ -687,16 +689,21 @@ function JuMP.fix(
         _set_fix_index(vref, JuMP.index(cref))
     end
     info = _variable_info(vref)
-    _update_variable_info(vref, JuMP.VariableInfo(false, info.lower_bound,
-                                                  false, info.upper_bound,
-                                                  true, convert(Float64, value),
-                                                  info.has_start, info.start,
-                                                  info.binary, info.integer))
+    _update_variable_info(
+        vref,
+        JuMP.VariableInfo(
+            false, NaN,
+            false, NaN,
+            true, processed_val,
+            info.has_start, info.start,
+            info.binary, info.integer
+            )
+        )
     return
 end
 
 """
-    JuMP.FixRef(vref::UserDecisionVariableRef)::InfOptConstraintRef
+    JuMP.FixRef(vref::DecisionVariableRef)::InfOptConstraintRef
 
 Extend `JuMP.FixRef` to return the constraint reference of the fix constraint 
 associated with `vref`. Errors `vref` is not fixed.
@@ -707,14 +714,14 @@ julia> cref = FixRef(vref)
 var = 1.0
 ```
 """
-function JuMP.FixRef(vref::UserDecisionVariableRef)
+function JuMP.FixRef(vref::DecisionVariableRef)
     cindex = _fix_index(vref)
     model = JuMP.owner_model(vref)
     return InfOptConstraintRef(model, cindex)
 end
 
 """
-    JuMP.unfix(vref::UserDecisionVariableRef)::Nothing
+    JuMP.unfix(vref::DecisionVariableRef)::Nothing
 
 Extend `JuMP.unfix` to unfix `vref`. Errors if it is not fixed.
 
@@ -726,20 +733,25 @@ julia> is_fixed(vref)
 false
 ```
 """
-function JuMP.unfix(vref::UserDecisionVariableRef)
+function JuMP.unfix(vref::DecisionVariableRef)
     JuMP.delete(JuMP.owner_model(vref), JuMP.FixRef(vref))
     _set_fix_index(vref, nothing)
     info = _variable_info(vref)
-    _update_variable_info(vref, JuMP.VariableInfo(info.has_lb, info.lower_bound,
-                                                  info.has_ub, info.upper_bound,
-                                                  false, info.fixed_value,
-                                                  info.has_start, info.start,
-                                                  info.binary, info.integer))
+    _update_variable_info(
+        vref,
+        JuMP.VariableInfo(
+            info.has_lb, info.lower_bound,
+            info.has_ub, info.upper_bound,
+            false, NaN,
+            info.has_start, info.start,
+            info.binary, info.integer
+            )
+        )
     return
 end
 
 """
-    JuMP.start_value(vref::UserDecisionVariableRef)::Union{Nothing, Float64}
+    JuMP.start_value(vref::DecisionVariableRef)::Union{Nothing, Float64, ParameterFunction}
 
 Extend `JuMP.start_value` to return starting value of `InfiniteOpt` variable if 
 it has one. Returns `nothing` otherwise.
@@ -750,7 +762,7 @@ julia> start_value(vref)
 0.0
 ```
 """
-function JuMP.start_value(vref::UserDecisionVariableRef)
+function JuMP.start_value(vref::DecisionVariableRef)
     if _variable_info(vref).has_start
         return _variable_info(vref).start
     else
@@ -759,7 +771,7 @@ function JuMP.start_value(vref::UserDecisionVariableRef)
 end
 
 """
-    JuMP.set_start_value(vref::UserDecisionVariableRef, value::Real)::Nothing
+    JuMP.set_start_value(vref::DecisionVariableRef, value::Union{Real, Function})::Nothing
 
 Extend `JuMP.set_start_value` to specify the start value of `InfiniteOpt` 
 variables.
@@ -772,15 +784,20 @@ julia> start_value(vref)
 1.0
 ```
 """
-function JuMP.set_start_value(vref::UserDecisionVariableRef, value::Real)
+function JuMP.set_start_value(vref::DecisionVariableRef, value::Union{Real, Function})
+    processed_val = _process_info_arg(vref, value)
     info = _variable_info(vref)
     set_transformation_backend_ready(JuMP.owner_model(vref), false)
-    _update_variable_info(vref,
-                          JuMP.VariableInfo(info.has_lb, info.lower_bound,
-                                            info.has_ub, info.upper_bound,
-                                            info.has_fix, info.fixed_value,
-                                            true, Float64(value),
-                                            info.binary, info.integer))
+    _update_variable_info(
+        vref,
+        JuMP.VariableInfo(
+            info.has_lb, info.lower_bound,
+            info.has_ub, info.upper_bound,
+            info.has_fix, info.fixed_value,
+            true, processed_val,
+            info.binary, info.integer
+            )
+        )
     return
 end
 
