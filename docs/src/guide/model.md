@@ -32,7 +32,7 @@ Feasibility problem with:
   Measures: 0
 Transformation backend information:
   Backend type: TranscriptionBackend
-  Solver name: No optimizer attached.
+  Solver: none
   Transformation built and up-to-date: false
 ```
 Ultimately, `model` will be solved via a transformation backend. By default, 
@@ -52,7 +52,7 @@ Feasibility problem with:
   Measures: 0
 Transformation backend information:
   Backend type: TranscriptionBackend
-  Solver name: No optimizer attached.
+  Solver: none
   Transformation built and up-to-date: false
 ```
 
@@ -72,7 +72,7 @@ Feasibility problem with:
   Measures: 0
 Transformation backend information:
   Backend type: TranscriptionBackend
-  Solver name: Ipopt
+  Solver: Ipopt
   Transformation built and up-to-date: false
 ```
 For completeness, the table of currently supported JuMP compatible optimizers 
@@ -96,7 +96,7 @@ Feasibility problem with:
   Measures: 0
 Transformation backend information:
   Backend type: TranscriptionBackend
-  Solver name: Ipopt
+  Solver: Ipopt
   Transformation built and up-to-date: false
 ```
 
@@ -120,11 +120,11 @@ julia> using InfiniteOpt, Ipopt
 julia> backend = TranscriptionBackend(Ipopt.Optimizer)
 A TranscriptionBackend that uses a
 A JuMP Model
-Feasibility problem with:
-Variables: 0
-Model mode: AUTOMATIC
-CachingOptimizer state: EMPTY_OPTIMIZER
-Solver name: Ipopt
+├ solver: Ipopt
+├ objective_sense: FEASIBILITY_SENSE
+├ num_variables: 0
+├ num_constraints: 0
+└ Names registered in the model: none
 ```
 
 We query the underlying transformation backend, transformation model, and transformation
@@ -137,19 +137,19 @@ julia> using InfiniteOpt; model = InfiniteModel();
 julia> tbackend = transformation_backend(model)
 A TranscriptionBackend that uses a
 A JuMP Model
-Feasibility problem with:
-Variables: 0
-Model mode: AUTOMATIC
-CachingOptimizer state: NO_OPTIMIZER
-Solver name: No optimizer attached.
+├ solver: none
+├ objective_sense: FEASIBILITY_SENSE
+├ num_variables: 0
+├ num_constraints: 0
+└ Names registered in the model: none
 
 julia> tmodel = transformation_model(model)
 A JuMP Model
-Feasibility problem with:
-Variables: 0
-Model mode: AUTOMATIC
-CachingOptimizer state: NO_OPTIMIZER
-Solver name: No optimizer attached.
+├ solver: none
+├ objective_sense: FEASIBILITY_SENSE
+├ num_variables: 0
+├ num_constraints: 0
+└ Names registered in the model: none
 
 julia> data = transformation_data(model);
 ```
@@ -163,11 +163,11 @@ julia> set_transformation_backend(model, TranscriptionBackend(Ipopt.Optimizer))
 julia> tbackend = transformation_backend(model)
 A TranscriptionBackend that uses a
 A JuMP Model
-Feasibility problem with:
-Variables: 0
-Model mode: AUTOMATIC
-CachingOptimizer state: EMPTY_OPTIMIZER
-Solver name: Ipopt
+├ solver: Ipopt
+├ objective_sense: FEASIBILITY_SENSE
+├ num_variables: 0
+├ num_constraints: 0
+└ Names registered in the model: none
 ```
 Again, since `TranscriptionBackend` is the default, the following models are equivalent:
 ```jldoctest
@@ -187,7 +187,7 @@ Feasibility problem with:
   Measures: 0
 Transformation backend information:
   Backend type: TranscriptionBackend
-  Solver name: Ipopt
+  Solver: Ipopt
   Transformation built and up-to-date: false
 ```
 

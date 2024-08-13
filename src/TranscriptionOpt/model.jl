@@ -130,6 +130,20 @@ function TranscriptionBackend(optimizer_constructor; kwargs...)
     return InfiniteOpt.JuMPBackend{Transcription}(model, TranscriptionData())
 end
 
+# Get the solver name from MOI
+# Inspired by https://github.com/jump-dev/JuMP.jl/blob/ce946b7092c45bdac916c9b531a13a5b929d45f0/src/print.jl#L281-L291
+function _try_solver_name(model)
+    if mode(model) != JuMP.DIRECT &&
+       MOI.Utilities.state(backend(model)) == MOI.Utilities.NO_OPTIMIZER
+        return "none"
+    end
+    try
+        return MOI.get(backend(model), MOI.SolverName())
+    catch
+        return "unknown"
+    end
+end
+
 # Printing
 function JuMP.show_backend_summary(
     io::IO,
@@ -148,9 +162,7 @@ function JuMP.show_backend_summary(
         # TODO add approximation method info (requires InfiniteOpt refactoring)
     end
     # solver name
-    moi_summary = sprint(JuMP.show_backend_summary, backend.model)
-    solver_str = filter(startswith("Solver"), split(moi_summary, "\n"))[1]
-    println(io, "  ", solver_str)
+    println(io, "  Solver: ", _try_solver_name(backend.model))
     return
 end
 

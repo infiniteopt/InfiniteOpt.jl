@@ -81,19 +81,22 @@ Extend `JuMP.owner_model` to return the model where `vref` is stored.
 ```julia-repl
 julia> owner_model(vref)
 An InfiniteOpt Model
-Feasibility problem with:
-Finite Parameters: 0
-Infinite Parameters: 0
-Variable: 1
-Derivatives: 0
-Measures: 0
-`FiniteVariableRef`-in-`MathOptInterface.GreaterThan{Float64}`: 1 constraint
-`FiniteVariableRef`-in-`MathOptInterface.LessThan{Float64}`: 1 constraint
-Names registered in the model: vref
-Optimizer model backend information:
-Model mode: AUTOMATIC
-CachingOptimizer state: NO_OPTIMIZER
-Solver name: No optimizer attached.
+Minimization problem with:
+  Finite parameters: 0
+  Infinite parameter: 1
+  Variables: 3
+  Derivatives: 0
+  Measures: 0
+  Objective function type: GenericAffExpr{Float64, GeneralVariableRef}
+  `GenericAffExpr{Float64, GeneralVariableRef}`-in-`MathOptInterface.GreaterThan{Float64}`: 1 constraint
+  `GenericAffExpr{Float64, GeneralVariableRef}`-in-`MathOptInterface.EqualTo{Float64}`: 1 constraint
+  `GeneralVariableRef`-in-`MathOptInterface.GreaterThan{Float64}`: 3 constraints
+Names registered in the model: c1, c2, t, y, z
+Transformation backend information:
+  Backend type: TranscriptionBackend
+  `t` transcribed over 10 supports
+  Solver: Ipopt
+  Transformation built and up-to-date: true
 ```
 """
 function JuMP.owner_model(vref::GeneralVariableRef)::InfiniteModel

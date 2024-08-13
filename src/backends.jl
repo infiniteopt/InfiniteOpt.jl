@@ -55,11 +55,11 @@ Return the underlying model used by the transformation backend.
 ```julia-repl
 julia> trans_model = transformation_model(model)
 A JuMP Model
-Feasibility problem with:
-Variables: 0
-Model mode: AUTOMATIC
-CachingOptimizer state: NO_OPTIMIZER
-Solver name: No optimizer attached.
+├ solver: none
+├ objective_sense: FEASIBILITY_SENSE
+├ num_variables: 0
+├ num_constraints: 0
+└ Names registered in the model: none
 ```
 """
 transformation_model(model::InfiniteModel) = transformation_model(model.backend)
@@ -106,22 +106,22 @@ will be removed.
 julia> transformation_backend(model)
 A TranscriptionBackend that uses a
 A JuMP Model
-Feasibility problem with:
-Variables: 0
-Model mode: AUTOMATIC
-CachingOptimizer state: NO_OPTIMIZER
-Solver name: No optimizer attached.
+├ solver: none
+├ objective_sense: FEASIBILITY_SENSE
+├ num_variables: 0
+├ num_constraints: 0
+└ Names registered in the model: none
 
 julia> set_transformation_backend(model, TranscriptionBackend(Ipopt.Optimizer))
 
 julia> transformation_backend(model)
 A TranscriptionBackend that uses a
 A JuMP Model
-Feasibility problem with:
-Variables: 0
-Model mode: AUTOMATIC
-CachingOptimizer state: EMPTY_OPTIMIZER
-Solver name: Ipopt
+├ solver: Ipopt
+├ objective_sense: FEASIBILITY_SENSE
+├ num_variables: 0
+├ num_constraints: 0
+└ Names registered in the model: none
 ```
 """
 function set_transformation_backend(
@@ -145,11 +145,11 @@ Retrieve the transformation backend used by the `model`.
 julia> transformation_backend(model)
 A TranscriptionBackend that uses a
 A JuMP Model
-Feasibility problem with:
-Variables: 0
-Model mode: AUTOMATIC
-CachingOptimizer state: NO_OPTIMIZER
-Solver name: No optimizer attached.
+├ solver: none
+├ objective_sense: FEASIBILITY_SENSE
+├ num_variables: 0
+├ num_constraints: 0
+└ Names registered in the model: none
 ```
 """
 function transformation_backend(model::InfiniteModel)
@@ -664,11 +664,11 @@ julia> set_optimizer(model, HiGHS.Optimizer)
 
 julia> transformation_model(model)
 A JuMP Model
-Feasibility problem with:
-Variables: 0
-Model mode: AUTOMATIC
-CachingOptimizer state: EMPTY_OPTIMIZER
-Solver name: HiGHS
+├ solver: HiGHS
+├ objective_sense: FEASIBILITY_SENSE
+├ num_variables: 0
+├ num_constraints: 0
+└ Names registered in the model: none
 ```
 """
 function JuMP.set_optimizer(
