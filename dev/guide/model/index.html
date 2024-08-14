@@ -15,7 +15,7 @@ Feasibility problem with:
   Measures: 0
 Transformation backend information:
   Backend type: TranscriptionBackend
-  Solver name: No optimizer attached.
+  Solver: none
   Transformation built and up-to-date: false</code></pre><p>Ultimately, <code>model</code> will be solved via a transformation backend. By default,  we see that a <a href="../../manual/transcribe/#InfiniteOpt.TranscriptionOpt.TranscriptionBackend"><code>TranscriptionBackend</code></a> (a JuMP <code>Model</code> that will contain  a transcribed, i.e., a discretized model) is used. To specify, a backend  of our choice, we use the syntax:</p><pre><code class="language-julia-repl hljs">julia&gt; using InfiniteOpt
 
 julia&gt; model = InfiniteModel(TranscriptionBackend())
@@ -28,7 +28,7 @@ Feasibility problem with:
   Measures: 0
 Transformation backend information:
   Backend type: TranscriptionBackend
-  Solver name: No optimizer attached.
+  Solver: none
   Transformation built and up-to-date: false</code></pre><p>Since <code>TranscriptionBackend</code>s are a common choice, we can just pass a JuMP  compatible optimizer (i.e., solver) to the model and a <code>TranscriptionBackend</code>  that uses that optimizer will be initialized:</p><pre><code class="language-julia-repl hljs">julia&gt; using InfiniteOpt, Ipopt
 
 julia&gt; model = InfiniteModel(Ipopt.Optimizer)
@@ -41,7 +41,7 @@ Feasibility problem with:
   Measures: 0
 Transformation backend information:
   Backend type: TranscriptionBackend
-  Solver name: Ipopt
+  Solver: Ipopt
   Transformation built and up-to-date: false</code></pre><p>For completeness, the table of currently supported JuMP compatible optimizers  is provided below in <a href="#Supported-Optimizers">Supported Optimizers</a>.</p><p>We can also specify optimizer attributes via <a href="https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.optimizer_with_attributes"><code>optimizer_with_attributes</code></a> which allows us to append as many attributes as we like, for example:</p><pre><code class="language-julia-repl hljs">julia&gt; using InfiniteOpt, Ipopt
 
 julia&gt; jump_opt = optimizer_with_attributes(Ipopt.Optimizer, &quot;output_level&quot; =&gt; 0);
@@ -56,34 +56,34 @@ Feasibility problem with:
   Measures: 0
 Transformation backend information:
   Backend type: TranscriptionBackend
-  Solver name: Ipopt
+  Solver: Ipopt
   Transformation built and up-to-date: false</code></pre><p>Now you have an initialized <code>InfiniteModel</code> that is ready for your mathematical model to be defined and optimized!</p><h2 id="Advanced-Definition-Information"><a class="docs-heading-anchor" href="#Advanced-Definition-Information">Advanced Definition Information</a><a id="Advanced-Definition-Information-1"></a><a class="docs-heading-anchor-permalink" href="#Advanced-Definition-Information" title="Permalink"></a></h2><p>As noted above, <code>InfiniteModel</code>s contain a transformation backend that will ultimately  be used to optimize the <code>InfiniteModel</code> via a transformed version of it. Such backends  typically have methods to transform an <code>InfiniteModel</code> into a transformed model that  can be optimized; moreover, they store necessary data to map back to the <code>InfiniteModel</code>. </p><p>By default, <code>InfiniteModel</code>s use a <a href="../../manual/transcribe/#InfiniteOpt.TranscriptionOpt.TranscriptionBackend"><code>TranscriptionBackend</code></a> which will store a transcribed (i.e., discretized) version of the infinite model. More information on <code>TranscriptionBackends</code>s is provided in <a href="../transcribe/#transcription_docs">Model Transcription</a>. Notably, the main argument <code>TranscriptionBackend</code> is an appropriate JuMP compatible  optimizer:</p><pre><code class="language-julia-repl hljs">julia&gt; using InfiniteOpt, Ipopt
 
 julia&gt; backend = TranscriptionBackend(Ipopt.Optimizer)
 A TranscriptionBackend that uses a
 A JuMP Model
-Feasibility problem with:
-Variables: 0
-Model mode: AUTOMATIC
-CachingOptimizer state: EMPTY_OPTIMIZER
-Solver name: Ipopt</code></pre><p>We query the underlying transformation backend, transformation model, and transformation data via <a href="../../manual/backend/#InfiniteOpt.transformation_backend"><code>transformation_backend</code></a>,  <a href="../../manual/backend/#InfiniteOpt.transformation_model-Tuple{InfiniteModel}"><code>transformation_model</code></a>, and <a href="../../manual/backend/#InfiniteOpt.transformation_data-Tuple{InfiniteModel}"><code>transformation_data</code></a>, respectively:</p><pre><code class="language-julia-repl hljs">julia&gt; using InfiniteOpt; model = InfiniteModel();
+├ solver: Ipopt
+├ objective_sense: FEASIBILITY_SENSE
+├ num_variables: 0
+├ num_constraints: 0
+└ Names registered in the model: none</code></pre><p>We query the underlying transformation backend, transformation model, and transformation data via <a href="../../manual/backend/#InfiniteOpt.transformation_backend"><code>transformation_backend</code></a>,  <a href="../../manual/backend/#InfiniteOpt.transformation_model-Tuple{InfiniteModel}"><code>transformation_model</code></a>, and <a href="../../manual/backend/#InfiniteOpt.transformation_data-Tuple{InfiniteModel}"><code>transformation_data</code></a>, respectively:</p><pre><code class="language-julia-repl hljs">julia&gt; using InfiniteOpt; model = InfiniteModel();
 
 julia&gt; tbackend = transformation_backend(model)
 A TranscriptionBackend that uses a
 A JuMP Model
-Feasibility problem with:
-Variables: 0
-Model mode: AUTOMATIC
-CachingOptimizer state: NO_OPTIMIZER
-Solver name: No optimizer attached.
+├ solver: none
+├ objective_sense: FEASIBILITY_SENSE
+├ num_variables: 0
+├ num_constraints: 0
+└ Names registered in the model: none
 
 julia&gt; tmodel = transformation_model(model)
 A JuMP Model
-Feasibility problem with:
-Variables: 0
-Model mode: AUTOMATIC
-CachingOptimizer state: NO_OPTIMIZER
-Solver name: No optimizer attached.
+├ solver: none
+├ objective_sense: FEASIBILITY_SENSE
+├ num_variables: 0
+├ num_constraints: 0
+└ Names registered in the model: none
 
 julia&gt; data = transformation_data(model);</code></pre><p>A new transformation backend is specified via <a href="../../manual/backend/#InfiniteOpt.set_transformation_backend"><code>set_transformation_backend</code></a>:</p><pre><code class="language-julia-repl hljs">julia&gt; using InfiniteOpt, Ipopt; model = InfiniteModel();
 
@@ -92,11 +92,11 @@ julia&gt; set_transformation_backend(model, TranscriptionBackend(Ipopt.Optimizer
 julia&gt; tbackend = transformation_backend(model)
 A TranscriptionBackend that uses a
 A JuMP Model
-Feasibility problem with:
-Variables: 0
-Model mode: AUTOMATIC
-CachingOptimizer state: EMPTY_OPTIMIZER
-Solver name: Ipopt</code></pre><p>Again, since <code>TranscriptionBackend</code> is the default, the following models are equivalent:</p><pre><code class="language-julia-repl hljs">julia&gt; using InfiniteOpt, Ipopt; 
+├ solver: Ipopt
+├ objective_sense: FEASIBILITY_SENSE
+├ num_variables: 0
+├ num_constraints: 0
+└ Names registered in the model: none</code></pre><p>Again, since <code>TranscriptionBackend</code> is the default, the following models are equivalent:</p><pre><code class="language-julia-repl hljs">julia&gt; using InfiniteOpt, Ipopt; 
 
 julia&gt; model1 = InfiniteModel();
 
@@ -112,7 +112,7 @@ Feasibility problem with:
   Measures: 0
 Transformation backend information:
   Backend type: TranscriptionBackend
-  Solver name: Ipopt
+  Solver: Ipopt
   Transformation built and up-to-date: false</code></pre><p>More information on implementing custom transformation backends is located on the  Extensions page.</p><h2 id="Supported-Optimizers"><a class="docs-heading-anchor" href="#Supported-Optimizers">Supported Optimizers</a><a id="Supported-Optimizers-1"></a><a class="docs-heading-anchor-permalink" href="#Supported-Optimizers" title="Permalink"></a></h2><p>Supported optimizers (e.g., solvers) depend on the transformation backend being  used. For <a href="../../manual/backend/#InfiniteOpt.JuMPBackend"><code>JuMPBackend</code></a>s such as <a href="../../manual/transcribe/#InfiniteOpt.TranscriptionOpt.TranscriptionBackend"><code>TranscriptionBackend</code></a>, any  JuMP compatible optimizer (i.e., has a <code>MathOptInterface</code> implementation) can be  used. Please refer to <code>JuMP</code>&#39;s current <a href="https://jump.dev/JuMP.jl/v1/installation/#Supported-solvers">solver documentation</a>  to learn what solvers are supported and how to install them.</p><h2 id="Object-Dictionaries"><a class="docs-heading-anchor" href="#Object-Dictionaries">Object Dictionaries</a><a id="Object-Dictionaries-1"></a><a class="docs-heading-anchor-permalink" href="#Object-Dictionaries" title="Permalink"></a></h2><p>Like <code>JuMP.Model</code>s, <code>InfiniteModel</code>s register the name symbols of macro defined  objects. This enables us to access such objects by indexing the <code>InfiniteModel</code>  with the appropriate symbol. This is particularly useful for function defined  models. For example:</p><pre><code class="language-julia-repl hljs">julia&gt; function make_model(num_supports)
         model = InfiniteModel()
         @infinite_parameter(model, t ∈ [0, 10], num_supports = num_supports)
@@ -125,4 +125,4 @@ make_model (generic function with 1 method)
 julia&gt; model1 = make_model(2); model2 = make_model(4);
 
 julia&gt; y1 = model1[:y]
-y(t)</code></pre><p>Note that when macro defined objects are deleted from an <code>InfiniteModel</code> that the  corresponding symbols in the object dictionary are not removed by default. This  can be accomplished by use of  <a href="https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.unregister"><code>JuMP.unregister</code></a>  (please click on its link for usage information).</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../examples/Stochastic Optimization/flexible_design/">« Power Network Flexibility Design</a><a class="docs-footer-nextpage" href="../domains/">Infinite Domains »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.5.0 on <span class="colophon-date" title="Tuesday 6 August 2024 19:26">Tuesday 6 August 2024</span>. Using Julia version 1.6.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+y(t)</code></pre><p>Note that when macro defined objects are deleted from an <code>InfiniteModel</code> that the  corresponding symbols in the object dictionary are not removed by default. This  can be accomplished by use of  <a href="https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.unregister"><code>JuMP.unregister</code></a>  (please click on its link for usage information).</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../examples/Stochastic Optimization/flexible_design/">« Power Network Flexibility Design</a><a class="docs-footer-nextpage" href="../domains/">Infinite Domains »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.5.0 on <span class="colophon-date" title="Wednesday 14 August 2024 14:09">Wednesday 14 August 2024</span>. Using Julia version 1.6.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

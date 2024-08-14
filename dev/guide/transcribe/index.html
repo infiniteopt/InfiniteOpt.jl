@@ -36,16 +36,16 @@ Subject to
 
 julia&gt; trans_model = transformation_model(inf_model)
 A JuMP Model
-Minimization problem with:
-Variables: 4
-Objective function type: AffExpr
-`AffExpr`-in-`MathOptInterface.EqualTo{Float64}`: 1 constraint
-`QuadExpr`-in-`MathOptInterface.LessThan{Float64}`: 3 constraints
-`VariableRef`-in-`MathOptInterface.GreaterThan{Float64}`: 3 constraints
-`VariableRef`-in-`MathOptInterface.ZeroOne`: 1 constraint
-Model mode: AUTOMATIC
-CachingOptimizer state: NO_OPTIMIZER
-Solver name: No optimizer attached.
+├ solver: none
+├ objective_sense: MIN_SENSE
+│ └ objective_function_type: AffExpr
+├ num_variables: 4
+├ num_constraints: 8
+│ ├ AffExpr in MOI.EqualTo{Float64}: 1
+│ ├ QuadExpr in MOI.LessThan{Float64}: 3
+│ ├ VariableRef in MOI.GreaterThan{Float64}: 3
+│ └ VariableRef in MOI.ZeroOne: 1
+└ Names registered in the model: none
 
 julia&gt; print(trans_model)
 Min 2 z + y(0.0) + y(5.0) + y(10.0)
@@ -187,33 +187,33 @@ Subject to
  y(10.0)² + 3 g(10.0, [1.0, 1.0]) ≤ 2</code></pre><p>This precisely matches what we found analytically. Note that the unique support  combinations are determined automatically.</p><h2 id="TranscriptionOpt"><a class="docs-heading-anchor" href="#TranscriptionOpt">TranscriptionOpt</a><a id="TranscriptionOpt-1"></a><a class="docs-heading-anchor-permalink" href="#TranscriptionOpt" title="Permalink"></a></h2><p><code>InfiniteOpt.TranscriptionOpt</code> is a sub-module which principally implements  <a href="../../manual/transcribe/#InfiniteOpt.TranscriptionOpt.TranscriptionBackend"><code>TranscriptionBackend</code></a>s and its related access/modification methods. Thus,  this section will detail what these are and how they work.</p><h3 id="TranscriptionBackends"><a class="docs-heading-anchor" href="#TranscriptionBackends">TranscriptionBackends</a><a id="TranscriptionBackends-1"></a><a class="docs-heading-anchor-permalink" href="#TranscriptionBackends" title="Permalink"></a></h3><p>A <code>TranscriptionBackend</code> is simply a <a href="../../manual/backend/#InfiniteOpt.JuMPBackend"><code>JuMPBackend</code></a> that uses the  <a href="../../manual/transcribe/#InfiniteOpt.TranscriptionOpt.Transcription"><code>Transcription</code></a> <code>AbstractJuMPTag</code> and <a href="../../manual/transcribe/#InfiniteOpt.TranscriptionOpt.TranscriptionData"><code>TranscriptionData</code></a> which  acts to map the transcribed model back to the original infinite model (e.g., map the  variables and constraints). Such models are constructed via a default version of  <a href="../../manual/transcribe/#InfiniteOpt.build_transformation_backend!-Tuple{InfiniteModel, TranscriptionBackend}"><code>build_transformation_backend!</code></a>  which wraps <a href="../../manual/transcribe/#InfiniteOpt.TranscriptionOpt.build_transcription_backend!"><code>build_transcription_backend!</code></a>:</p><pre><code class="language-julia-repl hljs">julia&gt; backend1 = TranscriptionBackend() # make an empty backend
 A TranscriptionBackend that uses a
 A JuMP Model
-Feasibility problem with:
-Variables: 0
-Model mode: AUTOMATIC
-CachingOptimizer state: NO_OPTIMIZER
-Solver name: No optimizer attached.
+├ solver: none
+├ objective_sense: FEASIBILITY_SENSE
+├ num_variables: 0
+├ num_constraints: 0
+└ Names registered in the model: none
 
 julia&gt; build_transformation_backend!(inf_model); 
 
 julia&gt; backend2 = transformation_backend(inf_model) # generate from an InfiniteModel
 A TranscriptionBackend that uses a
 A JuMP Model
-Minimization problem with:
-Variables: 4
-Objective function type: AffExpr
-`AffExpr`-in-`MathOptInterface.EqualTo{Float64}`: 1 constraint
-`QuadExpr`-in-`MathOptInterface.LessThan{Float64}`: 3 constraints
-`VariableRef`-in-`MathOptInterface.GreaterThan{Float64}`: 3 constraints
-`VariableRef`-in-`MathOptInterface.ZeroOne`: 1 constraint
-Model mode: AUTOMATIC
-CachingOptimizer state: NO_OPTIMIZER
-Solver name: No optimizer attached.</code></pre><p>The call to <code>build_transformation_backend!</code> is the backbone  behind infinite model transformation and is what encapsulates all the methods to  transcribe measures, variables, derivatives, and constraints. This is also the  method that enables the use of <a href="../../manual/backend/#JuMP.optimize!-Tuple{InfiniteModel}"><code>optimize!</code></a>.</p><h3 id="Queries"><a class="docs-heading-anchor" href="#Queries">Queries</a><a id="Queries-1"></a><a class="docs-heading-anchor-permalink" href="#Queries" title="Permalink"></a></h3><p>In this section we highlight a number of query methods that pertain to  <code>TranscriptionBackend</code>s and their mappings. First, we can retrieve the JuMP <code>Model</code> via <a href="../../manual/backend/#InfiniteOpt.transformation_model-Tuple{InfiniteModel}"><code>transformation_model</code></a>:</p><pre><code class="language-julia-repl hljs">julia&gt; transformation_model(inf_model)
+├ solver: none
+├ objective_sense: MIN_SENSE
+│ └ objective_function_type: AffExpr
+├ num_variables: 4
+├ num_constraints: 8
+│ ├ AffExpr in MOI.EqualTo{Float64}: 1
+│ ├ QuadExpr in MOI.LessThan{Float64}: 3
+│ ├ VariableRef in MOI.GreaterThan{Float64}: 3
+│ └ VariableRef in MOI.ZeroOne: 1
+└ Names registered in the model: none</code></pre><p>The call to <code>build_transformation_backend!</code> is the backbone  behind infinite model transformation and is what encapsulates all the methods to  transcribe measures, variables, derivatives, and constraints. This is also the  method that enables the use of <a href="../../manual/backend/#JuMP.optimize!-Tuple{InfiniteModel}"><code>optimize!</code></a>.</p><h3 id="Queries"><a class="docs-heading-anchor" href="#Queries">Queries</a><a id="Queries-1"></a><a class="docs-heading-anchor-permalink" href="#Queries" title="Permalink"></a></h3><p>In this section we highlight a number of query methods that pertain to  <code>TranscriptionBackend</code>s and their mappings. First, we can retrieve the JuMP <code>Model</code> via <a href="../../manual/backend/#InfiniteOpt.transformation_model-Tuple{InfiniteModel}"><code>transformation_model</code></a>:</p><pre><code class="language-julia-repl hljs">julia&gt; transformation_model(inf_model)
 A JuMP Model
-Feasibility problem with:
-Variables: 0
-Model mode: AUTOMATIC
-CachingOptimizer state: NO_OPTIMIZER
-Solver name: No optimizer attached.</code></pre><p>Here we observe that such a model is currently empty and hasn&#39;t been populated  yet.</p><p>Next we can retrieve the <code>JuMP</code> variable(s) for a particular <code>InfiniteOpt</code>  variable via <a href="../../manual/backend/#InfiniteOpt.transformation_variable-Tuple{GeneralVariableRef}"><code>transformation_variable</code></a>. For finite variables, this will  be a one to one mapping, and for infinite variables an array will be returned that corresponds to the underlying supports. Following the initial example in  the basic usage section, this is done:</p><pre><code class="language-julia-repl hljs">julia&gt; build_transformation_backend!(inf_model); backend = transformation_backend(inf_model);
+├ solver: none
+├ objective_sense: FEASIBILITY_SENSE
+├ num_variables: 0
+├ num_constraints: 0
+└ Names registered in the model: none</code></pre><p>Here we observe that such a model is currently empty and hasn&#39;t been populated  yet.</p><p>Next we can retrieve the <code>JuMP</code> variable(s) for a particular <code>InfiniteOpt</code>  variable via <a href="../../manual/backend/#InfiniteOpt.transformation_variable-Tuple{GeneralVariableRef}"><code>transformation_variable</code></a>. For finite variables, this will  be a one to one mapping, and for infinite variables an array will be returned that corresponds to the underlying supports. Following the initial example in  the basic usage section, this is done:</p><pre><code class="language-julia-repl hljs">julia&gt; build_transformation_backend!(inf_model); backend = transformation_backend(inf_model);
 
 julia&gt; transformation_variable(y, backend)
 3-element Vector{VariableRef}:
@@ -250,4 +250,4 @@ julia&gt; supports(y^2 + z - 42)
  (10.0,)
 
 julia&gt; parameter_refs(y^2 + z - 42)
-(t,)</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../constraint/">« Constraints</a><a class="docs-footer-nextpage" href="../optimize/">Optimization »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.5.0 on <span class="colophon-date" title="Tuesday 6 August 2024 19:26">Tuesday 6 August 2024</span>. Using Julia version 1.6.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+(t,)</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../constraint/">« Constraints</a><a class="docs-footer-nextpage" href="../optimize/">Optimization »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.5.0 on <span class="colophon-date" title="Wednesday 14 August 2024 14:09">Wednesday 14 August 2024</span>. Using Julia version 1.6.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
