@@ -97,27 +97,27 @@ let's extract the transformation backend from the example above in the basic usa
 julia> backend = transformation_backend(model)
 A TranscriptionBackend that uses a
 A JuMP Model
-Minimization problem with:
-Variables: 11
-Objective function type: AffExpr
-`AffExpr`-in-`MathOptInterface.EqualTo{Float64}`: 1 constraint
-`AffExpr`-in-`MathOptInterface.GreaterThan{Float64}`: 10 constraints
-`VariableRef`-in-`MathOptInterface.GreaterThan{Float64}`: 11 constraints
-Model mode: AUTOMATIC
-CachingOptimizer state: ATTACHED_OPTIMIZER
-Solver name: Ipopt
+├ solver: Ipopt
+├ objective_sense: MIN_SENSE
+│ └ objective_function_type: AffExpr
+├ num_variables: 11
+├ num_constraints: 22
+│ ├ AffExpr in MOI.EqualTo{Float64}: 1
+│ ├ AffExpr in MOI.GreaterThan{Float64}: 10
+│ └ VariableRef in MOI.GreaterThan{Float64}: 11
+└ Names registered in the model: none
 
 julia> tmodel = transformation_model(model)
 A JuMP Model
-Minimization problem with:
-Variables: 11
-Objective function type: AffExpr
-`AffExpr`-in-`MathOptInterface.EqualTo{Float64}`: 1 constraint
-`AffExpr`-in-`MathOptInterface.GreaterThan{Float64}`: 10 constraints
-`VariableRef`-in-`MathOptInterface.GreaterThan{Float64}`: 11 constraints
-Model mode: AUTOMATIC
-CachingOptimizer state: ATTACHED_OPTIMIZER
-Solver name: Ipopt
+├ solver: Ipopt
+├ objective_sense: MIN_SENSE
+│ └ objective_function_type: AffExpr
+├ num_variables: 11
+├ num_constraints: 22
+│ ├ AffExpr in MOI.EqualTo{Float64}: 1
+│ ├ AffExpr in MOI.GreaterThan{Float64}: 10
+│ └ VariableRef in MOI.GreaterThan{Float64}: 11
+└ Names registered in the model: none
 ```
 
 The `JuMP` variable(s) stored in the transformation backend that correspond to a 

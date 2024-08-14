@@ -72,7 +72,7 @@ Feasibility problem with:
   Measures: 0
 Transformation backend information:
   Backend type: TranscriptionBackend
-  Solver name: Ipopt
+  Solver: Ipopt
   Transformation built and up-to-date: false
 ```
 Learn more about `InfiniteModel`s and optimizers on our 
