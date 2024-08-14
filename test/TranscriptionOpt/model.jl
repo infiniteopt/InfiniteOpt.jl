@@ -23,15 +23,15 @@ end
     # test JuMP.show_backend_summary
     @testset "JuMP.show_backend_summary" begin
         expected = "  Backend type: TranscriptionBackend\n  `t` transcribed over 4 supports\n  " *
-                   "`x` transcribed over 5 supports\n  Solver: none.\n"
+                   "`x` transcribed over 5 supports\n  Solver: none\n"
         @test sprint(show_backend_summary, m, tb) == expected
         set_optimizer(tb.model, () -> MOIU.MockOptimizer(MOIU.Model{Float64}()))
         expected = "  Backend type: TranscriptionBackend\n  `t` transcribed over 4 supports\n  " *
-                   "`x` transcribed over 5 supports\n  Solver: Mock.\n"
+                   "`x` transcribed over 5 supports\n  Solver: Mock\n"
         @test sprint(show_backend_summary, m, tb) == expected
         set_optimizer(tb.model, () -> MOIU.Model{Float64}())
         expected = "  Backend type: TranscriptionBackend\n  `t` transcribed over 4 supports\n  " *
-                   "`x` transcribed over 5 supports\n  Solver: unknown.\n"
+                   "`x` transcribed over 5 supports\n  Solver: unknown\n"
         @test sprint(show_backend_summary, m, tb) == expected
     end
     # test show
