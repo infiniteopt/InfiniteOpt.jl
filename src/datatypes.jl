@@ -769,12 +769,7 @@ struct InfiniteVariable{
 end
 
 """
-    RestrictedVariableDomainInfo{
-        LB <: Union{Nothing, Float64, ParameterFunction},
-        UB <: Union{Nothing, Float64, ParameterFunction},
-        FX <: Union{Nothing, Float64, ParameterFunction},
-        ST <: Union{Nothing, Float64, ParameterFunction}
-    }
+    RestrictedVariableDomainInfo
 
 A structure for storing variable domain information of semi-infinite
 and point variables. By default, these variables will inherit the
@@ -783,36 +778,27 @@ the attributes that overide the domain of the infinite variable. This
 not intended to be used by users directly unless they are creating a
 new transformation backend.
 """
-struct RestrictedVariableDomainInfo{
-    LB <: Union{Nothing, Float64, ParameterFunction},
-    UB <: Union{Nothing, Float64, ParameterFunction},
-    FX <: Union{Nothing, Float64, ParameterFunction},
-    ST <: Union{Nothing, Float64, ParameterFunction}
-    }
+struct RestrictedVariableDomainInfo
     active_lower_bound_info::Bool
-    lower_bound::LB
+    lower_bound::Float64
     active_upper_bound_info::Bool
-    upper_bound::UB
+    upper_bound::Float64
     active_fix_info::Bool
-    fixed_value::FX
+    fixed_value::Float64
     active_start_info::Bool
-    start_value::ST
+    start_value::Float64
 end
 
 """
     SemiInfiniteVariable{
         I <: GeneralVariableRef,
-        LB <: Union{Nothing, Float64, ParameterFunction},
-        UB <: Union{Nothing, Float64, ParameterFunction},
-        FX <: Union{Nothing, Float64, ParameterFunction},
-        ST <: Union{Nothing, Float64, ParameterFunction}
     } <: JuMP.AbstractVariable
 
 A `DataType` for storing semi-infinite variables which partially support an
 infinite variable.
 
 **Fields**
-- `info::RestrictedVariableDomainInfo{LB, UB, FX, ST}`: Distinguished domain info.
+- `info::RestrictedVariableDomainInfo`: Distinguished domain info.
 - `infinite_variable_ref::I`: The original infinite/derivative variable.
 - `eval_supports::Dict{Int, Float64}`: The original parameter tuple linear indices
                                      to the evaluation supports.
@@ -822,13 +808,9 @@ infinite variable.
                               evaluated `parameter_refs`.
 """
 struct SemiInfiniteVariable{
-    I <: JuMP.AbstractVariableRef,
-    LB <: Union{Nothing, Float64, ParameterFunction},
-    UB <: Union{Nothing, Float64, ParameterFunction},
-    FX <: Union{Nothing, Float64, ParameterFunction},
-    ST <: Union{Nothing, Float64, ParameterFunction}
+    I <: JuMP.AbstractVariableRef
     } <: JuMP.AbstractVariable
-    info::RestrictedVariableDomainInfo{LB, UB, FX, ST}
+    info::RestrictedVariableDomainInfo
     infinite_variable_ref::I
     eval_supports::Dict{Int, Float64}
     parameter_nums::Vector{Int}
@@ -837,11 +819,7 @@ end
 
 """
     PointVariable{
-        I <: GeneralVariableRef,
-        LB <: Union{Nothing, Float64},
-        UB <: Union{Nothing, Float64},
-        FX <: Union{Nothing, Float64},
-        ST <: Union{Nothing, Float64}
+        I <: GeneralVariableRef
     } <: JuMP.AbstractVariable
 
 A `DataType` for storing point variable information. Note that the elements
@@ -849,20 +827,16 @@ A `DataType` for storing point variable information. Note that the elements
 defined in [`InfiniteVariable`](@ref)
 
 **Fields**
-- `info::RestrictedVariableDomainInfo{LB, UB, FX, ST}`: Domain info.
+- `info::RestrictedVariableDomainInfo`: Domain info.
 - `infinite_variable_ref::I`: The infinite variable/derivative reference
     associated with the point variable.
 - `parameter_values::Vector{Float64}`: The infinite parameter values
     defining the point.
 """
 struct PointVariable{
-    I <: JuMP.AbstractVariableRef,
-    LB <: Union{Nothing, Float64},
-    UB <: Union{Nothing, Float64},
-    FX <: Union{Nothing, Float64},
-    ST <: Union{Nothing, Float64}
+    I <: JuMP.AbstractVariableRef
     } <: JuMP.AbstractVariable
-    info::RestrictedVariableDomainInfo{LB, UB, FX, ST}
+    info::RestrictedVariableDomainInfo
     infinite_variable_ref::I
     parameter_values::Vector{Float64}
 end

@@ -638,73 +638,11 @@ end
 function _update_variable_info(
     dref::DerivativeRef,
     info::JuMP.VariableInfo
-    )::Nothing
+    )
     vref = derivative_argument(dref)
     pref = operator_parameter(dref)
     order = derivative_order(dref)
-    is_vect_func = _is_vector_start(dref)
-    new_deriv = Derivative(_format_infinite_info(info), is_vect_func, vref, pref, order)
-    _set_core_object(dref, new_deriv)
-    return
-end
-
-"""
-    set_start_value_function(dref::DerivativeRef,
-                             start::Union{Real, Function})::Nothing
-
-Set the start value function of `dref`. If `start::Real` then a function is
-generated to such that the start value will be `start` for the entire infinite
-domain. If `start::Function` then this function should map to a scalar start value
-given a support value arguments matching the format of the parameter elements in
-`parameter_refs(dref)`.
-
-**Example**
-```julia-repl
-julia> set_start_value_function(dref, 1) # all start values will be 1
-
-julia> set_start_value_function(dref, my_func) # each value will be made via my_func
-```
-"""
-function set_start_value_function(
-    dref::DerivativeRef,
-    start::Union{Real, Function}
-    )::Nothing
-    info = _variable_info(dref)
-    set_transformation_backend_ready(JuMP.owner_model(dref), false)
-    prefs = raw_parameter_refs(dref)
-    temp_info = JuMP.VariableInfo(info.has_lb, info.lower_bound, info.has_ub,
-                                 info.upper_bound, info.has_fix, info.fixed_value,
-                                 true, start, info.binary, info.integer)
-    new_info, is_vect_func = _check_and_format_infinite_info(error, temp_info, prefs)
-    vref = derivative_argument(dref)
-    pref = operator_parameter(dref)
-    order = derivative_order(dref)
-    new_deriv = Derivative(new_info, is_vect_func, vref, pref, order)
-    _set_core_object(dref, new_deriv)
-    return
-end
-
-"""
-    reset_start_value_function(dref::DerivativeRef)::Nothing
-
-Remove the existing start value function and return to the default. Generally,
-this is triggered by deleting an infinite parameter that `dref` depends on.
-
-**Example**
-```julia-repl
-julia> reset_start_value_function(dref)
-```
-"""
-function reset_start_value_function(dref::DerivativeRef)::Nothing
-    info = _variable_info(dref)
-    set_transformation_backend_ready(JuMP.owner_model(dref), false)
-    new_info = JuMP.VariableInfo(info.has_lb, info.lower_bound, info.has_ub,
-                                 info.upper_bound, info.has_fix, info.fixed_value,
-                                 false, s -> NaN, info.binary, info.integer)
-    vref = derivative_argument(dref)
-    pref = operator_parameter(dref)
-    order = derivative_order(dref)
-    new_deriv = Derivative(new_info, true, vref, pref, order)
+    new_deriv = Derivative(info, vref, pref, order)
     _set_core_object(dref, new_deriv)
     return
 end
@@ -801,8 +739,6 @@ end
 ################################################################################
 # Extend _delete_variable_dependencies (for use with JuMP.delete)
 function _delete_variable_dependencies(dref::DerivativeRef)::Nothing
-    # remove variable info constraints associated with dref
-    _delete_info_constraints(dref)
     # update variable and parameter mapping
     vref = derivative_argument(dref)
     pref = operator_parameter(dref)

@@ -622,111 +622,20 @@ function _update_variable_info(
     prefs = raw_parameter_refs(vref)
     param_nums = _parameter_numbers(vref)
     group_int_idxs = parameter_group_int_indices(vref)
-    # TODO process info properly
     new_var = InfiniteVariable(info, prefs, param_nums, group_int_idxs)
     _set_core_object(vref, new_var)
     return
 end
 
-# Specify start_value fallback for infinite variables
-function JuMP.start_value(vref::Union{InfiniteVariableRef, DerivativeRef})
-    error("`start_value` not defined for infinite variables, consider calling " *
-          "`start_value_function` instead.")
-end
-
-# Specify set_start_value fallback for infinite variables
-function JuMP.set_start_value(
-    vref::Union{InfiniteVariableRef, DerivativeRef}, 
-    value::Real
+# Extend _process_info_arg for infinite variables and derivatives
+function _process_info_arg(
+    vref::Union{InfiniteVariableRef, DerivativeRef},
+    func::Function
     )
-    error("`set_start_value` not defined for infinite variables, consider calling " *
-          "`set_start_value_function` instead.")
-end
-
-"""
-    start_value_function(vref::Union{InfiniteVariableRef, DerivativeRef})::Union{Nothing, Function}
-
-Return the function that is used to generate the start values of `vref` for
-particular support values. Returns `nothing` if no start behavior has been
-specified.
-
-**Example**
-```julia-repl
-julia> start_value_function(vref)
-my_start_func
-```
-"""
-function start_value_function(
-    vref::Union{InfiniteVariableRef, DerivativeRef}
-    )
-    if _variable_info(vref).has_start
-        return _variable_info(vref).start
-    else
-        return
-    end
-end
-
-"""
-    set_start_value_function(vref::InfiniteVariableRef,
-                             start::Union{Real, Function})::Nothing
-
-Set the start value function of `vref`. If `start::Real` then a function is
-generated to such that the start value will be `start` for the entire infinite
-domain. If `start::Function` then this function should map to a scalar start value
-given a support value arguments matching the format of the parameter elements in
-`parameter_refs(vref)`.
-
-**Example**
-```julia-repl
-julia> set_start_value_function(vref, 1) # all start values will be 1
-
-julia> set_start_value_function(vref, my_func) # each value will be made via my_func
-```
-"""
-function set_start_value_function(
-    vref::InfiniteVariableRef,
-    start::Union{Real, Function}
-    )
-    info = _variable_info(vref)
-    set_transformation_backend_ready(JuMP.owner_model(vref), false)
     prefs = raw_parameter_refs(vref)
-    temp_info = JuMP.VariableInfo(info.has_lb, info.lower_bound, info.has_ub,
-                                  info.upper_bound, info.has_fix, info.fixed_value,
-                                  true, start, info.binary, info.integer)
-    new_info, is_vect_func = _check_and_format_infinite_info(error, temp_info, prefs)
-    group_int_idxs = parameter_group_int_indices(vref)
     param_nums = _parameter_numbers(vref)
-    new_var = InfiniteVariable(new_info, prefs, param_nums, group_int_idxs, is_vect_func)
-    _set_core_object(vref, new_var)
-    # TODO update point variable start values as appropriate
-    return
-end
-
-"""
-    reset_start_value_function(vref::InfiniteVariableRef)::Nothing
-
-Remove the existing start value function and return to the default. Generally,
-this is triggered by deleting an infinite parameter that `vref` depends on.
-
-**Example**
-```julia-repl
-julia> reset_start_value_function(vref)
-```
-"""
-function reset_start_value_function(vref::InfiniteVariableRef)
-    info = _variable_info(vref)
-    set_transformation_backend_ready(JuMP.owner_model(vref), false)
-    start_func = (s::Vector{<:Real}) -> NaN
-    new_info = JuMP.VariableInfo(info.has_lb, info.lower_bound, info.has_ub,
-                                 info.upper_bound, info.has_fix, info.fixed_value,
-                                 false, start_func, info.binary, info.integer)
-    prefs = raw_parameter_refs(vref)
     group_int_idxs = parameter_group_int_indices(vref)
-    param_nums = _parameter_numbers(vref)
-    new_var = InfiniteVariable(new_info, prefs, param_nums, group_int_idxs, true)
-    _set_core_object(vref, new_var)
-    # TODO update point variable start values as appropriate
-    return
+    return _process_info_arg(error, func, prefs, param_nums, group_int_idxs)
 end
 
 ################################################################################
@@ -773,8 +682,6 @@ end
 ################################################################################
 # Extend _delete_variable_dependencies (for use with JuMP.delete)
 function _delete_variable_dependencies(vref::InfiniteVariableRef)
-    # remove variable info constraints associated with vref
-    _delete_info_constraints(vref)
     # update parameter mapping and remove piecewise settings
     all_prefs = parameter_list(vref)
     model = JuMP.owner_model(vref)
