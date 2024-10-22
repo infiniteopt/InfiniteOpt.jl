@@ -484,13 +484,17 @@ end
     gvref = GeneralVariableRef(m, 1, TestIndex)
     pref = GeneralVariableRef(m, -1, IndependentParameterIndex)
     # test 1 argument methods 
-    for f in (:has_lower_bound, :has_upper_bound, :is_fixed, :is_binary, 
-              :is_integer, :lower_bound, :upper_bound, :fix_value, :start_value,
-              :set_binary, :set_integer, :LowerBoundRef, :UpperBoundRef, :FixRef, 
-              :BinaryRef, :IntegerRef, :delete_lower_bound, :delete_upper_bound, 
+    for f in (:has_lower_bound, :has_upper_bound, :lower_bound, :upper_bound, 
+              :fix_value, :start_value, :set_binary, :set_integer, 
+              :LowerBoundRef, :UpperBoundRef, :FixRef, :BinaryRef, :IntegerRef, 
+              :delete_lower_bound, :delete_upper_bound, 
               :unfix, :unset_binary, :unset_integer)
         @test_throws ArgumentError eval(f)(dvref)
         @test_throws ArgumentError eval(f)(gvref)
+    end
+    for f in (:is_fixed, :is_binary, :is_integer)
+        @test !eval(f)(dvref)
+        @test !eval(f)(gvref)
     end
     # test setting methods
     for f in (:set_lower_bound, :set_upper_bound, :set_start_value)

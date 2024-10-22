@@ -820,10 +820,14 @@ for op = (:has_lower_bound, :has_upper_bound, :is_fixed, :is_binary, :is_integer
           :unset_integer)
     @eval begin
         # define the fallback method
-        function JuMP.$op(vref::DispatchVariableRef)
-            str = string("`JuMP.$($op)` not defined for variable reference type ",
-                         "`$(typeof(vref))`.")
-            throw(ArgumentError(str))
+        if JuMP.$op in (JuMP.is_binary, JuMP.is_fixed, JuMP.is_integer)
+            JuMP.$op(vref::DispatchVariableRef) = false
+        else
+            function JuMP.$op(vref::DispatchVariableRef)
+                str = string("`JuMP.$($op)` not defined for variable reference type ",
+                            "`$(typeof(vref))`.")
+                throw(ArgumentError(str))
+            end
         end
 
         # define the dispatch version
