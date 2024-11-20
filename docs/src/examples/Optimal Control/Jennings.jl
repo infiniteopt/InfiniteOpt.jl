@@ -1,0 +1,69 @@
+# # Minimizing Final Time (Jennings Problem)
+# Solve an optimal control problem with a minimal final time. 
+# Set up and solve the Jennings optimal control benchmark problem.
+# # Problem Statement and Model
+# When solving differential equations over a variable time interval ``[0,t_f]``,
+# we can apply a time-scaling transformation to normalize the interval to``[0,1]``.
+# This is achieved by introducing a final time parameter ``t_f``.
+# The Jennings optimal control problem divides derivatives by ``t_f``.
+# In practice, ``t_f`` appears on the right hand side to avoid any divisions by 0.
+# ```math
+# \begin{gathered}
+# \frac{\frac{dx}{dt}}{t_f} =  f(x,u) \\
+# \frac{dx}{dt} = t_f f(x,u) \\
+# \end{gathered}
+# ```
+# Our specific problem is defined as the following:
+# ```math
+# \begin{aligned}
+# &&\min_{u(t),t_f} t_f \\
+# &&\text{s.t.} &&& \frac{dx_1}{dt}= t_f u \\
+# &&&&&\frac{dx_2}{dt} = t_f \cos(x_1(t)) \\
+# &&&&&\frac{dx_3}{dt} = t_f \sin(x_1(t)) \\
+# &&&&&x(0) = [\pi/2, 4, 0] \\
+# &&&&&x_2(t_f) = 0 \\
+# &&&&&x_3(t_f) = 0 \\
+# &&&&&-2 \leq u(t) \leq 2
+# \end{aligned}
+# ```
+
+# # Model Definition
+
+# First we must import ``InfiniteOpt`` and other packages.
+using InfiniteOpt, Ipopt, Plots;
+# Next we specify an array of initial conditions.
+x0 = [π/2, 4, 0]; # x(0) for x1,x2,x3
+# We initialize the infinite model and opt to use the Ipopt solver
+m = InfiniteModel(Ipopt.Optimizer);
+# Recall t is specified as ``\ t \in [0,1]``:
+@infinite_parameter(m, t in [0,1],num_supports= 100)
+# Now let's specify descision variables. Notice that ``t_f`` is
+# not a function of time and is a singular value.
+@variable(m, x[1:3], Infinite(t))
+@variable(m, -2 <= u <= 2, Infinite(t))
+@variable(m, 0.1 <= tf);
+# Specifying the objective to minimize final time:
+@objective(m, Min, tf);
+# Define the ODEs which serve as our system model.
+@constraint(m, ∂(x[1],t) == tf*u)
+@constraint(m, ∂(x[2],t) == tf*cos(x[1]))
+@constraint(m, ∂(x[3],t) == tf*sin(x[1]));
+# Set our inital and final conditions.
+@constraint(m, [i in 1:3], x[i](0) == x0[i])
+@constraint(m, x[2](1) <=0)
+@constraint(m, x[3](1) <= 1e-1);
+# # Problem Solution
+# Optimize the model:
+optimize!(m)
+# Extract the results. Notice that we multiply by ``t_f``
+# to scale our time.
+ts = value(t)*value(tf)
+u_opt = value(u)
+x1_opt = value(x[1])
+x2_opt = value(x[2])
+x3_opt = value(x[3]);
+# Plot the results
+plot(ts, u_opt, label = "u(t)", linecolor = :black, linestyle = :dash)
+plot!(ts, x1_opt, linecolor = :blue, linealpha = 0.4, label = "x1")
+plot!(ts, x2_opt, linecolor = :green, linealpha = 0.4, label = "x2")
+plot!(ts, x3_opt, linecolor = :red, linealpha = 0.4, label = "x3");
