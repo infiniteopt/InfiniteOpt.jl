@@ -9,7 +9,7 @@
 # \begin{aligned}
 # &&\max_{u(t)} J(t) \\
 # &&&&&J = \int_0^{10} \left(E - \frac{c}{x}\right) u U_{max} \, dt \\
-# &&\text{s.t.} &&& \frac{dx}{dt}= rx(t)\left(1 - \frac{x(t)}{k}\right) - uU_{max} \\
+# &&\text{s.t.} &&& \frac{dx}{dt}= rx(t)\left(1 - \frac{x(t)}{k}\right) - uU_{max}, t \in [0,10] \\
 # &&&&&x(0) = 70 \\
 # &&&&&0 \leq u(t) \leq 1 \\
 # &&&&&E = 1, \; c = 17.5, \; r = 0.71, \; k = 80.5, \; U_{max} = 20 \\
@@ -56,3 +56,11 @@ p2 = plot(ts, u_opt,
     label = "Rate",
     title = "Rate vs Time")
 plot(p1,p2 ,layout=(2,1), size=(800,600));
+
+# ### Maintenance Tests
+# These are here to ensure this example stays up to date. 
+using Test
+@test termination_status(m) == MOI.LOCALLY_SOLVED
+@test has_values(m)
+@test u_opt isa Vector{<:Real}
+@test J_opt isa Vector{<:Real}

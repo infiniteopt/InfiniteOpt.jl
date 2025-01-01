@@ -67,3 +67,11 @@ p2 = plot(ts, u_opt,
     label="u(t)", 
     title="Input")
 plot(p1, p2, layout=(2,1), size=(800,600));
+
+# ### Maintenance Tests
+# These are here to ensure this example stays up to date. 
+using Test
+@test termination_status(m) == MOI.LOCALLY_SOLVED
+@test has_values(m)
+@test u_opt isa Vector{<:Real}
+@test x1_opt isa Vector{<:Real}

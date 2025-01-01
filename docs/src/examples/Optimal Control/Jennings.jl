@@ -17,9 +17,9 @@
 # ```math
 # \begin{aligned}
 # &&\min_{u(t),t_f} t_f \\
-# &&\text{s.t.} &&& \frac{dx_1}{dt}= t_f u \\
-# &&&&&\frac{dx_2}{dt} = t_f \cos(x_1(t)) \\
-# &&&&&\frac{dx_3}{dt} = t_f \sin(x_1(t)) \\
+# &&\text{s.t.} &&& \frac{dx_1}{dt}= t_f u, && t \in [0,1] \\
+# &&&&&\frac{dx_2}{dt} = t_f \cos(x_1(t)), && t \in [0,1] \\
+# &&&&&\frac{dx_3}{dt} = t_f \sin(x_1(t)), && t \in [0,1] \\
 # &&&&&x(0) = [\pi/2, 4, 0] \\
 # &&&&&x_2(t_f) = 0 \\
 # &&&&&x_3(t_f) = 0 \\
@@ -67,3 +67,11 @@ plot(ts, u_opt, label = "u(t)", linecolor = :black, linestyle = :dash)
 plot!(ts, x1_opt, linecolor = :blue, linealpha = 0.4, label = "x1")
 plot!(ts, x2_opt, linecolor = :green, linealpha = 0.4, label = "x2")
 plot!(ts, x3_opt, linecolor = :red, linealpha = 0.4, label = "x3");
+
+# ### Maintenance Tests
+# These are here to ensure this example stays up to date. 
+using Test
+@test termination_status(m) == MOI.LOCALLY_SOLVED
+@test has_values(m)
+@test u_opt isa Vector{<:Real}
+@test x1_opt isa Vector{<:Real}
