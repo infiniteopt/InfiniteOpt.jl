@@ -60,7 +60,7 @@ end)
 # Specify parameter functions
 ## t needs to be explicitly defined as an infinite parameter because time horizon introduces ambiguity
 @parameter_function(model, x1bar == t -> sin(2 * pi * t/time_horizon))
-@parameter_function(model, x3bar == t -> sin(2 * pi * t/time_horizon))
+@parameter_function(model, x3bar == t -> 2*sin(4 * pi * t/time_horizon))
 @parameter_function(model, x5bar == t -> 2 * t/time_horizon)
 
 # Specify the objective
@@ -75,7 +75,7 @@ end)
 ## Note that states 1, 3, 5 correspond to the x,y, and z spatial positions
 @constraint(model, [i=[1,3,5]],  ∂(x[i], t) == x[i+1]) 
 @constraint(model, ∂(x[2], t) == u[1]*cos(x[7])*sin(x[8])*cos(x[9])+u[1]*sin(x[7])*sin(x[9]))
-@constraint(model, ∂(x[4], t) == u[1]*cos(x[7])*sin(x[8])*cos(x[9])-u[1]*sin(x[7])*sin(x[9]))
+@constraint(model, ∂(x[4], t) == u[1]*cos(x[7])*sin(x[8])*sin(x[9])-u[1]*sin(x[7])*cos(x[9]))
 @constraint(model, ∂(x[6], t) == u[1]*cos(x[7])*cos(x[8])-9.8)
 @constraint(model, ∂(x[7], t) == u[2]*(cos(x[7])/cos(x[8]))+u[3]*(sin(x[7])/cos(x[8])))
 @constraint(model, ∂(x[8], t) == -u[2]*sin(x[7])+u[3]*cos(x[7]))
@@ -103,7 +103,7 @@ if is_solved_and_feasible(model)
 
     y = x_values[3]
 
-    yset = sin.(2 * pi.* t_values./time_horizon)
+    yset = 2 * sin.(4 * pi.* t_values./time_horizon)
 
     z = x_values[5]
 
