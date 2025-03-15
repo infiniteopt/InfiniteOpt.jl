@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Fishing Optimal Control · InfiniteOpt.jl</title><meta name="title" content="Fishing Optimal Control · InfiniteOpt.jl"/><meta property="og:title" content="Fishing Optimal Control · InfiniteOpt.jl"/><meta property="twitter:title" content="Fishing Optimal Control · InfiniteOpt.jl"/><meta name="description" content="Documentation for InfiniteOpt.jl."/><meta property="og:description" content="Documentation for InfiniteOpt.jl."/><meta property="twitter:description" content="Documentation for InfiniteOpt.jl."/><script async src="https://www.googletagmanager.com/gtag/js?id=UA-178297470-1"></script><script>  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'UA-178297470-1', {'page_path': location.pathname + location.search + location.hash});
+</script><script data-outdated-warner src="../../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../../assets/documenter.js"></script><script src="../../../search_index.js"></script><script src="../../../siteinfo.js"></script><script src="../../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../../assets/themeswap.js"></script><link href="../../../assets/extra_styles.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../../"><img class="docs-light-only" src="../../../assets/logo.png" alt="InfiniteOpt.jl logo"/><img class="docs-dark-only" src="../../../assets/logo-dark.png" alt="InfiniteOpt.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../../">InfiniteOpt.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../../">Home</a></li><li><a class="tocitem" href="../../../install/">Installation</a></li><li><input class="collapse-toggle" id="menuitem-3" type="checkbox"/><label class="tocitem" for="menuitem-3"><span class="docs-label">Tutorials</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../tutorials/quick_start/">Quick Start</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4" type="checkbox" checked/><label class="tocitem" for="menuitem-4"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-4-1" type="checkbox" checked/><label class="tocitem" for="menuitem-4-1"><span class="docs-label">Optimal Control</span><i class="docs-chevron"></i></label><ul class="collapsed"><li class="is-active"><a class="tocitem" href>Fishing Optimal Control</a><ul class="internal"><li class="toplevel"><a class="tocitem" href="#Problem-Statement-and-Model"><span>Problem Statement and Model</span></a></li><li class="toplevel"><a class="tocitem" href="#Model-Definition"><span>Model Definition</span></a></li><li class="toplevel"><a class="tocitem" href="#Problem-Solution"><span>Problem Solution</span></a></li></ul></li><li><a class="tocitem" href="../Hanging Chain/">Hanging Chain Problem</a></li><li><a class="tocitem" href="../Jennings/">Minimizing Final Time (Jennings Problem)</a></li><li><a class="tocitem" href="../consumption_savings/">Consumption Savings Problem</a></li><li><a class="tocitem" href="../hovercraft/">Hovercraft Path Planning</a></li><li><a class="tocitem" href="../pandemic_control/">Pandemic Control</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-2" type="checkbox"/><label class="tocitem" for="menuitem-4-2"><span class="docs-label">Stochastic Optimization</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../Stochastic Optimization/farmer/">Two-Stage Stochastic Program</a></li><li><a class="tocitem" href="../../Stochastic Optimization/flexible_design/">Power Network Flexibility Design</a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-5" type="checkbox"/><label class="tocitem" for="menuitem-5"><span class="docs-label">User Guide</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../guide/model/">Infinite Models</a></li><li><a class="tocitem" href="../../../guide/domains/">Infinite Domains</a></li><li><a class="tocitem" href="../../../guide/parameter/">Infinite Parameters</a></li><li><a class="tocitem" href="../../../guide/finite_parameter/">Finite Parameters</a></li><li><a class="tocitem" href="../../../guide/variable/">Variables</a></li><li><a class="tocitem" href="../../../guide/derivative/">Derivatives</a></li><li><a class="tocitem" href="../../../guide/expression/">Expressions</a></li><li><a class="tocitem" href="../../../guide/measure/">Measures</a></li><li><a class="tocitem" href="../../../guide/objective/">Objectives</a></li><li><a class="tocitem" href="../../../guide/constraint/">Constraints</a></li><li><a class="tocitem" href="../../../guide/transcribe/">Model Transcription</a></li><li><a class="tocitem" href="../../../guide/optimize/">Optimization</a></li><li><a class="tocitem" href="../../../guide/result/">Results</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-6" type="checkbox"/><label class="tocitem" for="menuitem-6"><span class="docs-label">API Manual</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../manual/model/">Infinite Models</a></li><li><a class="tocitem" href="../../../manual/domains/">Infinite Domains</a></li><li><a class="tocitem" href="../../../manual/parameter/">Infinite Parameters</a></li><li><a class="tocitem" href="../../../manual/finite_parameter/">Finite Parameters</a></li><li><a class="tocitem" href="../../../manual/variable/">Variables</a></li><li><a class="tocitem" href="../../../manual/derivative/">Derivatives</a></li><li><a class="tocitem" href="../../../manual/expression/">Expressions</a></li><li><a class="tocitem" href="../../../manual/measure/">Measures</a></li><li><a class="tocitem" href="../../../manual/objective/">Objectives</a></li><li><a class="tocitem" href="../../../manual/constraint/">Constraints</a></li><li><a class="tocitem" href="../../../manual/backend/">Backends</a></li><li><a class="tocitem" href="../../../manual/transcribe/">TranscriptionOpt</a></li><li><a class="tocitem" href="../../../manual/result/">Results</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-7" type="checkbox"/><label class="tocitem" for="menuitem-7"><span class="docs-label">Development</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../develop/extensions/">Extensions</a></li><li><a class="tocitem" href="../../../develop/start_guide/">Getting Started</a></li><li><a class="tocitem" href="../../../develop/style/">Style Guide</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li><a class="is-disabled">Optimal Control</a></li><li class="is-active"><a href>Fishing Optimal Control</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Fishing Optimal Control</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/infiniteopt/InfiniteOpt.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/infiniteopt/InfiniteOpt.jl/blob/master/docs/src/examples/Optimal Control/Fishing.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Fishing-Optimal-Control"><a class="docs-heading-anchor" href="#Fishing-Optimal-Control">Fishing Optimal Control</a><a id="Fishing-Optimal-Control-1"></a><a class="docs-heading-anchor-permalink" href="#Fishing-Optimal-Control" title="Permalink"></a></h1><p>We will solve an optimal control problem to maximize profit constrained by fish population</p><h1 id="Problem-Statement-and-Model"><a class="docs-heading-anchor" href="#Problem-Statement-and-Model">Problem Statement and Model</a><a id="Problem-Statement-and-Model-1"></a><a class="docs-heading-anchor-permalink" href="#Problem-Statement-and-Model" title="Permalink"></a></h1><p>In this system out input is the rate of fishing <span>$u$</span>, and the profit <span>$J$</span> will be defined in the objective to maximize. Our profit objective is represented as:</p><p class="math-container">\[\begin{aligned}
+&amp;&amp;\max_{u(t)} J(t) \\
+&amp;&amp;&amp;&amp;&amp;J = \int_0^{10} \left(E - \frac{c}{x}\right) u U_{max} \, dt \\
+&amp;&amp;\text{s.t.} &amp;&amp;&amp; \frac{dx}{dt}= rx(t)\left(1 - \frac{x(t)}{k}\right) - uU_{max}, t \in [0,10] \\
+&amp;&amp;&amp;&amp;&amp;x(0) = 70 \\
+&amp;&amp;&amp;&amp;&amp;0 \leq u(t) \leq 1 \\
+&amp;&amp;&amp;&amp;&amp;E = 1, \; c = 17.5, \; r = 0.71, \; k = 80.5, \; U_{max} = 20 \\
+&amp;&amp;&amp;&amp;&amp;J(0) = 0 \\
+\end{aligned}\]</p><h1 id="Model-Definition"><a class="docs-heading-anchor" href="#Model-Definition">Model Definition</a><a id="Model-Definition-1"></a><a class="docs-heading-anchor-permalink" href="#Model-Definition" title="Permalink"></a></h1><p>First we must import <span>$InfiniteOpt$</span> and other packages.</p><pre><code class="language-julia hljs">using InfiniteOpt, Ipopt, Plots;</code></pre><p>Next we specify an array of initial conditions as well as problem variables.</p><pre><code class="language-julia hljs">x0 = 70
+E, c, r, k, Umax = 1, 17.5, 0.71, 80.5, 20;</code></pre><p>We initialize the infinite model and opt to use the Ipopt solver</p><pre><code class="language-julia hljs">m = InfiniteModel(Ipopt.Optimizer);</code></pre><p>Now let&#39;s specify variables. <span>$u$</span> is as our fishing rate. <span>$x$</span> will be used to model the fish population in response to <span>$u$</span> the infinite parameter <span>$t$</span> that will span over 10 years.</p><pre><code class="language-julia hljs">@infinite_parameter(m, t in [0,10],num_supports=100)
+@variable(m, 1 &lt;= x, Infinite(t))
+@variable(m, 0 &lt;= u &lt;= 1, Infinite(t));</code></pre><p><span>$J$</span> represents profit over time.</p><pre><code class="language-julia hljs">@variable(m, J, Infinite(t));</code></pre><p>Specifying the objective to maximize profit <span>$J$</span>:</p><pre><code class="language-julia hljs">@objective(m, Max, J(10));</code></pre><p>Define the ODEs which serve as our system model.</p><pre><code class="language-julia hljs">@constraint(m, ∂(J,t) == (E-c/x) * u * Umax)
+@constraint(m, ∂(x,t) == r * x *(1 - x/k) - u*Umax);</code></pre><p>Set our initial conditions.</p><pre><code class="language-julia hljs">@constraint(m, x(0) == x0)
+@constraint(m, J(0) == 0);</code></pre><h1 id="Problem-Solution"><a class="docs-heading-anchor" href="#Problem-Solution">Problem Solution</a><a id="Problem-Solution-1"></a><a class="docs-heading-anchor-permalink" href="#Problem-Solution" title="Permalink"></a></h1><p>Optimize the model:</p><pre><code class="language-julia hljs">optimize!(m)</code></pre><pre><code class="nohighlight hljs">
+******************************************************************************
+This program contains Ipopt, a library for large-scale nonlinear optimization.
+ Ipopt is released as open source code under the Eclipse Public License (EPL).
+         For more information visit https://github.com/coin-or/Ipopt
+******************************************************************************
+
+This is Ipopt version 3.14.4, running with linear solver MUMPS 5.4.1.
+
+Number of nonzeros in equality constraint Jacobian...:     1296
+Number of nonzeros in inequality constraint Jacobian.:        0
+Number of nonzeros in Lagrangian Hessian.............:      400
+
+Total number of variables............................:      500
+                     variables with only lower bounds:      100
+                variables with lower and upper bounds:      100
+                     variables with only upper bounds:        0
+Total number of equality constraints.................:      400
+Total number of inequality constraints...............:        0
+        inequality constraints with only lower bounds:        0
+   inequality constraints with lower and upper bounds:        0
+        inequality constraints with only upper bounds:        0
+
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+   0  0.0000000e+00 6.90e+01 1.45e+00  -1.0 0.00e+00    -  0.00e+00 0.00e+00   0
+   1 -1.8548441e+00 6.89e+01 1.12e+01  -1.0 9.50e+03  -2.0 1.44e-04 1.76e-03h  1
+   2 -2.6101623e+00 6.88e+01 1.12e+01  -1.0 3.84e+03  -1.6 3.43e-04 7.39e-04h  1
+   3 -8.1519321e+00 6.85e+01 5.40e+01  -1.0 3.34e+03  -2.1 1.00e-03 4.91e-03h  1
+   4 -1.5382109e+01 6.80e+01 6.91e+01  -1.0 2.26e+03  -2.5 1.14e-03 7.62e-03f  4
+   5 -2.3521800e+01 6.72e+01 6.64e+01  -1.0 2.27e+03    -  1.32e-02 1.07e-02h  3
+   6 -3.2524402e+01 6.62e+01 6.32e+01  -1.0 1.67e+03    -  2.84e-02 1.51e-02h  2
+   7 -3.9860630e+01 6.51e+01 5.06e+01  -1.0 9.09e+02    -  8.43e-02 1.60e-02h  1
+   8 -4.5178330e+01 6.40e+01 3.21e+01  -1.0 2.71e+03    -  3.44e-02 1.70e-02h  1
+   9 -4.9707626e+01 6.30e+01 3.08e+01  -1.0 1.38e+03    -  1.50e-02 1.62e-02h  1
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  10 -5.3966386e+01 6.19e+01 3.24e+01  -1.0 2.10e+03    -  1.11e-02 1.72e-02h  1
+  11 -5.5735727e+01 6.14e+01 3.15e+01  -1.0 3.23e+03    -  1.00e-02 9.14e-03h  1
+  12 -5.7438744e+01 6.07e+01 3.26e+01  -1.0 2.39e+03    -  7.16e-03 1.01e-02f  1
+  13 -5.6890891e+01 6.02e+01 3.64e+01  -1.0 4.84e+03    -  2.54e-03 8.82e-03f  1
+  14 -5.6868789e+01 5.97e+01 3.60e+01  -1.0 1.10e+04    -  2.31e-03 7.95e-03f  2
+  15 -5.7110966e+01 5.95e+01 3.69e+01  -1.0 1.97e+03  -2.1 3.18e-03 3.64e-03h  1
+  16 -5.9420322e+01 5.84e+01 4.18e+01  -1.0 1.70e+03  -2.6 3.38e-03 1.82e-02f  1
+  17 -5.9499934e+01 5.83e+01 3.16e+01  -1.0 1.14e+03  -2.2 1.21e-02 1.23e-03h  1
+  18 -6.0120020e+01 5.75e+01 4.82e+01  -1.0 1.34e+03  -1.7 8.68e-03 1.48e-02h  1
+  19 -6.0855779e+01 5.70e+01 4.78e+01  -1.0 1.92e+03  -2.2 5.24e-03 8.16e-03f  1
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  20 -6.0963105e+01 5.69e+01 3.59e+01  -1.0 2.14e+03  -1.8 6.02e-03 1.80e-03f  1
+  21 -7.3097711e+01 5.62e+01 4.14e+01  -1.0 2.01e+03  -2.3 1.80e-03 1.27e-02f  1
+  22 -7.3128660e+01 5.61e+01 1.23e+02  -1.0 1.21e+03  -0.9 8.10e-03 1.26e-03h  1
+  23 -7.3128600e+01 5.61e+01 1.53e+03  -1.0 2.73e+03  -0.5 8.41e-03 9.58e-05h  1
+  24 -7.3194926e+01 5.46e+01 7.12e+02  -1.0 3.17e+03  -1.0 7.53e-03 2.73e-02f  1
+  25 -7.3257003e+01 5.42e+01 8.00e+02  -1.0 9.45e+02  -0.6 3.10e-02 7.73e-03f  1
+  26 -7.3260596e+01 5.41e+01 6.85e+02  -1.0 1.39e+03  -1.0 3.96e-02 5.10e-04h  1
+  27 -7.3243186e+01 5.33e+01 4.89e+03  -1.0 1.62e+03  -0.6 9.60e-02 1.49e-02h  1
+  28 -7.3562367e+01 5.20e+01 4.65e+03  -1.0 9.38e+02  -1.1 3.48e-02 2.43e-02f  1
+  29 -7.3562754e+01 5.19e+01 4.54e+03  -1.0 7.25e+02  -0.7 1.17e-01 1.67e-03h  1
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  30 -7.3601727e+01 5.06e+01 2.75e+03  -1.0 8.08e+02  -1.1 2.21e-01 2.56e-02f  1
+  31 -7.3564204e+01 4.97e+01 2.75e+03  -1.0 6.83e+02  -0.7 1.07e-01 1.85e-02h  1
+  32 -7.3354094e+01 4.83e+01 2.33e+03  -1.0 7.15e+02  -1.2 8.51e-02 2.78e-02h  1
+  33 -7.4140801e+01 4.62e+01 2.38e+03  -1.0 6.32e+02  -1.7 1.86e-02 4.24e-02f  1
+  34 -7.4005422e+01 4.58e+01 2.31e+03  -1.0 4.26e+02  -1.2 2.17e-02 1.05e-02h  1
+  35 -7.3322693e+01 4.52e+01 2.34e+03  -1.0 6.08e+02  -1.7 1.06e-04 1.22e-02h  2
+  36 -7.3322182e+01 4.52e+01 2.34e+03  -1.0 3.86e+02  -0.4 5.12e-02 9.72e-04h  1
+  37 -7.3320101e+01 4.51e+01 2.34e+03  -1.0 3.79e+02  -0.9 1.03e-01 2.85e-04h  1
+  38 -7.2740498e+01 4.39e+01 2.02e+03  -1.0 5.38e+02  -1.3 1.35e-01 2.71e-02h  1
+  39 -7.1494967e+01 4.25e+01 1.90e+03  -1.0 7.55e+02  -1.8 4.60e-02 3.14e-02f  1
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  40 -7.1303816e+01 4.22e+01 1.70e+03  -1.0 4.84e+02  -1.4 1.68e-01 7.67e-03h  1
+  41 -6.9076988e+01 4.05e+01 1.72e+03  -1.0 7.80e+02  -1.9 8.20e-03 4.05e-02f  1
+  42 -6.8670764e+01 4.00e+01 1.71e+03  -1.0 5.03e+02  -1.4 2.04e-03 1.20e-02h  1
+  43 -6.8670059e+01 3.99e+01 1.64e+03  -1.0 4.17e+02  -1.0 4.93e-02 1.68e-03h  1
+  44 -6.8217597e+01 3.94e+01 1.64e+03  -1.0 5.28e+02  -1.5 9.99e-04 1.35e-02h  1
+  45 -6.8217600e+01 3.94e+01 1.06e+03  -1.0 4.19e+02  -1.1 4.44e-01 5.82e-04h  1
+  46 -6.7829597e+01 3.88e+01 1.04e+03  -1.0 5.65e+02  -1.5 2.25e-02 1.55e-02h  1
+  47 -6.7829360e+01 3.88e+01 1.09e+03  -1.0 2.42e+02  -1.1 9.46e-02 4.30e-05h  1
+  48 -6.7126779e+01 3.79e+01 1.04e+03  -1.0 5.82e+02  -1.6 6.16e-02 2.22e-02h  1
+  49 -6.5035328e+01 3.67e+01 9.60e+02  -1.0 8.41e+02  -2.1 4.71e-02 3.14e-02f  1
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  50 -6.4848900e+01 3.65e+01 8.97e+02  -1.0 4.10e+02  -1.6 8.20e-02 5.41e-03h  1
+  51 -6.3399398e+01 3.59e+01 9.20e+02  -1.0 1.15e+03  -2.1 5.92e-05 1.82e-02f  1
+  52 -6.3456144e+01 3.58e+01 9.15e+02  -1.0 6.57e+02  -1.7 4.75e-03 1.62e-03h  1
+  53 -6.3455839e+01 3.58e+01 8.90e+02  -1.0 2.49e+02  -1.3 1.37e-01 4.21e-05h  1
+  54 -6.3032678e+01 3.55e+01 8.74e+02  -1.0 7.61e+02  -1.7 6.36e-02 8.98e-03h  1
+  55 -6.1824398e+01 3.49e+01 7.86e+02  -1.0 1.23e+03  -2.2 5.55e-02 1.69e-02f  1
+  56 -6.1364426e+01 3.46e+01 8.19e+02  -1.0 9.11e+02  -1.8 9.50e-02 9.23e-03h  1
+  57 -6.0129444e+01 3.40e+01 7.71e+02  -1.0 1.62e+03  -2.3 3.77e-02 1.61e-02f  1
+  58 -5.9734940e+01 3.38e+01 8.34e+02  -1.0 1.24e+03  -1.8 5.82e-02 7.00e-03h  1
+  59 -5.8350497e+01 3.32e+01 7.76e+02  -1.0 1.73e+03  -2.3 4.48e-02 1.77e-02f  1
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  60 -5.8193932e+01 3.31e+01 8.72e+02  -1.0 1.51e+03  -1.9 3.61e-02 2.41e-03h  1
+  61 -5.7061025e+01 3.23e+01 9.41e+02  -1.0 1.21e+03  -1.5 3.32e-02 2.30e-02h  1
+  62 -5.6813418e+01 3.22e+01 8.97e+02  -1.0 1.80e+03  -1.9 4.64e-02 2.86e-03h  1
+  63 -5.5466597e+01 3.17e+01 1.01e+03  -1.0 1.90e+03  -1.5 3.11e-02 1.77e-02f  1
+  64 -5.5101243e+01 3.15e+01 8.42e+02  -1.0 2.41e+03  -2.0 5.04e-02 3.62e-03f  1
+  65 -5.3850249e+01 3.11e+01 9.45e+02  -1.0 1.93e+03  -1.6 3.72e-02 1.52e-02f  1
+  66 -5.3096884e+01 3.08e+01 7.67e+02  -1.0 2.46e+03  -2.1 4.50e-02 7.37e-03f  1
+  67 -5.2290717e+01 3.05e+01 8.18e+02  -1.0 1.63e+03  -1.6 4.92e-02 1.09e-02f  1
+  68 -5.0588693e+01 3.00e+01 7.09e+02  -1.0 2.52e+03  -2.1 4.00e-02 1.69e-02f  1
+  69 -5.0489585e+01 3.00e+01 9.83e+02  -1.0 1.87e+03  -1.7 3.76e-02 1.05e-03h  1
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  70 -4.9134395e+01 2.95e+01 1.43e+03  -1.0 1.97e+03  -1.3 3.15e-02 1.57e-02h  1
+  71 -4.8632725e+01 2.93e+01 8.27e+02  -1.0 1.37e+03  -1.7 1.35e-01 7.43e-03f  1
+  72 -4.7943317e+01 2.91e+01 8.94e+02  -1.0 1.97e+03  -1.3 5.16e-02 7.39e-03h  1
+  73 -4.6683140e+01 2.86e+01 7.09e+02  -1.0 1.74e+03  -1.8 7.91e-02 1.51e-02f  1
+  74 -4.6159915e+01 2.84e+01 1.03e+03  -1.0 1.85e+03  -1.4 5.81e-02 5.70e-03h  1
+  75 -4.4916268e+01 2.80e+01 8.19e+02  -1.0 1.62e+03  -1.8 1.25e-01 1.54e-02f  1
+  76 -4.3659851e+01 2.76e+01 9.19e+02  -1.0 1.78e+03  -1.4 5.19e-02 1.42e-02f  1
+  77 -4.2685045e+01 2.73e+01 7.77e+02  -1.0 1.14e+03  -1.9 6.46e-02 1.25e-02f  1
+  78 -4.1715907e+01 2.69e+01 8.59e+02  -1.0 1.45e+03  -1.5 7.60e-02 1.33e-02f  1
+  79 -4.1536796e+01 2.69e+01 2.46e+03  -1.0 1.67e+03  -1.0 5.38e-02 2.04e-03h  1
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  80 -3.9505143e+01 2.63e+01 2.57e+03  -1.0 1.92e+03  -1.5 1.17e-01 2.10e-02f  1
+  81 -3.9261344e+01 2.62e+01 4.63e+03  -1.0 1.67e+03  -1.1 7.26e-02 2.62e-03h  1
+  82 -3.7319263e+01 2.56e+01 3.87e+03  -1.0 1.71e+03  -1.6 1.21e-01 2.17e-02f  1
+  83 -3.6890910e+01 2.55e+01 4.84e+03  -1.0 1.56e+03  -1.1 5.98e-02 4.95e-03h  1
+  84 -3.5415475e+01 2.50e+01 1.37e+03  -1.0 1.38e+03  -1.6 5.03e-01 2.00e-02f  1
+  85 -3.4977944e+01 2.49e+01 1.33e+03  -1.0 1.37e+03  -1.2 4.98e-02 5.82e-03h  1
+  86 -3.2681391e+01 2.41e+01 1.17e+03  -1.0 1.22e+03  -1.7 1.08e-01 2.93e-02f  1
+  87 -3.2089428e+01 2.39e+01 1.28e+03  -1.0 9.14e+02  -1.2 8.53e-02 1.07e-02f  1
+  88 -3.0601593e+01 2.33e+01 1.19e+03  -1.0 1.52e+03  -1.7 5.54e-02 2.22e-02f  1
+  89 -3.0414453e+01 2.33e+01 1.44e+03  -1.0 1.37e+03  -1.3 5.10e-02 2.59e-03h  1
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  90 -2.8883251e+01 2.28e+01 1.81e+03  -1.0 1.35e+03  -0.9 4.19e-02 2.25e-02h  1
+  91 -2.8604526e+01 2.27e+01 1.10e+03  -1.0 7.49e+02  -1.3 1.49e-01 4.94e-03f  1
+  92 -2.6795922e+01 2.21e+01 1.65e+03  -1.0 1.42e+03  -0.9 6.76e-02 2.43e-02f  1
+  93 -2.6384215e+01 2.19e+01 1.59e+03  -1.0 6.86e+02  -1.4 1.18e-01 7.13e-03f  1
+  94 -2.4667113e+01 2.14e+01 1.55e+03  -1.0 1.22e+03  -1.0 9.46e-02 2.57e-02f  1
+  95 -2.4050371e+01 2.12e+01 1.64e+03  -1.0 1.26e+03  -1.4 7.16e-02 9.70e-03f  1
+  96 -2.2952320e+01 2.07e+01 1.55e+03  -1.0 9.55e+02  -1.0 1.28e-01 2.03e-02f  1
+  97 -2.1651553e+01 2.03e+01 2.02e+03  -1.0 1.23e+03  -1.5 6.64e-02 2.22e-02f  1
+  98 -2.1339534e+01 2.01e+01 2.27e+03  -1.0 6.55e+02  -1.1 1.42e-01 7.73e-03h  1
+  99 -1.9810587e+01 1.96e+01 2.22e+03  -1.0 1.24e+03  -1.5 3.00e-02 2.87e-02f  1
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+ 100 -1.9789527e+01 1.95e+01 1.66e+03  -1.0 7.67e+02  -1.1 6.73e-02 4.09e-04h  1
+ 101 -1.9035245e+01 1.93e+01 2.47e+03  -1.0 1.19e+03  -0.7 4.96e-02 1.23e-02h  1
+ 102 -1.7958849e+01 1.89e+01 1.66e+03  -1.0 9.17e+02  -1.2 1.88e-01 2.32e-02f  1
+ 103 -1.7839533e+01 1.88e+01 2.54e+03  -1.0 1.02e+03  -0.7 5.52e-02 2.06e-03h  1
+ 104 -1.5864912e+01 1.82e+01 2.86e+03  -1.0 1.13e+03  -1.2 2.91e-01 3.48e-02f  1
+ 105 -1.5730765e+01 1.81e+01 3.55e+03  -1.0 8.96e+02  -0.8 6.44e-02 2.56e-03h  1
+ 106 -1.3918597e+01 1.75e+01 2.61e+03  -1.0 1.02e+03  -1.3 3.92e-01 3.59e-02f  1
+ 107 -1.3661064e+01 1.74e+01 3.22e+03  -1.0 9.06e+02  -0.8 7.08e-02 5.18e-03h  1
+ 108 -1.2141322e+01 1.68e+01 2.28e+03  -1.0 8.92e+02  -1.3 3.08e-01 3.53e-02f  1
+ 109 -1.1820357e+01 1.66e+01 2.73e+03  -1.0 8.79e+02  -0.9 7.29e-02 6.92e-03h  1
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+ 110 -1.0470735e+01 1.61e+01 2.07e+03  -1.0 8.08e+02  -1.4 1.93e-01 3.55e-02f  1
+ 111 -1.0092830e+01 1.59e+01 2.39e+03  -1.0 8.38e+02  -0.9 6.84e-02 8.71e-03h  1
+ 112 -8.9362268e+00 1.54e+01 1.89e+03  -1.0 7.48e+02  -1.4 1.48e-01 3.51e-02f  1
+ 113 -8.8973388e+00 1.53e+01 2.22e+03  -1.0 7.99e+02  -1.0 6.82e-02 9.47e-04h  1
+ 114 -7.3394611e+00 1.47e+01 1.71e+03  -1.0 8.68e+02  -1.5 2.36e-01 4.38e-02f  1
+ 115 -7.1678181e+00 1.46e+01 1.77e+03  -1.0 7.67e+02  -1.0 2.99e-02 4.40e-03h  1
+ 116 -5.8225120e+00 1.40e+01 1.56e+03  -1.0 8.27e+02  -1.5 1.09e-01 4.47e-02f  1
+ 117 -5.8036955e+00 1.39e+01 1.55e+03  -1.0 5.72e+02  -1.1 4.36e-03 5.91e-04h  1
+ 118 -5.7382571e+00 1.39e+01 1.64e+03  -1.0 6.54e+02  -0.7 6.56e-03 1.91e-03h  1
+ 119 -3.9054193e+00 1.33e+01 1.58e+03  -1.0 8.48e+02  -1.1 9.19e-03 4.77e-02f  1
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+ 120 -3.7041292e+00 1.31e+01 1.51e+03  -1.0 3.70e+02  -0.7 7.69e-02 1.18e-02f  1
+ 121 -3.6377737e+00 1.31e+01 1.56e+03  -1.0 7.09e+02  -1.2 8.31e-02 1.97e-03h  1
+ 122 -1.8613929e+00 1.24e+01 1.51e+03  -1.0 7.26e+02  -0.8 5.35e-02 5.14e-02h  1
+ 123 -1.6162676e+00 1.22e+01 2.61e+03  -1.0 3.30e+02  -1.3 1.65e-01 1.63e-02f  1
+ 124 -1.5481784e+00 1.22e+01 1.91e+03  -1.0 5.76e+02  -0.8 8.61e-02 2.34e-03h  1
+ 125  3.1072948e-01 1.14e+01 2.16e+03  -1.0 6.09e+02  -1.3 1.40e-01 6.60e-02f  1
+ 126  3.3714868e-01 1.13e+01 1.83e+03  -1.0 2.42e+02  -0.9 1.19e-01 1.39e-03h  1
+ 127  2.2848921e+00 1.22e+01 1.84e+03  -1.0 5.63e+02  -1.4 1.34e-01 7.54e-02f  1
+ 128  2.3059194e+00 1.22e+01 1.62e+03  -1.0 2.13e+02  -0.9 1.34e-01 1.38e-03h  1
+ 129  4.2406555e+00 1.29e+01 1.56e+03  -1.0 4.99e+02  -1.4 1.30e-01 8.58e-02f  1
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+ 130  4.2586307e+00 1.29e+01 1.41e+03  -1.0 1.85e+02  -1.0 1.59e-01 1.49e-03h  1
+ 131  6.1449014e+00 1.32e+01 1.29e+03  -1.0 4.31e+02  -1.5 1.14e-01 9.92e-02f  1
+ 132  6.1601663e+00 1.32e+01 1.22e+03  -1.0 1.55e+02  -1.0 1.70e-01 1.66e-03h  1
+ 133  7.9617183e+00 1.33e+01 1.04e+03  -1.0 3.61e+02  -1.5 7.61e-02 1.17e-01f  1
+ 134  7.9735970e+00 1.33e+01 1.02e+03  -1.0 1.28e+02  -1.1 1.92e-01 1.83e-03h  1
+ 135  9.7217174e+00 1.36e+01 7.88e+02  -1.0 2.93e+02  -1.6 2.36e-02 1.46e-01f  1
+ 136  9.7344137e+00 1.36e+01 7.87e+02  -1.0 1.58e+02  -1.1 4.79e-03 1.33e-03h  1
+ 137  9.7213999e+00 1.36e+01 7.80e+02  -1.0 5.30e+01  -0.7 3.42e-01 3.68e-03h  1
+ 138  1.1088817e+01 1.17e+01 6.57e+02  -1.0 2.08e+02  -1.2 1.55e-01 1.72e-01f  1
+ 139  1.1111937e+01 1.16e+01 7.56e+02  -1.0 8.27e+01  -1.7 1.45e-01 4.63e-03h  1
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+ 140  1.1167678e+01 1.15e+01 7.21e+02  -1.0 1.47e+02  -1.2 2.54e-01 1.03e-02h  1
+ 141  1.2654012e+01 9.05e+00 4.92e+02  -1.0 1.52e+02  -1.7 6.51e-02 1.94e-01f  1
+ 142  1.2673877e+01 9.02e+00 4.84e+02  -1.0 6.31e+01  -1.3 2.53e-01 3.88e-03h  1
+ 143  6.2086126e+01 5.32e+01 4.31e+02  -1.0 4.07e+02  -1.8 1.94e-03 1.93e-01f  1
+ 144  6.2103083e+01 5.31e+01 4.29e+02  -1.0 2.68e+01  -0.4 1.92e-01 1.61e-03h  1
+ 145  6.3033841e+01 5.27e+01 4.25e+02  -1.0 1.70e+02  -0.9 7.82e-02 8.19e-03f  1
+ 146  6.3251927e+01 5.08e+01 7.97e+02  -1.0 5.15e+01  -0.5 5.52e-01 3.60e-02h  1
+ 147  6.5182177e+01 4.97e+01 8.01e+02  -1.0 1.51e+02  -1.0 1.09e-01 2.29e-02f  1
+ 148  6.5182459e+01 4.58e+01 9.03e+02  -1.0 4.96e+01  -0.5 1.00e+00 7.91e-02h  1
+ 149  6.8202423e+01 4.44e+01 8.53e+02  -1.0 2.73e+02  -1.0 9.45e-02 2.94e-02f  1
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+ 150  6.8065503e+01 4.29e+01 7.22e+02  -1.0 4.44e+01  -0.6 2.99e-01 3.31e-02h  1
+ 151  6.7297726e+01 3.93e+01 1.04e+03  -1.0 4.29e+01  -0.2 1.00e+00 8.57e-02f  1
+ 152  6.6123025e+01 2.69e+01 3.79e+02  -1.0 3.92e+01  -0.6 1.00e+00 3.14e-01f  1
+ 153  6.9614800e+01 2.36e+01 3.24e+02  -1.0 8.34e+01  -1.1 7.23e-02 1.24e-01f  1
+ 154  6.9223563e+01 2.14e+01 2.96e+02  -1.0 2.36e+01  -0.7 2.70e-01 9.42e-02h  1
+ 155  7.0183974e+01 2.09e+01 2.90e+02  -1.0 9.42e+01  -1.2 1.26e-02 2.02e-02f  1
+ 156  6.9343580e+01 1.60e+01 2.19e+02  -1.0 2.10e+01  -0.7 8.00e-02 2.36e-01f  1
+ 157  7.1746595e+01 1.49e+01 2.00e+02  -1.0 8.52e+01  -1.2 7.49e-03 6.86e-02f  1
+ 158  7.1331002e+01 1.10e+01 1.47e+02  -1.0 1.49e+01  -0.8 1.96e-01 2.60e-01f  1
+ 159  7.0796673e+01 8.97e+00 1.19e+02  -1.0 1.11e+01  -0.4 1.56e-01 1.84e-01f  1
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+ 160  7.0082508e+01 1.47e+00 6.12e+01  -1.0 9.23e+00  -0.8 1.97e-01 1.00e+00f  1
+ 161  7.2341708e+01 2.67e-01 5.63e+00  -1.0 3.48e+00  -1.3 8.76e-01 1.00e+00f  1
+ 162  7.8052484e+01 1.51e+00 7.21e-01  -1.0 8.12e+00  -1.8 8.87e-01 1.00e+00f  1
+ 163  9.1342733e+01 7.67e+00 1.46e+00  -1.7 1.82e+01  -2.3 6.37e-01 1.00e+00f  1
+ 164  9.6125327e+01 9.75e+00 1.51e+00  -1.7 3.94e+02    -  1.05e-02 2.91e-02f  1
+ 165  1.0167084e+02 8.10e+00 9.41e-01  -1.7 3.09e+01    -  3.08e-01 1.79e-01f  1
+ 166  1.0773504e+02 6.04e+00 6.85e-01  -1.7 4.77e+01    -  2.41e-01 2.65e-01f  1
+ 167  1.0889469e+02 4.35e+00 5.04e-01  -1.7 4.25e+01    -  5.68e-01 2.65e-01h  1
+ 168  1.0859790e+02 2.56e+00 2.94e-01  -1.7 2.44e+01    -  5.95e-01 4.19e-01h  1
+ 169  1.0646389e+02 9.76e-02 1.31e-02  -1.7 3.27e+00    -  1.00e+00 1.00e+00h  1
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+ 170  1.0666353e+02 4.11e-02 3.24e-03  -2.5 1.84e+00    -  1.00e+00 1.00e+00h  1
+ 171  1.0668828e+02 2.62e-03 8.97e-05  -2.5 8.14e-01    -  1.00e+00 1.00e+00h  1
+ 172  1.0679293e+02 2.87e-03 1.77e-03  -3.8 6.40e-01    -  9.31e-01 1.00e+00h  1
+ 173  1.0680098e+02 1.30e-03 2.08e-05  -3.8 7.68e-01    -  1.00e+00 1.00e+00h  1
+ 174  1.0680837e+02 5.09e-04 3.67e-04  -5.7 4.38e-01    -  8.89e-01 1.00e+00h  1
+ 175  1.0680859e+02 1.06e-04 2.30e-06  -5.7 2.91e-01    -  9.99e-01 1.00e+00h  1
+ 176  1.0680861e+02 1.70e-05 7.27e-08  -5.7 1.43e-01    -  1.00e+00 1.00e+00h  1
+ 177  1.0680871e+02 2.01e-06 9.79e-07  -8.6 4.62e-02    -  9.92e-01 1.00e+00h  1
+ 178  1.0680871e+02 1.11e-08 4.69e-11  -8.6 3.84e-03    -  1.00e+00 1.00e+00h  1
+
+Number of Iterations....: 178
+
+                                   (scaled)                 (unscaled)
+Objective...............:  -1.0680870535788368e+02    1.0680870535788368e+02
+Dual infeasibility......:   4.6904191760237619e-11    4.6904191760237619e-11
+Constraint violation....:   3.3759715561796893e-09    1.1140706135392975e-08
+Variable bound violation:   6.9528054424949914e-09    6.9528054424949914e-09
+Complementarity.........:   4.4418868744387556e-09    4.4418868744387556e-09
+Overall NLP error.......:   4.4418868744387556e-09    1.1140706135392975e-08
+
+
+Number of objective function evaluations             = 193
+Number of objective gradient evaluations             = 179
+Number of equality constraint evaluations            = 193
+Number of inequality constraint evaluations          = 0
+Number of equality constraint Jacobian evaluations   = 179
+Number of inequality constraint Jacobian evaluations = 0
+Number of Lagrangian Hessian evaluations             = 178
+Total seconds in IPOPT                               = 4.281
+
+EXIT: Optimal Solution Found.
+</code></pre><p>Extract the results.</p><pre><code class="language-julia hljs">ts = value(t)
+u_opt = value(u)
+x_opt = value(x)
+J_opt = value(J);
+
+p1 = plot(ts, [x_opt, J_opt] ,
+    label=[&quot;Fish Pop&quot; &quot;Profit&quot;],
+    title=&quot;State Variables&quot;)
+p2 = plot(ts, u_opt,
+    label = &quot;Rate&quot;,
+    title = &quot;Rate vs Time&quot;)
+plot(p1,p2 ,layout=(2,1), size=(800,600));</code></pre><h3 id="Maintenance-Tests"><a class="docs-heading-anchor" href="#Maintenance-Tests">Maintenance Tests</a><a id="Maintenance-Tests-1"></a><a class="docs-heading-anchor-permalink" href="#Maintenance-Tests" title="Permalink"></a></h3><p>These are here to ensure this example stays up to date.</p><pre><code class="language-julia hljs">using Test
+@test termination_status(m) == MOI.LOCALLY_SOLVED
+@test has_values(m)
+@test u_opt isa Vector{&lt;:Real}
+@test J_opt isa Vector{&lt;:Real}</code></pre><pre><code class="nohighlight hljs">Test Passed</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../../tutorials/quick_start/">« Quick Start</a><a class="docs-footer-nextpage" href="../Hanging Chain/">Hanging Chain Problem »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.8.1 on <span class="colophon-date" title="Saturday 15 March 2025 02:18">Saturday 15 March 2025</span>. Using Julia version 1.6.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
