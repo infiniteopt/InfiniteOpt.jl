@@ -82,7 +82,12 @@ plot(p1,p2 ,layout=(2,1), size=(800,600))
 # ### Maintenance Tests
 # These are here to ensure this example stays up to date. 
 using Test
+tol = 1E-8
 @test termination_status(m) == MOI.LOCALLY_SOLVED
 @test has_values(m)
 @test u_opt isa Vector{<:Real}
 @test J_opt isa Vector{<:Real}
+@test 1.0000000088945395 - tol ≤ u_opt[end] ≤ 1.0000000088945395 + tol
+@test 31.441105707837544 - tol ≤ x_opt[end] ≤ 31.441105707837544 + tol
+@test 106.80870543718251 - tol ≤ J_opt[end] ≤ 106.80870543718251 + tol
+
