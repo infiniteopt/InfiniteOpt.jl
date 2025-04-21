@@ -91,5 +91,5 @@ tol = 1E-8
 @test has_values(m)
 @test u_opt isa Vector{<:Real}
 @test x1_opt isa Vector{<:Real}
-@test 3.2501431326448293 - tol ≤ x1_opt[end] ≤ 3.2501431326448293 + tol
-@test 4.284564834847627 - tol ≤ objective_value(m) ≤ 4.284564834847627 + tol
+@test isapprox(x1_opt[end], 3.2501431326448293, atol=tol)
+@test isapprox(objective_value(m), 4.284564834847627, atol=tol)
