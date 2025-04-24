@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Minimizing Final Time (Jennings Problem) · InfiniteOpt.jl</title><meta name="title" content="Minimizing Final Time (Jennings Problem) · InfiniteOpt.jl"/><meta property="og:title" content="Minimizing Final Time (Jennings Problem) · InfiniteOpt.jl"/><meta property="twitter:title" content="Minimizing Final Time (Jennings Problem) · InfiniteOpt.jl"/><meta name="description" content="Documentation for InfiniteOpt.jl."/><meta property="og:description" content="Documentation for InfiniteOpt.jl."/><meta property="twitter:description" content="Documentation for InfiniteOpt.jl."/><script async src="https://www.googletagmanager.com/gtag/js?id=UA-178297470-1"></script><script>  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'UA-178297470-1', {'page_path': location.pathname + location.search + location.hash});
+</script><script data-outdated-warner src="../../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../../assets/documenter.js"></script><script src="../../../search_index.js"></script><script src="../../../siteinfo.js"></script><script src="../../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../../assets/themeswap.js"></script><link href="../../../assets/extra_styles.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../../"><img class="docs-light-only" src="../../../assets/logo.png" alt="InfiniteOpt.jl logo"/><img class="docs-dark-only" src="../../../assets/logo-dark.png" alt="InfiniteOpt.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../../">InfiniteOpt.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../../">Home</a></li><li><a class="tocitem" href="../../../install/">Installation</a></li><li><input class="collapse-toggle" id="menuitem-3" type="checkbox"/><label class="tocitem" for="menuitem-3"><span class="docs-label">Tutorials</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../tutorials/quick_start/">Quick Start</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4" type="checkbox" checked/><label class="tocitem" for="menuitem-4"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-4-1" type="checkbox" checked/><label class="tocitem" for="menuitem-4-1"><span class="docs-label">Optimal Control</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../Fishing/">Fishing Optimal Control</a></li><li><a class="tocitem" href="../Hanging Chain/">Hanging Chain Problem</a></li><li class="is-active"><a class="tocitem" href>Minimizing Final Time (Jennings Problem)</a><ul class="internal"><li class="toplevel"><a class="tocitem" href="#Problem-Statement-and-Model"><span>Problem Statement and Model</span></a></li><li class="toplevel"><a class="tocitem" href="#Model-Definition"><span>Model Definition</span></a></li><li class="toplevel"><a class="tocitem" href="#Problem-Solution"><span>Problem Solution</span></a></li></ul></li><li><a class="tocitem" href="../consumption_savings/">Consumption Savings Problem</a></li><li><a class="tocitem" href="../hovercraft/">Hovercraft Path Planning</a></li><li><a class="tocitem" href="../pandemic_control/">Pandemic Control</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-2" type="checkbox"/><label class="tocitem" for="menuitem-4-2"><span class="docs-label">Stochastic Optimization</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../Stochastic Optimization/farmer/">Two-Stage Stochastic Program</a></li><li><a class="tocitem" href="../../Stochastic Optimization/flexible_design/">Power Network Flexibility Design</a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-5" type="checkbox"/><label class="tocitem" for="menuitem-5"><span class="docs-label">User Guide</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../guide/model/">Infinite Models</a></li><li><a class="tocitem" href="../../../guide/domains/">Infinite Domains</a></li><li><a class="tocitem" href="../../../guide/parameter/">Infinite Parameters</a></li><li><a class="tocitem" href="../../../guide/finite_parameter/">Finite Parameters</a></li><li><a class="tocitem" href="../../../guide/variable/">Variables</a></li><li><a class="tocitem" href="../../../guide/derivative/">Derivatives</a></li><li><a class="tocitem" href="../../../guide/expression/">Expressions</a></li><li><a class="tocitem" href="../../../guide/measure/">Measures</a></li><li><a class="tocitem" href="../../../guide/objective/">Objectives</a></li><li><a class="tocitem" href="../../../guide/constraint/">Constraints</a></li><li><a class="tocitem" href="../../../guide/transcribe/">Model Transcription</a></li><li><a class="tocitem" href="../../../guide/optimize/">Optimization</a></li><li><a class="tocitem" href="../../../guide/result/">Results</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-6" type="checkbox"/><label class="tocitem" for="menuitem-6"><span class="docs-label">API Manual</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../manual/model/">Infinite Models</a></li><li><a class="tocitem" href="../../../manual/domains/">Infinite Domains</a></li><li><a class="tocitem" href="../../../manual/parameter/">Infinite Parameters</a></li><li><a class="tocitem" href="../../../manual/finite_parameter/">Finite Parameters</a></li><li><a class="tocitem" href="../../../manual/variable/">Variables</a></li><li><a class="tocitem" href="../../../manual/derivative/">Derivatives</a></li><li><a class="tocitem" href="../../../manual/expression/">Expressions</a></li><li><a class="tocitem" href="../../../manual/measure/">Measures</a></li><li><a class="tocitem" href="../../../manual/objective/">Objectives</a></li><li><a class="tocitem" href="../../../manual/constraint/">Constraints</a></li><li><a class="tocitem" href="../../../manual/backend/">Backends</a></li><li><a class="tocitem" href="../../../manual/transcribe/">TranscriptionOpt</a></li><li><a class="tocitem" href="../../../manual/result/">Results</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-7" type="checkbox"/><label class="tocitem" for="menuitem-7"><span class="docs-label">Development</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../develop/extensions/">Extensions</a></li><li><a class="tocitem" href="../../../develop/start_guide/">Getting Started</a></li><li><a class="tocitem" href="../../../develop/style/">Style Guide</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li><a class="is-disabled">Optimal Control</a></li><li class="is-active"><a href>Minimizing Final Time (Jennings Problem)</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Minimizing Final Time (Jennings Problem)</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/infiniteopt/InfiniteOpt.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/infiniteopt/InfiniteOpt.jl/blob/master/docs/src/examples/Optimal Control/Jennings.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Minimizing-Final-Time-(Jennings-Problem)"><a class="docs-heading-anchor" href="#Minimizing-Final-Time-(Jennings-Problem)">Minimizing Final Time (Jennings Problem)</a><a id="Minimizing-Final-Time-(Jennings-Problem)-1"></a><a class="docs-heading-anchor-permalink" href="#Minimizing-Final-Time-(Jennings-Problem)" title="Permalink"></a></h1><p>Solve an optimal control problem with a minimal final time. Set up and solve the Jennings optimal control benchmark problem.</p><h1 id="Problem-Statement-and-Model"><a class="docs-heading-anchor" href="#Problem-Statement-and-Model">Problem Statement and Model</a><a id="Problem-Statement-and-Model-1"></a><a class="docs-heading-anchor-permalink" href="#Problem-Statement-and-Model" title="Permalink"></a></h1><p>When solving differential equations over a variable time interval <span>$[0,t_f]$</span>, we can apply a time-scaling transformation to normalize the interval to<span>$[0,1]$</span>. This is achieved by introducing a final time parameter <span>$t_f$</span>. The Jennings optimal control problem divides derivatives by <span>$t_f$</span>. In practice, <span>$t_f$</span> appears on the right hand side to avoid any divisions by 0.</p><p class="math-container">\[\begin{gathered}
+\frac{\frac{dx}{dt}}{t_f} =  f(x,u) \\
+\frac{dx}{dt} = t_f f(x,u) \\
+\end{gathered}\]</p><p>Our specific problem is defined as the following:</p><p class="math-container">\[\begin{aligned}
+&amp;&amp;\min_{u(t),t_f} t_f \\
+&amp;&amp;\text{s.t.} &amp;&amp;&amp; \frac{dx_1}{dt}= t_f u, &amp;&amp; t \in [0,1] \\
+&amp;&amp;&amp;&amp;&amp;\frac{dx_2}{dt} = t_f \cos(x_1(t)), &amp;&amp; t \in [0,1] \\
+&amp;&amp;&amp;&amp;&amp;\frac{dx_3}{dt} = t_f \sin(x_1(t)), &amp;&amp; t \in [0,1] \\
+&amp;&amp;&amp;&amp;&amp;x(0) = [\pi/2, 4, 0] \\
+&amp;&amp;&amp;&amp;&amp;x_2(t_f) = 0 \\
+&amp;&amp;&amp;&amp;&amp;x_3(t_f) = 0 \\
+&amp;&amp;&amp;&amp;&amp;-2 \leq u(t) \leq 2
+\end{aligned}\]</p><h1 id="Model-Definition"><a class="docs-heading-anchor" href="#Model-Definition">Model Definition</a><a id="Model-Definition-1"></a><a class="docs-heading-anchor-permalink" href="#Model-Definition" title="Permalink"></a></h1><p>First we must import <span>$InfiniteOpt$</span> and other packages.</p><pre><code class="language-julia hljs">using InfiniteOpt, Ipopt, Plots;</code></pre><p>Next we specify an array of initial conditions.</p><pre><code class="language-julia hljs">x0 = [π/2, 4, 0]; # x(0) for x1,x2,x3</code></pre><p>We initialize the infinite model and opt to use the Ipopt solver</p><pre><code class="language-julia hljs">m = InfiniteModel(Ipopt.Optimizer);</code></pre><p>Recall t is specified as <span>$\ t \in [0,1]$</span>:</p><pre><code class="language-julia hljs">@infinite_parameter(m, t in [0,1],num_supports= 100)</code></pre><pre><code class="nohighlight hljs">t</code></pre><p>Now let&#39;s specify descision variables. Notice that <span>$t_f$</span> is not a function of time and is a singular value.</p><pre><code class="language-julia hljs">@variable(m, x[1:3], Infinite(t))
+@variable(m, -2 &lt;= u &lt;= 2, Infinite(t))
+@variable(m, 0.1 &lt;= tf);</code></pre><p>Specifying the objective to minimize final time:</p><pre><code class="language-julia hljs">@objective(m, Min, tf);</code></pre><p>Define the ODEs which serve as our system model.</p><pre><code class="language-julia hljs">@constraint(m, ∂(x[1],t) == tf*u)
+@constraint(m, ∂(x[2],t) == tf*cos(x[1]))
+@constraint(m, ∂(x[3],t) == tf*sin(x[1]));</code></pre><p>Set our inital and final conditions.</p><pre><code class="language-julia hljs">@constraint(m, [i in 1:3], x[i](0) == x0[i])
+@constraint(m, x[2](1) &lt;=0)
+@constraint(m, x[3](1) &lt;= 1e-1);</code></pre><h1 id="Problem-Solution"><a class="docs-heading-anchor" href="#Problem-Solution">Problem Solution</a><a id="Problem-Solution-1"></a><a class="docs-heading-anchor-permalink" href="#Problem-Solution" title="Permalink"></a></h1><p>Optimize the model:</p><pre><code class="language-julia hljs">optimize!(m)</code></pre><pre><code class="nohighlight hljs">This is Ipopt version 3.14.17, running with linear solver MUMPS 5.7.3.
+
+Number of nonzeros in equality constraint Jacobian...:     1794
+Number of nonzeros in inequality constraint Jacobian.:        2
+Number of nonzeros in Lagrangian Hessian.............:      700
+
+Total number of variables............................:      701
+                     variables with only lower bounds:        1
+                variables with lower and upper bounds:      100
+                     variables with only upper bounds:        0
+Total number of equality constraints.................:      600
+Total number of inequality constraints...............:        2
+        inequality constraints with only lower bounds:        0
+   inequality constraints with lower and upper bounds:        0
+        inequality constraints with only upper bounds:        2
+
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+   0  1.0999999e-01 4.00e+00 7.38e-03  -1.0 0.00e+00    -  0.00e+00 0.00e+00   0
+   1  1.0009999e-01 3.98e+00 2.15e+02  -1.0 4.00e+00    -  1.00e+00 4.78e-03h  1
+   2  1.0000218e-01 3.98e+00 1.31e+05  -1.0 4.16e+01    -  4.77e-02 7.77e-05h  1
+   3  1.0000001e-01 3.98e+00 1.32e+05  -1.0 1.41e+05    -  1.41e-05 1.39e-05h  1
+   4  1.0000001e-01 3.98e+00 1.07e+05  -1.0 2.60e+04    -  9.52e-05 5.36e-05h  1
+   5  1.0000001e-01 3.98e+00 2.07e+05  -1.0 1.43e+04    -  1.90e-04 2.73e-05h  1
+   6  1.0000000e-01 3.98e+00 4.50e+05  -1.0 1.27e+05    -  2.01e-05 8.64e-06h  1
+   7r 1.0000000e-01 3.98e+00 1.00e+03   0.6 0.00e+00    -  0.00e+00 4.78e-07R  2
+   8r 1.0014680e-01 4.05e+00 1.92e+03   0.6 6.02e+00    -  6.22e-01 3.69e-02f  1
+   9r 1.0062971e-01 3.58e+00 1.41e+03   0.6 5.18e+00    -  1.00e+00 2.61e-01f  1
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  10  1.0064745e-01 3.58e+00 3.90e+03  -1.0 3.99e+00    -  1.00e+00 2.60e-04h  1
+  11  1.0105387e-01 3.57e+00 6.14e+03  -1.0 8.03e+02    -  7.79e-04 4.93e-04h  1
+  12  1.0130844e-01 3.57e+00 2.30e+04  -1.0 3.32e+03    -  1.74e-04 4.12e-05h  1
+  13  1.0131275e-01 3.57e+00 2.13e+05  -1.0 1.09e+04    -  2.61e-04 3.20e-05h  1
+  14r 1.0131275e-01 3.57e+00 1.00e+03   0.6 0.00e+00    -  0.00e+00 4.88e-07R  5
+  15r 1.8100817e-01 3.50e+00 1.88e+03   0.6 4.36e+00    -  7.49e-01 5.12e-02f  1
+  16r 1.8669905e-01 2.33e+00 2.00e+02   0.6 2.29e+00    -  9.28e-01 7.89e-01f  1
+  17  1.8722777e-01 2.33e+00 1.68e+02  -1.0 3.81e+00    -  1.34e-01 8.11e-04h  1
+  18  1.8921350e-01 2.33e+00 2.25e+04  -1.0 1.06e+02    -  3.22e-02 2.37e-04h  1
+  19  1.9127731e-01 2.32e+00 3.87e+04  -1.0 4.33e+02    -  5.26e-03 3.02e-03h  1
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  20  1.9146732e-01 2.32e+00 1.58e+05  -1.0 4.59e+03    -  6.15e-04 1.52e-04h  1
+  21  1.9156826e-01 2.32e+00 9.58e+05  -1.0 8.57e+03    -  3.77e-04 7.65e-05h  1
+  22r 1.9156826e-01 2.32e+00 1.00e+03   0.4 0.00e+00    -  0.00e+00 3.51e-07R  5
+  23r 2.1757015e-01 1.96e+00 7.32e+02   0.4 1.33e+00    -  9.92e-01 2.67e-01f  1
+  24  2.1787418e-01 1.96e+00 3.86e+02  -1.0 3.24e+00    -  7.15e-02 1.89e-04h  1
+  25  2.1823093e-01 1.96e+00 9.27e+05  -1.0 2.86e+01    -  1.05e-01 4.33e-05h  1
+  26  2.1826491e-01 1.96e+00 4.64e+06  -1.0 2.91e+04    -  1.14e-04 2.25e-05h  1
+  27r 2.1826491e-01 1.96e+00 1.00e+03   0.3 0.00e+00    -  0.00e+00 1.55e-07R  2
+  28r 2.6610697e-01 1.14e+00 4.55e+02   0.3 1.52e+00    -  9.91e-01 5.45e-01f  1
+  29r 3.2355056e-01 1.72e-01 3.40e+02   0.3 4.55e+00    -  5.90e-01 2.47e-01f  1
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  30r 5.9791076e-01 2.47e-01 8.36e+01   0.3 1.08e+00   0.0 1.00e+00 8.10e-01f  1
+  31r 1.5393156e+00 1.30e+00 3.41e+02  -0.4 4.27e+00   0.4 1.78e-01 4.06e-01f  1
+  32r 1.7522485e+00 3.94e-01 1.40e+02  -0.4 1.26e+00   0.9 8.91e-01 6.62e-01f  1
+  33r 3.0683175e+00 1.80e+00 2.06e+02  -0.4 4.88e+00   0.4 2.65e-01 5.12e-01f  1
+  34r 4.0829865e+00 1.84e+00 2.89e+02  -0.4 1.66e+01  -0.1 2.27e-02 1.02e-01f  1
+  35r 4.2796802e+00 1.60e+00 3.08e+02  -0.4 2.03e+00   0.3 9.01e-01 1.26e-01f  1
+  36r 4.3283517e+00 1.51e+00 3.80e+02  -0.4 6.28e+00    -  1.00e+00 5.78e-02f  1
+  37r 4.3814442e+00 1.08e+00 4.96e+02  -0.4 5.56e-01    -  1.00e+00 2.82e-01f  1
+  38r 4.4392851e+00 1.45e-02 8.75e+00  -0.4 4.17e-01    -  1.00e+00 1.00e+00f  1
+  39  4.6154499e+00 1.30e-02 2.29e-02  -1.0 2.45e-01    -  9.73e-01 1.00e+00f  1
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  40  4.4905204e+00 1.16e-02 2.94e-03  -1.7 3.27e-01    -  1.00e+00 1.00e+00h  1
+  41  4.3393561e+00 6.04e-02 1.38e-02  -3.8 9.67e-01    -  9.08e-01 9.34e-01h  1
+  42  4.2946439e+00 6.77e-02 8.52e-03  -3.8 1.80e+00    -  8.70e-01 1.00e+00h  1
+  43  4.2898253e+00 1.86e-02 1.26e-03  -3.8 2.46e+00    -  1.00e+00 1.00e+00h  1
+  44  4.2875206e+00 4.66e-03 1.80e-04  -3.8 2.82e+00    -  1.00e+00 1.00e+00h  1
+  45  4.2874424e+00 1.23e-04 3.37e-06  -3.8 6.32e-01    -  1.00e+00 1.00e+00h  1
+  46  4.2847486e+00 1.90e-03 3.96e-04  -5.7 1.13e+00    -  8.52e-01 1.00e+00h  1
+  47  4.2846175e+00 4.56e-04 2.07e-05  -5.7 1.34e+00    -  9.72e-01 1.00e+00h  1
+  48  4.2846039e+00 7.22e-05 5.56e-07  -5.7 6.40e-01    -  1.00e+00 1.00e+00h  1
+  49  4.2846034e+00 8.59e-07 6.40e-09  -5.7 5.87e-02    -  1.00e+00 1.00e+00h  1
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  50  4.2845650e+00 6.11e-06 1.18e-06  -8.6 1.22e-01    -  9.77e-01 1.00e+00h  1
+  51  4.2845649e+00 1.55e-08 1.17e-10  -8.6 1.04e-02    -  1.00e+00 1.00e+00h  1
+  52  4.2845648e+00 7.53e-12 5.91e-14  -9.0 1.52e-04    -  1.00e+00 1.00e+00h  1
+
+Number of Iterations....: 52
+
+                                   (scaled)                 (unscaled)
+Objective...............:   4.2845648348476271e+00    4.2845648348476271e+00
+Dual infeasibility......:   5.9111156714027925e-14    5.9111156714027925e-14
+Constraint violation....:   7.5290884637979616e-12    7.5290884637979616e-12
+Variable bound violation:   0.0000000000000000e+00    0.0000000000000000e+00
+Complementarity.........:   9.0923652519966629e-10    9.0923652519966629e-10
+Overall NLP error.......:   9.0923652519966629e-10    9.0923652519966629e-10
+
+
+Number of objective function evaluations             = 67
+Number of objective gradient evaluations             = 41
+Number of equality constraint evaluations            = 67
+Number of inequality constraint evaluations          = 67
+Number of equality constraint Jacobian evaluations   = 57
+Number of inequality constraint Jacobian evaluations = 57
+Number of Lagrangian Hessian evaluations             = 52
+Total seconds in IPOPT                               = 0.088
+
+EXIT: Optimal Solution Found.
+</code></pre><p>Extract the results. Notice that we multiply by <span>$t_f$</span> to scale our time.</p><pre><code class="language-julia hljs">ts = value(t)*value(tf)
+u_opt = value(u)
+x1_opt = value(x[1])
+x2_opt = value(x[2])
+x3_opt = value(x[3]);</code></pre><p>Plot the results</p><pre><code class="language-julia hljs">plot(ts, u_opt, label = &quot;u(t)&quot;, linecolor = :black, linestyle = :dash)
+plot!(ts, x1_opt, linecolor = :blue, linealpha = 0.4, label = &quot;x1&quot;)
+plot!(ts, x2_opt, linecolor = :green, linealpha = 0.4, label = &quot;x2&quot;)
+plot!(ts, x3_opt, linecolor = :red, linealpha = 0.4, label = &quot;x3&quot;);</code></pre><h3 id="Maintenance-Tests"><a class="docs-heading-anchor" href="#Maintenance-Tests">Maintenance Tests</a><a id="Maintenance-Tests-1"></a><a class="docs-heading-anchor-permalink" href="#Maintenance-Tests" title="Permalink"></a></h3><p>These are here to ensure this example stays up to date.</p><pre><code class="language-julia hljs">using Test
+@test termination_status(m) == MOI.LOCALLY_SOLVED
+@test has_values(m)
+@test u_opt isa Vector{&lt;:Real}
+@test x1_opt isa Vector{&lt;:Real}</code></pre><pre><code class="nohighlight hljs">Test Passed</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Hanging Chain/">« Hanging Chain Problem</a><a class="docs-footer-nextpage" href="../consumption_savings/">Consumption Savings Problem »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.10.1 on <span class="colophon-date" title="Thursday 24 April 2025 03:00">Thursday 24 April 2025</span>. Using Julia version 1.10.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
