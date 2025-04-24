@@ -812,7 +812,7 @@ function _delete_variable_dependencies(vref::SemiInfiniteVariableRef)::Nothing
     filter!(e -> e != JuMP.index(vref), _semi_infinite_variable_dependencies(ivref))
     # delete associated derivative variables and mapping 
     model = JuMP.owner_model(vref)
-    for index in _derivative_dependencies(vref)
+    for index in copy(_derivative_dependencies(vref))
         JuMP.delete(model, dispatch_variable_ref(model, index))
     end
     # remove the lookup entry
