@@ -271,8 +271,8 @@ the distribution.
 ```jldoctest macro_define
 julia> supports(θ)
 2×3 Matrix{Float64}:
- 0.679107  -0.353007  0.586617
- 1.17155   -0.190712  0.420496
+ 0.942971  1.52507   -1.20577
+ 0.189395  0.175223   0.440976
 ```
 We refer to groups of parameters defined this way as dependent infinite 
 parameters. In principle, nonrandom infinite parameter types can be made 
@@ -429,10 +429,10 @@ x
 
 julia> supports(x)
 4-element Vector{Float64}:
- -0.353007400301
- -0.134853871931
-  0.679107426036
-  0.8284134829  
+ 0.123901231206
+ 0.133922757653
+ 0.942970533446
+ 1.52506890851  
 ```
 For multivariate distributions, though, we require support points are provided 
 in the definition. However, we can use [`fill_in_supports!`](@ref) to generate 
@@ -518,8 +518,8 @@ julia> fill_in_supports!(ξ, num_supports = 3)
 
 julia> supports(ξ)
 2×3 Matrix{Float64}:
- 0.679107  -0.353007  0.586617
- 1.17155   -0.190712  0.420496
+ 0.942971  1.52507   -1.20577
+ 0.189395  0.175223   0.440976
 ```
 Note that [`fill_in_supports!`](@ref) only fill in supports for parameters with no 
 associated supports. To modify the supports of parameters already associated 
