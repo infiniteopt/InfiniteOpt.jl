@@ -17,7 +17,7 @@ jobs:
         # Since InfiniteOpt doesn't have binary dependencies, only test on a subset of
         # possible platforms.
         include:
-          - version: '1.6'
+          - version: '1.10'
             os: ubuntu-latest
             arch: x64
           - version: '1'
@@ -36,12 +36,12 @@ jobs:
             os: ubuntu-latest
             arch: x64
     steps:
-      - uses: actions/checkout@v3
-      - uses: julia-actions/setup-julia@v1
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
-      - uses: actions/cache@v1
+      - uses: actions/cache@v2
         env:
           cache-name: cache-artifacts
         with:
@@ -55,7 +55,7 @@ jobs:
       - uses: julia-actions/julia-runtest@v1
         continue-on-error: ${{ matrix.version == 'nightly' }}
       - uses: julia-actions/julia-processcoverage@v1
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v4
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
