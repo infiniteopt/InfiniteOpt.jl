@@ -1719,7 +1719,7 @@ function JuMP.delete(model::InfiniteModel, pref::IndependentParameterRef)
     # delete dependence of measures on pref
     _update_measures(model, gvref)
     # delete any derivatives that use pref 
-    for index in _derivative_dependencies(pref)
+    for index in copy(_derivative_dependencies(pref))
         JuMP.delete(model, dispatch_variable_ref(model, index))
     end
     # update constraints in mapping to remove the parameter
