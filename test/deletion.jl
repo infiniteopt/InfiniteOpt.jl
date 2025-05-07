@@ -549,6 +549,7 @@ end
     @variable(m, 0 <= x <= 1, Infinite(par), Bin)
     @variable(m, y == 1, Infinite(par), Int)
     @variable(m, x0, Point(x, 0))
+    @variable(m, xf, Point(x, 1))
     var = build_variable(error, x, Dict{Int, Float64}(1 => 0.5), check = false)
     rv = add_variable(m, var)
     data = TestData(par, 0, 1)
@@ -570,6 +571,7 @@ end
     @test InfiniteOpt._infinite_variable_dependencies(par) == [index(y)]
     @test !is_valid(m, rv)
     @test !is_valid(m, x0)
+    @test !is_valid(m, xf)
     @test !is_valid(m, d1)
     @test !haskey(InfiniteOpt._data_dictionary(m, InfiniteVariable), JuMP.index(x))
     @test !is_valid(m, con3)
@@ -604,6 +606,7 @@ end
     d2 = @deriv(y, par^2)
     d3 = @deriv(d1, par2)
     @variable(m, dx0, Point(d1, 0, 0))
+    @variable(m, dxf, Point(d1, 1, 1))
     var = build_variable(error, d1, Dict{Int, Float64}(1 => 0.5), check = false)
     rv = add_variable(m, var)
     data = TestData(par, 0, 1)
@@ -625,6 +628,7 @@ end
     @test InfiniteOpt._derivative_dependencies(par) == [index(d2)]
     @test !is_valid(m, rv)
     @test !is_valid(m, dx0)
+    @test !is_valid(m, dxf)
     @test !is_valid(m, d3)
     @test !is_valid(m, cref)
     @test !is_valid(m, con3)

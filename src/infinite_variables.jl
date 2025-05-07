@@ -815,15 +815,15 @@ function _delete_variable_dependencies(vref::InfiniteVariableRef)
         end
     end
     # delete associated point variables and mapping
-    for index in _point_variable_dependencies(vref)
+    for index in copy(_point_variable_dependencies(vref))
         JuMP.delete(model, dispatch_variable_ref(model, index))
     end
     # delete associated semi-infinite variables and mapping
-    for index in _semi_infinite_variable_dependencies(vref)
+    for index in copy(_semi_infinite_variable_dependencies(vref))
         JuMP.delete(model, dispatch_variable_ref(model, index))
     end
     # delete associated derivative variables and mapping 
-    for index in _derivative_dependencies(vref)
+    for index in copy(_derivative_dependencies(vref))
         JuMP.delete(model, dispatch_variable_ref(model, index))
     end
     return
