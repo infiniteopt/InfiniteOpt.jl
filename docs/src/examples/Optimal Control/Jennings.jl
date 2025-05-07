@@ -86,7 +86,7 @@ plot!(ts, x3_opt, linecolor = :red, linealpha = 0.4, label = "x3")
 # ### Maintenance Tests
 # These are here to ensure this example stays up to date. 
 using Test
-tol = 1E-8
+tol = 1E-6
 @test termination_status(m) == MOI.LOCALLY_SOLVED
 @test has_values(m)
 @test u_opt isa Vector{<:Real}

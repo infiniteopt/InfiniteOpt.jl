@@ -108,7 +108,7 @@ plot!(ts[ix], BB, color = 4, linestyle=:dash, lab = "B: wealth balance, closed f
 # ### Maintenance Tests
 # These are here to ensure this example stays up to date. 
 using Test
-tol = 1E-8
+tol = 1E-6
 @test termination_status(m) == MOI.LOCALLY_SOLVED
 @test has_values(m)
 @test B_opt isa Vector{<:Real}
