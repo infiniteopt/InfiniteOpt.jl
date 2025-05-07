@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@latest
         with:
-          version: '1.6' # Build documentation on Julia 1.6
+          version: '1.10' # Build documentation on Julia 1.10
       - name: Install plotting dependencies # For enabling GR.jl (used by Plots.jl)
         run: |
           sudo apt-get update
