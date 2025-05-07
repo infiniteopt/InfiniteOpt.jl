@@ -76,6 +76,11 @@ ylabel!("x_2")
 # ### Maintenance Tests
 # These are here to ensure this example stays up to date. 
 using Test
+tol = 1E-6
 @test termination_status(m) == MOI.LOCALLY_SOLVED
 @test has_values(m)
 @test x_opt isa Vector{<:Vector{<:Real}}
+@test isapprox(objective_value(m), 0.043685293177035435, atol=tol)
+@test isapprox(value(u[1])[end], -0.010503853944039986, atol=tol)
+@test isapprox(value(u[2])[end], 0.005456780217220367, atol=tol)
+
