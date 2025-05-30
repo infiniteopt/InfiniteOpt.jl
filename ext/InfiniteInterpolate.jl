@@ -5,17 +5,23 @@ import InfiniteOpt as infOpt
 import Interpolations as IP
 
 # Extend value function to return interpolated infinite variables
-function JuMP.value(vref::infOpt.GeneralVariableRef, method::Function, interpolate::Bool; kwargs...)
+function JuMP.value(vref::infOpt.GeneralVariableRef, method::Function; kwargs...)
     irregularGridMethod = Union{typeof(IP.linear_interpolation),
                                 typeof(IP.constant_interpolation)}
-
     infOpt._check_result_is_current(JuMP.owner_model(vref), JuMP.value)
-    if !interpolate
+
+    # Check if interpolation method is supported
+    if !(method in (IP.linear_interpolation, IP.cubic_spline_interpolation))
+        throw(ArgumentError("Unsupported interpolation method: $(method). Supported methods are: constant_interpolation, linear_interpolation, cubic_spline_interpolation."))
+    end
+
+    # Get infinite parameter references for which the variable depends on
+    prefs = infOpt.parameter_refs(vref)
+
+    if isempty(prefs)
+        # If no infinite parameters, return the value directly
         return infOpt._get_value(vref, infOpt._index_type(vref); kwargs...)
     else
-        # Get infinite parameter references for which the variable depends on
-        prefs = infOpt.parameter_refs(vref)
-
         # Get the parameter supports
         Vparams = []
         for pref in prefs
@@ -32,41 +38,22 @@ function JuMP.value(vref::infOpt.GeneralVariableRef, method::Function, interpola
             end
         end
 
-        # Ensure Vparams is a tuple for interpolation
-        Vparams = Tuple(Vparams)  # Used for constant or linear linear_interpolation
+            # Ensure Vparams is a tuple for interpolation
+            Vparams = Tuple(Vparams)
 
-        # Get the variable supports
-        Vsupps = infOpt._get_value(vref, infOpt._index_type(vref); kwargs...)
+            # Get the variable supports
+            Vsupps = infOpt._get_value(vref, infOpt._index_type(vref); kwargs...)
 
-        # TODO: What happens if a user manually defined their support when modelling but wants to use cubic spline interpolation when interpolating?
+            # TODO: What happens if a user manually defined their support when modelling but wants to use cubic spline interpolation when interpolating?
 
-        # Wrappers for interpolation method
-        interpolateFunc(interpMethod::Function, params::Tuple, supps::Vector) = interpMethod(params, supps)
+            # Wrappers for interpolation method
+            interpolateFunc(interpMethod::Function, params::Tuple, supps::Vector) = interpMethod(params, supps)
 
-        interpolateFunc(interpMethod::Function, params::Tuple, supps::Matrix) = interpMethod(params, supps)
+            interpolateFunc(interpMethod::Function, params::Tuple, supps::Matrix) = interpMethod(params, supps)
 
-        # Pass the parameter and variable values to interpolation function
-        varFunc = interpolateFunc(method, Vparams, Vsupps)
-        return varFunc
+            # Pass the parameter and variable values to interpolation function
+            varFunc = interpolateFunc(method, Vparams, Vsupps)
+            return varFunc
     end
 end
-
-# Extend for semi-infinite variables
-# function JuMP.value(vref::SemiInfiniteVariableRef; interpolate::Bool=false, kwargs...)
-#     _check_result_is_current(JuMP.owner_model(vref), JuMP.value)
-#     if !interpolate
-#         return _get_value(vref, _index_type(vref); kwargs...)
-#     else
-#         # Get the infinite parameter references that the variable depends on
-#         prefs = parameter_refs(vref)
-#         _check_parameters_valid(JuMP.owner_model(vref), prefs)
-
-#         # Get the parameter values & supports
-#         Vparams = _get_value.(pref, _index_type(vref); kwargs...)
-#         Vsupps = supports(vref)
-
-#         # Pass the supports and variable values to interpolation function
-#         varFunc = IP.cubic_spline_interpolation(discV, supps)
-#         return varFunc
-# end
 end
