@@ -99,6 +99,7 @@ println("")
 println("")
 @time @testset "Extensions" begin include("extensions.jl") end
 println("")
+@time @testset "InfiniteInterpolation" begin include("extensions/InfiniteInterpolate.jl") end
 println("----------------------------------------------------------------------------")
 println("-----------------------------TESTING COMPLETE!------------------------------")
 println("----------------------------------------------------------------------------")
