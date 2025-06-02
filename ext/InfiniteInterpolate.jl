@@ -11,7 +11,7 @@ function JuMP.value(vref::infOpt.GeneralVariableRef, method::Function; kwargs...
     infOpt._check_result_is_current(JuMP.owner_model(vref), JuMP.value)
 
     # Check if interpolation method is supported
-    if !(method in (IP.linear_interpolation, IP.cubic_spline_interpolation))
+    if !(method in (IP.constant_interpolation, IP.linear_interpolation, IP.cubic_spline_interpolation))
         throw(ArgumentError("Unsupported interpolation method: $(method). Supported methods are: constant_interpolation, linear_interpolation, cubic_spline_interpolation."))
     end
 
@@ -26,6 +26,13 @@ function JuMP.value(vref::infOpt.GeneralVariableRef, method::Function; kwargs...
         Vparams = []
         for pref in prefs
             JuMP.check_belongs_to_model(pref, JuMP.owner_model(vref))
+
+            # If user defined irregular grid points for supports, throw an error if the specified method doesn't support it
+            suppsLabel = first(infOpt.core_object(pref).supports)[2]
+            if !(infOpt.UniformGrid in suppsLabel) && !(method isa irregularGridMethod)
+                throw(ArgumentError("Interpolation method $(method) does not support irregular grids for supports. Please specify a uniform grid or choose a different interpolation method."))
+            end
+
             paramVals = infOpt._get_value(pref, infOpt._index_type(pref); kwargs...)
             numSupps = infOpt.num_supports(pref)
             if method isa irregularGridMethod
@@ -44,11 +51,10 @@ function JuMP.value(vref::infOpt.GeneralVariableRef, method::Function; kwargs...
             # Get the variable supports
             Vsupps = infOpt._get_value(vref, infOpt._index_type(vref); kwargs...)
 
-            # TODO: What happens if a user manually defined their support when modelling but wants to use cubic spline interpolation when interpolating?
-
             # Wrappers for interpolation method
             interpolateFunc(interpMethod::Function, params::Tuple, supps::Vector) = interpMethod(params, supps)
 
+            # Wrapper for multi-parameter variables
             interpolateFunc(interpMethod::Function, params::Tuple, supps::Matrix) = interpMethod(params, supps)
 
             # Pass the parameter and variable values to interpolation function
