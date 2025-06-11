@@ -2,7 +2,7 @@ using InfiniteOpt, Ipopt, Interpolations
 
 function test_infiniteInterpolate()
     model = InfiniteModel(Ipopt.Optimizer)
-    @infinite_parameter(model, t ∈ [1, 2], num_supports = 9)
+    @infinite_parameter(model, t ∈ [1, 2], num_supports = 5)
     @infinite_parameter(model, s ∈ [3, 4], num_supports = 5)
     @infinite_parameter(model, γ ∈ [5, 6], supports = [5, 5.15, 5.25, 5.5, 6])
     @infinite_parameter(model, δ ∈ [7, 8], num_supports = 5)
@@ -28,18 +28,25 @@ function test_infiniteInterpolate()
     tol = 1e-06
     @test termination_status(model) == MOI.ALMOST_LOCALLY_SOLVED
     @test has_values(model)
-    @test xDiscrete isa Vector{<:Real}
-    @test yDiscrete isa Matrix{<:Real}
-    @test zDiscrete isa Vector{<:Vector{<:Real}}
-    @test wDiscrete isa Vector{<:Matrix{<:Real}}
+    @test value.(x) isa Vector{<:Real}
+    @test value.(y) isa Matrix{<:Real}
+    @test value.(z) isa Vector{<:Vector{<:Real}}
+    @test value.(w) isa Vector{<:Matrix{<:Real}}
+
+    # Create alternative interpolation method
+    quad_interpolation(params, supps) = interpolate(params, supps, Gridded(Quadratic()))
+
+    # Test interpolation method errors
+    @test_throws ArgumentError value(x, quad_interpolation)
     @test_throws ArgumentError value.(z, cubic_spline_interpolation)
     @test_throws ArgumentError value.(w, cubic_spline_interpolation)
 
-    @test isapprox(xFunc(1.55), 2.95589105143786, atol=tol)
-    @test isapprox(yFunc(1.55, 3.6), 0.07670311557146893, atol=tol)
-    @test isapprox(zFunc[1](5.4), 0.7451798867405894, atol=tol)
+    # Test the interpolation values
+    @test isapprox(xFunc(1.55), 2.9560057246495184, atol=tol)
+    @test isapprox(yFunc(1.55, 3.6), 0.07663947385950569, atol=tol)
+    @test isapprox(zFunc[1](5.4), 0.80273946541415354, atol=tol)
     @test isapprox(zFunc[2](5.75), 0.29999999442572844, atol=tol)
-    @test isapprox(wFunc[1](5.75, 7.35), 0.7606595292931279, atol=tol)
+    @test isapprox(wFunc[1](5.75, 7.35), 0.7013948501185225, atol=tol)
     @test isapprox(wFunc[2](5.75, 7.35), 1.1999999847259393, atol=tol)
 end
 
