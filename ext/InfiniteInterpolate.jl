@@ -4,6 +4,45 @@ import JuMP
 import InfiniteOpt as infOpt
 import Interpolations as IP
 
+"""
+    JuMP.value(vref::GeneralVariableRef, method::Function; [kwargs...])
+
+Extend `JuMP.value` to return `vref` as a continuous interpolated function in accordance with its 
+reformulation variable(s) stored in the transformation backend. Use
+[`JuMP.has_values`](@ref JuMP.has_values(::InfiniteModel)) to check
+whether a result exists before checking the values. 
+
+The `method` argument specifies the interpolation method to be used. From Interpolations.jl, the currently supported methods are `linear_interpolation`, `constant_interpolation` and `cubic_spline_interpolation`.
+
+The keyword arguments `kwargs` depend on the transformation backend that is 
+being used. The default backend `TranscriptionOpt` uses the keyword 
+arguments:
+- `result::Int = 1`: indexes the solution result to be queried
+- `label::Type{<:AbstractSupportLabel} = PublicLabel`: the label of supports to be returned
+By default only the values associated with public supports (i.e., `PublicLabel`s) 
+are returned, the full set can be accessed via `label = All`. Where possible, all the 
+values are returned as an n-dimensional array 
+where each dimension is determined by the each independent group of
+infinite parameters they depend on.
+
+To provide context for the values, it may be helpful to also query the variable's 
+`parameter_refs` and `supports` which will have a one-to-one correspondence with 
+the value(s). It may also be helpful to query via [`transformation_variable`](@ref) 
+to retrieve the variables(s) that these values are based on. These functions should 
+all be called with the same keyword arguments for consistency.
+
+For extensions, this only works if 
+[`transformation_variable`](@ref) has been extended correctly and/or 
+[`map_value`](@ref) has been extended for variables.
+
+**Example**
+```julia-repl
+julia> zFunc = value(z, cubic_spline_interpolation)
+julia> zFunc(5.4)
+42.0
+```
+"""
+
 # Extend value function to return interpolated infinite variables
 function JuMP.value(vref::infOpt.GeneralVariableRef, method::Function; kwargs...)
     irregularGridMethod = Union{typeof(IP.linear_interpolation),
