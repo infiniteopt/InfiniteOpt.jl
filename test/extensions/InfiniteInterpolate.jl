@@ -1,17 +1,22 @@
 function test_infiniteInterpolate()
+    # Set up model with mock optimizer
     Optimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()), eval_objective_value=false)
     model = InfiniteModel(Optimizer)
     tb = model.backend
+
+    # Define infinite parameters and variables
     @infinite_parameter(model, t ∈ [1, 2], num_supports = 3)
     @infinite_parameter(model, s ∈ [3, 4], num_supports = 3)
     @infinite_parameter(model, γ ∈ [5, 6], supports = [5, 5.15, 5.25, 6])
     @infinite_parameter(model, δ ∈ [7, 8], num_supports = 3)
-    @variable(model, 0 ≤ x ≤ 10, Infinite(t))    # For single variable case
-    @variable(model, 0 ≤ y ≤ 10, Infinite(t, s))  # For multi-variable case
-    @variable(model, 0.3 ≤ z[1:2] ≤ 8, Infinite(γ))  # For vector, single variable case
-    @variable(model, 0.1 ≤ w[1:2] ≤ 8, Infinite(γ, δ))  # For vector, multi-variable case
-
-    # TODO: add semi-infinite variable and point variables for testing
+    @variable(model, 0 ≤ x ≤ 10, Infinite(t))                       # single parameter
+    @variable(model, 0 ≤ y ≤ 10, Infinite(t, s))                    # multi parameter
+    @variable(model, 0.3 ≤ z[1:2] ≤ 8, Infinite(γ))                 # vector, single parameter
+    @variable(model, 0.1 ≤ w[1:2] ≤ 8, Infinite(γ, δ))              # vector, multi-parameter
+    @variable(model, ySemi, SemiInfinite(y, 1.5, s))       # semi-infinite
+    @variable(model, wSemi[i = 1:2], SemiInfinite(w[i], 5.25, δ))  # vector, semi-infinite
+    @variable(model, α, Point(y, 1.5, 3.5))                # point variable
+    @variable(model, 0 ≤ ω ≤ 10)                                    # finite variable
 
     @constraint(model, 8*∂(x, t)^2 + cos(∂(y,s))^3 ≤ 5*x*y)
     @constraint(model, sin(x)*t ≥ y*s)
@@ -24,10 +29,17 @@ function test_infiniteInterpolate()
     mockOptimizer = JuMP.backend(tb).optimizer.model
     MOI.set(mockOptimizer, MOI.TerminationStatus(), MOI.ALMOST_LOCALLY_SOLVED)
 
+    # Set up the transformation variables
     xVar = transformation_variable(x, label = All)
     yVar = transformation_variable(y, label = All)
     zVar = transformation_variable.(z, label = All)
     wVar = transformation_variable.(w, label = All)
+    ySemiVar = transformation_variable(ySemi, label = All)
+    wSemiVar = transformation_variable.(wSemi, label = All)
+    αVar = transformation_variable(α, label = All)
+    ωVar = transformation_variable(ω, label = All)
+    dxVar = transformation_variable(∂(x, t), label = All)
+    dyVar = transformation_variable(∂(y, s), label = All)
 
     xVals = [2.858, 2.929, 2.991]
 
@@ -46,6 +58,17 @@ function test_infiniteInterpolate()
             1.199 1.153 1.435;
             1.199 1.201 1.198;
             1.198 1.200 1.197]]
+
+    ySemiVals = [0.193 0.179 0.169]
+    
+    wSemiVals = [[0.620 0.625 0.627],
+            [2.199 2.200 2.121]]
+    
+    dxVals = [1.658, 1.629, 1.691]
+    
+    dyVals = [2.093 2.079 2.069;
+            2.106 2.090 2.079;
+            2.100 2.086 2.075]
 
     for i in eachindex(xVals)
         MOI.set(
@@ -87,11 +110,58 @@ function test_infiniteInterpolate()
         end
     end
 
+    for i in eachindex(ySemiVals)
+        MOI.set(
+            mockOptimizer,
+            MOI.VariablePrimal(1),
+            JuMP.optimizer_index(ySemiVar[i]),
+            ySemiVals[i]
+        )
+    end
+
+    for i in 1:2
+        for j in eachindex(wSemiVals)
+            MOI.set(
+                mockOptimizer,
+                MOI.VariablePrimal(1),
+                JuMP.optimizer_index(wSemiVar[i][j]),
+                wSemiVals[i][j]
+            )
+        end
+    end
+
+    MOI.set(mockOptimizer, MOI.VariablePrimal(1), JuMP.optimizer_index(αVar), 0.090)
+    MOI.set(mockOptimizer, MOI.VariablePrimal(1), JuMP.optimizer_index(ωVar), 3.5)
+
+    for i in eachindex(dxVals)
+        MOI.set(
+            mockOptimizer,
+            MOI.VariablePrimal(1),
+            JuMP.optimizer_index(dxVar[i]),
+            dxVals[i]
+        )
+    end
+
+    for i in eachindex(dyVals)
+        MOI.set(
+            mockOptimizer,
+            MOI.VariablePrimal(1),
+            JuMP.optimizer_index(dyVar[i]),
+            dyVals[i]
+        )
+    end
+
     # Test the interpolation value function
     xFunc = value(x, cubic_spline_interpolation)
     yFunc = value(y, linear_interpolation)
     zFunc = value.(z, linear_interpolation)
     wFunc = value.(w, linear_interpolation)
+    ySemiFunc = value(ySemi, cubic_spline_interpolation)
+    wSemiFunc = value.(wSemi, linear_interpolation)
+    αValue = value(α, constant_interpolation)
+    ωValue = value(ω, constant_interpolation)
+    dxFunc = value(∂(x, t), cubic_spline_interpolation)
+    dyFunc = value(∂(y, s), linear_interpolation)
 
     # Unit tests
     tol = 1e-06
@@ -100,6 +170,8 @@ function test_infiniteInterpolate()
     @test value(y) isa Matrix{<:Real}
     @test value.(z) isa Vector{<:Vector{<:Real}}
     @test value.(w) isa Vector{<:Matrix{<:Real}}
+    @test value(α) isa Real
+    @test value(ω) isa Real
 
     # Create alternative interpolation method
     quad_interpolation(params, supps) = interpolate(params, supps, Gridded(Quadratic()))
@@ -110,13 +182,19 @@ function test_infiniteInterpolate()
     @test_throws ArgumentError value.(w, cubic_spline_interpolation)
 
     # Test the interpolation values
-    # println("wFunc[2](5.75,7.35): $(wFunc[2](5.75,7.35))")
     @test isapprox(xFunc(1.55), 2.9355847500000003, atol=tol)
-    @test isapprox(yFunc(1.55, 3.6), 0.08739999999999998, atol=tol)
+    @test isapprox(yFunc(1.55, 3.6), 0.1036, atol=tol)
     @test isapprox(zFunc[1](5.4), 0.5825999999999999, atol=tol)
     @test isapprox(zFunc[2](5.75), 0.29766666666666663, atol=tol)
-    @test isapprox(wFunc[1](5.75, 7.35), 0.9153, atol=tol)
-    @test isapprox(wFunc[2](5.75, 7.35), 1.1997333333333333, atol=tol)
+    @test isapprox(wFunc[1](5.75, 7.35), 0.8185666666666667, atol=tol)
+    @test isapprox(wFunc[2](5.75, 7.35), 1.5328333333333333, atol=tol)
+    @test isapprox(ySemiFunc(3.24), 0.12675193599999995, atol=tol)
+    @test isapprox(wSemiFunc[1](7.24), 0.6224000000000001, atol=tol)
+    @test isapprox(wSemiFunc[2](7.24), 2.19948, atol=tol)
+    @test αValue == 0.090
+    @test ωValue == 3.5
+    @test isapprox(dxFunc(1.35), 1.62957825, atol=tol)
+    @test isapprox(dyFunc(1.35, 3.86), 2.078996, atol=tol)
 end
 
 @testset "InfiniteInterpolate" begin
