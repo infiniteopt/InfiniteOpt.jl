@@ -137,7 +137,28 @@ parameter dependencies.
     This also holds true for many other methods in `InfiniteOpt`. For example, 
     adding the dot also vectorizes `dual` and `set_binary`.
 
-We can also query the dual of a constraint via 
+We can also get a continuous representation of our variable as an interpolations object from the `Interpolations.jl` package. This is based on the `InfiniteInterpolate` extension, which is automatically loaded in when both `InfiniteOpt` and `Interpolations` are imported.
+```jldoctest results
+julia> using Interpolations
+
+julia> yFunc = value(y, linear_interpolation)
+10-element extrapolate(interpolate((::Vector{Float64},), ::Vector{Float64}, Gridded(Linear())), Throw()) with element type Float64:
+ 42.0
+ 20.999999995627107
+ 20.999999995628606
+ 20.999999995628603
+ 20.999999995628592
+ 20.999999995628603
+ 20.999999995634035
+ 20.999999995620904
+ 20.99999999562204
+ 20.9999999956286
+
+julia> yFunc(5.12)
+20.9999999956286
+```
+
+We can query the dual of a constraint via 
 [`dual`](@ref JuMP.dual(::InfOptConstraintRef)) if a model has duals available
 as indicated by [`has_duals`](@ref):
 ```jldoctest results
