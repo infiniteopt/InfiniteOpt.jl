@@ -137,7 +137,7 @@ parameter dependencies.
     This also holds true for many other methods in `InfiniteOpt`. For example, 
     adding the dot also vectorizes `dual` and `set_binary`.
 
-We can also get a continuous representation of our variable as an interpolations object from the `Interpolations.jl` package. This is based on the `InfiniteInterpolate` extension, which is automatically loaded in when both `InfiniteOpt` and `Interpolations` are imported.
+We can also get a continuous representation of our variable as an interpolations object from the `Interpolations.jl` package. This is based on the `InfiniteInterpolate` extension, which is automatically loaded in when both `InfiniteOpt` and `Interpolations` are imported. Currently supported methods are `constant_interpolation`, `linear_interpolation` and `cubic_spline_interpolation`.
 ```jldoctest results
 julia> using Interpolations
 
@@ -157,6 +157,9 @@ julia> yFunc = value(y, linear_interpolation)
 julia> yFunc(5.12)
 20.9999999956286
 ```
+
+!!! note
+    There is a type piracy conflict between JuMP and OffsetArrays (a dependency of Interpolations.jl). As a result, type piracy issues may arise when Interpolations is loaded in. Please keep this in mind when using the InfiniteInterpolate extension.
 
 We can query the dual of a constraint via 
 [`dual`](@ref JuMP.dual(::InfOptConstraintRef)) if a model has duals available
