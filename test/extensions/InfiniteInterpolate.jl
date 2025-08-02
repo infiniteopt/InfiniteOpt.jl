@@ -1,3 +1,5 @@
+using Interpolations # TODO: Move to runtests.jl once OffSetArrays type piracy problem is resolved 
+
 function test_infiniteInterpolate()
     # Set up model with mock optimizer
     Optimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()), eval_objective_value=false)
