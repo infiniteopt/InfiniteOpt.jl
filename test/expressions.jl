@@ -249,6 +249,7 @@ end
         anon = :((t, x) -> f(t, x, 1, d = 1))
         @test InfiniteOpt._process_func_expr(error, anon) == (esc(anon), esc(:(t,x)), true)
         anon = :((t, x[1]) -> sin(t + x[1]))
+        # Need invokelatest due to https://github.com/infiniteopt/InfiniteOpt.jl/pull/369
         @test invokelatest(eval(InfiniteOpt._process_func_expr(error, anon)[1].args[1]), 0.5, 0.2) == sin(0.5 + 0.2)
         anon = :(t[i] -> t[i] + 3)
         @test invokelatest(eval(InfiniteOpt._process_func_expr(error, anon)[1].args[1]), 2) == 5
