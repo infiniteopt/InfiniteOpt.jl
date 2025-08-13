@@ -108,7 +108,10 @@ plot!(ts[ix], BB, color = 4, linestyle=:dash, lab = "B: wealth balance, closed f
 # ### Maintenance Tests
 # These are here to ensure this example stays up to date. 
 using Test
+tol = 1E-6
 @test termination_status(m) == MOI.LOCALLY_SOLVED
 @test has_values(m)
 @test B_opt isa Vector{<:Real}
 @test c_opt isa Vector{<:Real}
+@test isapprox(opt_obj, -67025.62174598589, atol=tol)
+@test isapprox(c_opt[end], -52.00096266262752, atol=tol)
