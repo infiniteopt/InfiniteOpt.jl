@@ -92,4 +92,3 @@ tol = 1E-6
 @test isapprox(value(u[2])[end], 0.005456780217220367, atol=tol)
 @test isapprox(x1Vals[15], 1.3837274935883543, atol=tol)
 @test isapprox(x2Vals[15], 1.6386021193421085, atol=tol)
-

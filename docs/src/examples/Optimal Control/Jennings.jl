@@ -32,7 +32,7 @@
 using InfiniteOpt, Ipopt, Plots;
 
 # Next we specify an array of initial conditions.
-x0 = [π/2, 4, 0]; # x(0) for x1,x2,x3
+x0 = [π/2, 4, 0]; # x(0) for x1, x2, x3
 
 # # Model Definition
 # We initialize the infinite model with [`InfiniteModel`](@ref), opting to use the Ipopt solver.
