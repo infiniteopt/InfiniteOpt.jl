@@ -1441,7 +1441,7 @@ function JuMP.delete(model::InfiniteModel, mref::MeasureRef)
         end
     end
     # delete associated derivative variables and mapping 
-    for index in _derivative_dependencies(mref)
+    for index in copy(_derivative_dependencies(mref))
         JuMP.delete(model, dispatch_variable_ref(model, index))
     end
     # Update that the variables used by it are no longer used by it
