@@ -32,16 +32,16 @@ function test_infiniteInterpolate()
     MOI.set(mockOptimizer, MOI.TerminationStatus(), MOI.ALMOST_LOCALLY_SOLVED)
 
     # Set up the transformation variables
-    xVar = transformation_variable(x, label = All)
-    yVar = transformation_variable(y, label = All)
-    zVar = transformation_variable.(z, label = All)
-    wVar = transformation_variable.(w, label = All)
-    ySemiVar = transformation_variable(ySemi, label = All)
-    wSemiVar = transformation_variable.(wSemi, label = All)
-    αVar = transformation_variable(α, label = All)
-    ωVar = transformation_variable(ω, label = All)
-    dxVar = transformation_variable(∂(x, t), label = All)
-    dyVar = transformation_variable(∂(y, s), label = All)
+    xVar = transformation_variable(x, label = InfiniteOpt.All)
+    yVar = transformation_variable(y, label = InfiniteOpt.All)
+    zVar = transformation_variable.(z, label = InfiniteOpt.All)
+    wVar = transformation_variable.(w, label = InfiniteOpt.All)
+    ySemiVar = transformation_variable(ySemi, label = InfiniteOpt.All)
+    wSemiVar = transformation_variable.(wSemi, label = InfiniteOpt.All)
+    αVar = transformation_variable(α, label = InfiniteOpt.All)
+    ωVar = transformation_variable(ω, label = InfiniteOpt.All)
+    dxVar = transformation_variable(∂(x, t), label = InfiniteOpt.All)
+    dyVar = transformation_variable(∂(y, s), label = InfiniteOpt.All)
 
     xVals = [2.858, 2.929, 2.991]
 

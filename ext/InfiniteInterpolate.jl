@@ -69,7 +69,7 @@ function JuMP.value(vref::infOpt.GeneralVariableRef, method::Function; kwargs...
             interpolateFunc(interpMethod::Function, params::Tuple, supps::Vector) = interpMethod(params, supps)
 
             # Wrapper for multi-parameter variables
-            interpolateFunc(interpMethod::Function, params::Tuple, supps::Matrix) = interpMethod(params, supps)
+            interpolateFunc(interpMethod::Function, params::Tuple, supps::Array) = interpMethod(params, supps)
 
             # Pass the parameter and variable values to interpolation function
             varFunc = interpolateFunc(method, Vparams, Vsupps)
