@@ -61,7 +61,7 @@ end)
 # Optimize the model:
 optimize!(m)
 
-# Extract the results. The InfiniteInterpolate extension can be used to get a smooth interpolated function for x, which is invoked when both the `Interpolations` and `InfiniteOpt` packages are imported:
+# Extract the results. The InfiniteInterpolate extension can be used to get a smooth interpolated function for x, which is invoked when both the `Interpolations` and `InfiniteOpt` packages are imported. Here, cubic splines were chosen as the interpolation method:
 using Interpolations
 xFunc = value.(x, cubic_spline_interpolation);
 

@@ -26,7 +26,7 @@ JuMP = "1.18"
 MutableArithmetics = "1"
 Reexport = "0.2, 1"
 julia = "^1.6"
-Interpolations = "0.16.1"
+Interpolations = "0.16"
 
 [extras]
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
