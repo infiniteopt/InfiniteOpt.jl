@@ -1,4 +1,4 @@
-using Interpolations # TODO: Move to runtests.jl once OffSetArrays type piracy problem is resolved 
+import Interpolations as IP # TODO: Move to runtests.jl once OffSetArrays type piracy problem is resolved 
 
 function test_infiniteInterpolate()
     # Set up model with mock optimizer
@@ -160,11 +160,11 @@ function test_infiniteInterpolate()
     # Test the interpolation value function
     xFunc = value(x, cubic_spline_interpolation)
     yFunc = value(y, linear_interpolation)
-    zFunc = value.(z, linear_interpolation)
+    zFunc = value.(z, (Linear(), Constant()))
     wFunc = value.(w, linear_interpolation)
-    ySemiFunc = value(ySemi, cubic_spline_interpolation)
+    ySemiFunc = value(ySemi, Cubic())
     wSemiFunc = value.(wSemi, linear_interpolation)
-    αValue = value(α, constant_interpolation)
+    αValue = value(α, Constant())
     ωValue = value(ω, constant_interpolation)
     dxFunc = value(∂(x, t), cubic_spline_interpolation)
     dyFunc = value(∂(y, s), linear_interpolation)
@@ -179,11 +179,14 @@ function test_infiniteInterpolate()
     @test value(α) isa Real
     @test value(ω) isa Real
 
-    # Create alternative interpolation method
-    quad_interpolation(params, supps) = interpolate(params, supps, Gridded(Quadratic()))
-
     # Test interpolation method errors
-    @test_throws ArgumentError value(x, quad_interpolation)
+    @test_throws ArgumentError value(x, Quadratic())
+    @test_throws ArgumentError value(y, Gridded(Linear()))
+    @test_throws ArgumentError value(x, Gridded(Quadratic()))
+    @test_throws ArgumentError value(y, LinearMonotonicInterpolation())
+    @test_throws ArgumentError value.(z, (Linear(), Quadratic()))
+    @test_throws ArgumentError value.(w, (Linear(), Lanczos()))
+    @test_throws ArgumentError value.(w, (NoInterp(), Linear()))
     @test_throws ArgumentError value.(z, cubic_spline_interpolation)
     @test_throws ArgumentError value.(w, cubic_spline_interpolation)
 
@@ -191,7 +194,7 @@ function test_infiniteInterpolate()
     @test isapprox(xFunc(1.55), 2.9355847500000003, atol=tol)
     @test isapprox(yFunc(1.55, 3.6), 0.09764, atol=tol)
     @test isapprox(zFunc[1](5.4), 0.5825999999999999, atol=tol)
-    @test isapprox(zFunc[2](5.75), 0.29766666666666663, atol=tol)
+    @test isapprox(zFunc[2](5.75), 0.297, atol=tol)
     @test isapprox(wFunc[1](5.75, 7.35), 0.8185666666666667, atol=tol)
     @test isapprox(wFunc[2](5.75, 7.35), 1.5328333333333333, atol=tol)
     @test isapprox(ySemiFunc(3.24), 0.12989190399999995, atol=tol)

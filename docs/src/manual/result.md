@@ -36,6 +36,12 @@ JuMP.reduced_cost(::GeneralVariableRef)
 JuMP.optimizer_index(::GeneralVariableRef)
 ```
 
+## InfiniteInterpolate
+```@docs
+JuMP.value(::GeneralVariableRef, ::Union{Interpolations.linear_interpolation, Interpolations.constant_interpolation, Interpolations.cubic_spline_interpolation})
+JuMP.value(::GeneralVariableRef, ::Interpolations.Degree)
+```
+
 ## Constraints
 ```@docs
 JuMP.has_duals(::InfiniteModel)
