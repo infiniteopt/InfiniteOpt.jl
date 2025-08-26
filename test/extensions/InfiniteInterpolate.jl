@@ -8,7 +8,7 @@ function test_infiniteInterpolate()
 
     # Define infinite parameters and variables
     @infinite_parameter(model, t ∈ [1, 2], num_supports = 3)
-    @infinite_parameter(model, s ∈ [3, 4], num_supports = 3)
+    @infinite_parameter(model, s ∈ [3, 4], num_supports = 3, derivative_method = OrthogonalCollocation(3))
     @infinite_parameter(model, γ ∈ [5, 6], supports = [5, 5.15, 5.25, 6])
     @infinite_parameter(model, δ ∈ [7, 8], num_supports = 3)
     @variable(model, 0 ≤ x ≤ 10, Infinite(t))                       # single parameter
@@ -46,7 +46,9 @@ function test_infiniteInterpolate()
     xVals = [2.858, 2.929, 2.991]
 
     yVals = [0.093 0.079 0.069;
+            0.098 0.086 0.075;
             0.106 0.090 0.079;
+            0.115 0.088 0.078;
             0.100 0.086 0.075]
 
     zVals = [[0.575, 0.578, 0.583, 0.581],
@@ -61,7 +63,7 @@ function test_infiniteInterpolate()
             1.199 1.201 1.198;
             1.198 1.200 1.197]]
 
-    ySemiVals = [0.193 0.179 0.169]
+    ySemiVals = [0.193 0.179 0.169 0.165 0.135]
     
     wSemiVals = [[0.620 0.625 0.627],
             [2.199 2.200 2.121]]
@@ -69,7 +71,9 @@ function test_infiniteInterpolate()
     dxVals = [1.658, 1.629, 1.691]
     
     dyVals = [2.093 2.079 2.069;
+            2.095 2.086 2.076;
             2.106 2.090 2.079;
+            2.115 2.096 2.082;
             2.100 2.086 2.075]
 
     for i in eachindex(xVals)
@@ -185,18 +189,18 @@ function test_infiniteInterpolate()
 
     # Test the interpolation values
     @test isapprox(xFunc(1.55), 2.9355847500000003, atol=tol)
-    @test isapprox(yFunc(1.55, 3.6), 0.1036, atol=tol)
+    @test isapprox(yFunc(1.55, 3.6), 0.09764, atol=tol)
     @test isapprox(zFunc[1](5.4), 0.5825999999999999, atol=tol)
     @test isapprox(zFunc[2](5.75), 0.29766666666666663, atol=tol)
     @test isapprox(wFunc[1](5.75, 7.35), 0.8185666666666667, atol=tol)
     @test isapprox(wFunc[2](5.75, 7.35), 1.5328333333333333, atol=tol)
-    @test isapprox(ySemiFunc(3.24), 0.12675193599999995, atol=tol)
+    @test isapprox(ySemiFunc(3.24), 0.12989190399999995, atol=tol)
     @test isapprox(wSemiFunc[1](7.24), 0.6224000000000001, atol=tol)
     @test isapprox(wSemiFunc[2](7.24), 2.19948, atol=tol)
     @test αValue == 0.090
     @test ωValue == 3.5
     @test isapprox(dxFunc(1.35), 1.62957825, atol=tol)
-    @test isapprox(dyFunc(1.35, 3.86), 2.078996, atol=tol)
+    @test isapprox(dyFunc(1.35, 3.86), 2.083256, atol=tol)
 end
 
 @testset "InfiniteInterpolate" begin
