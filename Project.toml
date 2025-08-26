@@ -19,7 +19,7 @@ Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
 InfiniteInterpolate = "Interpolations"
 
 [compat]
-DataStructures = "0.14.2 - 0.18"
+DataStructures = "0.14.2 - 0.18, 0.19"
 Distributions = "0.19 - 0.25"
 FastGaussQuadrature = "0.3.2 - 0.4, 0.5, 1"
 JuMP = "1.18"
