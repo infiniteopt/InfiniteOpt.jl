@@ -61,7 +61,7 @@ end)
 # Optimize the model:
 optimize!(m)
 
-# Extract the results. The [`value function`](@ref JuMP.value(::GeneralVariableRef, ::Union{Interpolations.linear_interpolation, Interpolations.constant_interpolation, Interpolations.cubic_spline_interpolation})) from the InfiniteInterpolate extension  can be used to get a smooth interpolated function for x, which is invoked when both the `Interpolations` and `InfiniteOpt` packages are imported. Here, cubic splines and linear were chosen as the interpolation methods for x1 and x2, respectively:
+# Extract the results. The [`InfiniteInterpolate extension`](@ref result_manual) can be used to get a smooth interpolated function for x, which is invoked when both the `Interpolations` and `InfiniteOpt` packages are imported. Here, cubic splines and linear were chosen as the interpolation methods for x1 and x2, respectively:
 using Interpolations
 xFunc = value.(x, (cubic_spline_interpolation, linear_interpolation));
 

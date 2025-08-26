@@ -38,7 +38,7 @@ JuMP.optimizer_index(::GeneralVariableRef)
 
 ## InfiniteInterpolate
 ```@docs
-JuMP.value(::GeneralVariableRef, ::Union{Interpolations.linear_interpolation, Interpolations.constant_interpolation, Interpolations.cubic_spline_interpolation})
+JuMP.value(::GeneralVariableRef, ::Union{typeof(Interpolations.constant_interpolation), typeof(Interpolations.cubic_spline_interpolation), typeof(Interpolations.linear_interpolation)})
 JuMP.value(::GeneralVariableRef, ::Interpolations.Degree)
 ```
 

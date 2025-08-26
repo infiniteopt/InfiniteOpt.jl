@@ -12,7 +12,7 @@ const _convenienceConstructors = Union{typeof(IP.linear_interpolation),
                             typeof(IP.cubic_spline_interpolation)}
 
 """
-    JuMP.value(vref::GeneralVariableRef, method::Union{typeof(Interpolations.linear_interpolation), typeof(Interpolations.constant_interpolation), typeof(Interpolations.cubic_spline_interpolation)}; [kwargs...])
+    JuMP.value(vref::GeneralVariableRef, method::Union{typeof(Interpolations.constant_interpolation), typeof(Interpolations.cubic_spline_interpolation), typeof(Interpolations.linear_interpolation)}; [kwargs...])
 
 Extend `JuMP.value` to return `vref` as an interpolation object from Interpolations.jl, where the `method` argument specifies the interpolation method to be used.
 The currently supported methods are `linear_interpolation`, `constant_interpolation` and `cubic_spline_interpolation`.

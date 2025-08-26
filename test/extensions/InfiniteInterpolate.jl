@@ -1,4 +1,4 @@
-import Interpolations as IP # TODO: Move to runtests.jl once OffSetArrays type piracy problem is resolved 
+using Interpolations # TODO: Move to runtests.jl once OffSetArrays type piracy problem is resolved 
 
 function test_infiniteInterpolate()
     # Set up model with mock optimizer
