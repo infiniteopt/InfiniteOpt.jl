@@ -185,7 +185,7 @@ These again all have a 1-to-1 correspondence.
     whose dimensions correspond to the supports of the infinite parameters. 
 
 ## InfiniteInterpolate queries
-We can also get a continuous representation of a variable as an interpolations object from the `Interpolations.jl` package. This is based on the `InfiniteInterpolate` extension, which is automatically loaded in when both `InfiniteOpt` and `Interpolations` are imported. The current supported methods are `linear_interpolation`, `constant_interpolation` and `cubic_spline_interpolation`.
+We can also get a continuous representation of a variable as an interpolations object from the `Interpolations.jl` package. This is based on the [`InfiniteInterpolate`](@ref infiniteInterpolate) extension, which is automatically loaded in when both `InfiniteOpt` and `Interpolations` are imported. The current supported methods are `linear_interpolation`, `constant_interpolation` and `cubic_spline_interpolation`.
 ```jldoctest results
 julia> using Interpolations
 
@@ -205,7 +205,7 @@ julia> yFunc = value(y, linear_interpolation)
 julia> yFunc(5.12)
 20.9999999956286
 ```
-Alternatively, we can specify the degree of interpolation. This will call the corresponding interpolation method, assuming it is supported.
+Alternatively, we can specify the degree of interpolation with `Linear()`, `Constant()` or `Cubic()`. This will call the corresponding interpolation method.
 ```jldoctest results
 julia> yFunc = value(y, Linear()) # equivalent to value(y, linear_interpolation)
 10-element extrapolate(interpolate((::Vector{Float64},), ::Vector{Float64}, Gridded(Linear())), Throw()) with element type Float64:
