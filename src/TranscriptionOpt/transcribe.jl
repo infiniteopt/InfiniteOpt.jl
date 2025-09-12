@@ -76,13 +76,9 @@ function transcribe_finite_parameters!(
         # Prepare arguments for building JuMP parameter
         name = object.name
         pValue = object.parameter.value
-        pset = MOI.Parameter(pValue)
-        variableData = JuMP.VariableInfo(false, NaN, false, NaN, false, NaN, false, NaN, false, false)
         
         # Build the JuMP variable and add it to the backend
-        baseParam = JuMP.ScalarVariable(variableData)
-        p = JuMP.VariableConstrainedOnCreation(baseParam, pset)
-        pref = JuMP.add_variable(backend.model, p, name)
+        pref = JuMP.@variable(backend.model, base_name = name, set = MOI.Parameter(pValue))
         transcription_data(backend).finvar_mappings[fpref] = pref
     end
     return
