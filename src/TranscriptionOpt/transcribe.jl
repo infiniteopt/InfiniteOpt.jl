@@ -65,7 +65,6 @@ stored in `model` and add it to `backend`. The variable mapping is
 also stored in `TranscriptionData.finvar_mappings` which enables
 [`transcription_variable`](@ref) and [`lookup_by_support`](@ref).
 """
-
 function transcribe_finite_parameters!(
     backend::TranscriptionBackend,
     model::InfiniteOpt.InfiniteModel
