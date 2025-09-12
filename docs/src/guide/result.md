@@ -184,7 +184,7 @@ These again all have a 1-to-1 correspondence.
     parameters, an n-dimensional array will typically be returned
     whose dimensions correspond to the supports of the infinite parameters. 
 
-## InfiniteInterpolate queries
+## Interpolation-Based Continuous Values
 We can also get a continuous representation of a variable as an interpolations object from the `Interpolations.jl` package. This is based on the [`InfiniteInterpolate`](@ref infiniteInterpolate) extension, which is automatically loaded in when both `InfiniteOpt` and `Interpolations` are imported. The current supported methods are `linear_interpolation`, `constant_interpolation` and `cubic_spline_interpolation`.
 ```jldoctest results
 julia> using Interpolations
