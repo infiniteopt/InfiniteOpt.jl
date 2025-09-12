@@ -469,3 +469,13 @@ julia> supports(y^2 + z - 42)
 julia> parameter_refs(y^2 + z - 42)
 (t,)
 ```
+For finite parameters, we can also retrieve their corresponding `JuMP` parameter with `transformation_variable`.
+```jldoctest transcribe
+julia> param = @finite_parameter(inf_model, p == 42)
+p
+
+julia> build_transformation_backend!(inf_model)
+
+julia> transformation_variable(p)
+p
+```
