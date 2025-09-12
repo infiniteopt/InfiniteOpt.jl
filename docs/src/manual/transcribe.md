@@ -8,6 +8,7 @@ InfiniteOpt.TranscriptionOpt.TranscriptionBackend
 InfiniteOpt.TranscriptionOpt.TranscriptionData
 InfiniteOpt.TranscriptionOpt.Transcription
 InfiniteOpt.TranscriptionOpt.set_parameter_supports
+InfiniteOpt.TranscriptionOpt.transcribe_finite_parameters!
 InfiniteOpt.TranscriptionOpt.transcribe_finite_variables!
 InfiniteOpt.TranscriptionOpt.transcribe_infinite_variables!
 InfiniteOpt.TranscriptionOpt.transcribe_derivative_variables!
