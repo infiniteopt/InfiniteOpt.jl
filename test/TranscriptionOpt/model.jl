@@ -404,10 +404,12 @@ end
     @variable(tb.model, b)
     @variable(tb.model, c)
     @variable(tb.model, d)
+    @variable(tb.model, e in Parameter(42))
     # transcribe the variables and measures
     data = IOTO.transcription_data(tb)
     data.finvar_mappings[y] = a
     data.finvar_mappings[x0] = a
+    data.finvar_mappings[finpar] = e
     data.infvar_mappings[x] = reshape([a, b], :, 1)
     data.measure_mappings[meas1] = fill(-2 * zero(AffExpr))
     data.measure_mappings[meas2] = [a^2 + c^2 - 2a, b^2 + d^2 - 2a]
@@ -450,7 +452,7 @@ end
     end
     # test transcription expression for finite parameters with 3 args
     @testset "IOTO.transcription_expression (Finite Parameter)" begin
-        @test IOTO.transcription_expression(finpar, tb, [0.5, 1., 0.]) == 42
+        @test IOTO.transcription_expression(finpar, tb, [0.5, 1., 0.]) == e
     end
     # test transcription expression for AffExprs with 3 args
     @testset "IOTO.transcription_expression (AffExpr)" begin
