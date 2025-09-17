@@ -11,6 +11,7 @@ function test_infiniteInterpolate()
     @infinite_parameter(model, s ∈ [3, 4], num_supports = 3, derivative_method = OrthogonalCollocation(3))
     @infinite_parameter(model, γ ∈ [5, 6], supports = [5, 5.15, 5.25, 6])
     @infinite_parameter(model, δ ∈ [7, 8], num_supports = 3)
+    @finite_parameter(model, β == 1.5)
     @variable(model, 0 ≤ x ≤ 10, Infinite(t))                       # single parameter
     @variable(model, 0 ≤ y ≤ 10, Infinite(t, s))                    # multi parameter
     @variable(model, 0.3 ≤ z[1:2] ≤ 8, Infinite(γ))                 # vector, single parameter
@@ -32,6 +33,7 @@ function test_infiniteInterpolate()
     MOI.set(mockOptimizer, MOI.TerminationStatus(), MOI.ALMOST_LOCALLY_SOLVED)
 
     # Set up the transformation variables
+    βVar = transformation_variable(β, label = InfiniteOpt.All)
     xVar = transformation_variable(x, label = InfiniteOpt.All)
     yVar = transformation_variable(y, label = InfiniteOpt.All)
     zVar = transformation_variable.(z, label = InfiniteOpt.All)
@@ -76,6 +78,11 @@ function test_infiniteInterpolate()
             2.115 2.096 2.082;
             2.100 2.086 2.075]
 
+    MOI.set(mockOptimizer,
+            MOI.VariablePrimal(1),
+            JuMP.optimizer_index(βVar),
+            1.5)
+            
     for i in eachindex(xVals)
         MOI.set(
             mockOptimizer,
@@ -158,6 +165,7 @@ function test_infiniteInterpolate()
     end
 
     # Test the interpolation value function
+    βValue = value(β, cubic_spline_interpolation)
     xFunc = value(x, cubic_spline_interpolation)
     yFunc = value(y, linear_interpolation)
     zFunc = value.(z, (Linear(), Constant()))
@@ -172,6 +180,7 @@ function test_infiniteInterpolate()
     # Unit tests
     tol = 1e-06
     @test termination_status(model) == MOI.ALMOST_LOCALLY_SOLVED
+    @test value(β) isa Real
     @test value(x) isa Vector{<:Real}
     @test value(y) isa Matrix{<:Real}
     @test value.(z) isa Vector{<:Vector{<:Real}}
@@ -191,6 +200,7 @@ function test_infiniteInterpolate()
     @test_throws ArgumentError value.(w, cubic_spline_interpolation)
 
     # Test the interpolation values
+    @test isapprox(βValue, 1.5, atol=tol)
     @test isapprox(xFunc(1.55), 2.9355847500000003, atol=tol)
     @test isapprox(yFunc(1.55, 3.6), 0.09764, atol=tol)
     @test isapprox(zFunc[1](5.4), 0.5825999999999999, atol=tol)
