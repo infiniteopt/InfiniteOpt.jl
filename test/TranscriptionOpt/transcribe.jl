@@ -535,7 +535,7 @@ end
     dt_c1 = IOTO.lookup_by_support(d1, tb, zeros(3))
     @test constraint_object(IOTO.transcription_constraint(c1)).func == -zt + xt[1] + dt_c1
     @test constraint_object(IOTO.transcription_constraint(c2)).func == zt + xt[1]
-    expected = IOTO.transcription_variable(meas2)[2] - 2 * IOTO.transcription_variable(y0) + xt[2]
+    expected = IOTO.transcription_variable(meas2)[2] - 2 * IOTO.transcription_variable(y0) + xt[2] + IOTO.transcription_variable(fin)
     @test constraint_object(IOTO.transcription_constraint(c4)).func == expected
     @test constraint_object(IOTO.transcription_constraint(c3)).func == xt[1] - 2wt + xt[2] + zt - d2t[1] - d2t[2]
     @test constraint_object(IOTO.transcription_constraint(c6)).func == [zt, wt]

@@ -55,6 +55,34 @@ end
 #                        VARIABLE INITIALIZATION METHODS
 ################################################################################
 """
+    transcribe_finite_parameters!(
+        backend::TranscriptionBackend,
+        model::InfiniteOpt.InfiniteModel
+        )::Nothing
+
+Create a transcription variable (i.e., a JuMP Parameter) for each `FiniteParameter`
+stored in `model` and add it to `backend`. The variable mapping is
+also stored in `TranscriptionData.finvar_mappings` which enables
+[`transcription_variable`](@ref) and [`lookup_by_support`](@ref).
+"""
+function transcribe_finite_parameters!(
+    backend::TranscriptionBackend,
+    model::InfiniteOpt.InfiniteModel
+    )
+    for (idx, object) in InfiniteOpt._data_dictionary(model, InfiniteOpt.FiniteParameter)
+        fpref = InfiniteOpt.GeneralVariableRef(model, idx)
+
+        # Prepare arguments for building JuMP parameter
+        name = object.name
+        pValue = object.parameter.value
+        
+        # Build the JuMP variable and add it to the backend
+        pref = JuMP.@variable(backend.model, base_name = name, set = MOI.Parameter(pValue))
+        transcription_data(backend).finvar_mappings[fpref] = pref
+    end
+    return
+end
+"""
     transcribe_finite_variables!(
         backend::TranscriptionBackend,
         model::InfiniteOpt.InfiniteModel
@@ -459,13 +487,13 @@ function transcription_expression(
     end
 end
 
-# Point variables and finite variables
+# Point variables, finite variables and finite parameters
 function transcription_expression(
     vref::InfiniteOpt.GeneralVariableRef,
     index_type::Type{V},
     backend::TranscriptionBackend,
     support::Vector{Float64}
-    ) where {V <: FinVarIndex}
+    ) where {V <: Union{FinVarIndex, InfiniteOpt.FiniteParameterIndex}}
     return lookup_by_support(vref, index_type, backend, support)
 end
 
@@ -480,15 +508,6 @@ function transcription_expression(
     return support[param_num]
 end
 
-# Finite parameters
-function transcription_expression(
-    vref::InfiniteOpt.GeneralVariableRef,
-    index_type::Type{InfiniteOpt.FiniteParameterIndex},
-    backend::TranscriptionBackend,
-    support::Vector{Float64}
-    )
-    return InfiniteOpt.parameter_value(vref)
-end
 
 # AffExpr and QuadExpr and NonlinearExpr
 function transcription_expression(
@@ -957,6 +976,7 @@ function build_transcription_backend!(
     # add nonlinear operators as needed 
     InfiniteOpt.add_operators_to_jump(backend.model, model)
     # define the variables
+    transcribe_finite_parameters!(backend, model)
     transcribe_finite_variables!(backend, model)
     transcribe_infinite_variables!(backend, model)
     transcribe_derivative_variables!(backend, model)

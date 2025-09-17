@@ -337,13 +337,13 @@ const FinVarIndex = Union{
     }
 
 ## Define the variable mapping functions
-# FinVarIndex
+# FinVarIndex & FiniteParameterIndex
 function transcription_variable(
     vref::InfiniteOpt.GeneralVariableRef,
     ::Type{V},
     backend::TranscriptionBackend,
     label::Type{<:InfiniteOpt.AbstractSupportLabel}
-    ) where {V <: FinVarIndex}
+    ) where {V <: Union{FinVarIndex, InfiniteOpt.FiniteParameterIndex}}
     var = get(transcription_data(backend).finvar_mappings, vref, nothing)
     if isnothing(var)
         error("Variable reference $vref not used in transcription backend.")
@@ -551,7 +551,7 @@ function lookup_by_support(
     ::Type{V},
     backend::TranscriptionBackend,
     support::Vector
-    ) where {V <: FinVarIndex}
+    ) where {V <: Union{FinVarIndex, InfiniteOpt.FiniteParameterIndex}}
     if !haskey(transcription_data(backend).finvar_mappings, vref)
         error("Variable reference $vref not used in transcription backend.")
     end
