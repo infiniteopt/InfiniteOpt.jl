@@ -96,9 +96,12 @@ makedocs(;
         ],
     sitename = "InfiniteOpt.jl",
     authors = "Joshua Pulsipher and Weiqi Zhang",
-    modules = [InfiniteOpt, isdefined(Base, :get_extension) ?
-    Base.get_extension(InfiniteOpt, 
-                        :InfiniteInterpolate) : InfiniteOpt.InfiniteInterpolate],
+    modules = [
+        InfiniteOpt,
+        isdefined(Base, :get_extension) ?
+            Base.get_extension(InfiniteOpt, :InfiniteInterpolate) :
+            InfiniteOpt.InfiniteInterpolate
+    ],
     checkdocs = :none,
     linkcheck = true,
     linkcheck_ignore = [r"https://www.youtube.com/.*"],
