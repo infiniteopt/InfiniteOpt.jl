@@ -516,16 +516,8 @@ function transcription_expression(
     backend::TranscriptionBackend,
     support::Vector{Float64}
     )
-    ivref = InfiniteOpt.infinite_variable_ref(vref)
-    if InfiniteOpt._index_type(ivref) == InfiniteOpt.ParameterFunctionIndex 
-        prefs = InfiniteOpt.raw_parameter_refs(ivref)
-        param_nums = InfiniteOpt._parameter_numbers(ivref)
-        func = InfiniteOpt.raw_function(ivref)
-        return func(Tuple(support[param_nums], prefs)...)
-    else 
-        param_nums = InfiniteOpt._parameter_numbers(vref)
-        return lookup_by_support(vref, index_type, backend, support[param_nums])
-    end
+    param_nums = InfiniteOpt._parameter_numbers(vref)
+    return lookup_by_support(vref, index_type, backend, support[param_nums])
 end
 
 # Point variables, finite variables and finite parameters

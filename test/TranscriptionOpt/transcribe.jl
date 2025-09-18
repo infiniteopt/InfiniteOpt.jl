@@ -532,8 +532,9 @@ end
     @test objective_sense(tb.model) == MOI.MIN_SENSE
     # test constraints
     yt = IOTO.transcription_variable(y)
+    ft = IOTO.transformation_variable(f)
     dt_c1 = IOTO.lookup_by_support(d1, tb, zeros(3))
-    @test constraint_object(IOTO.transcription_constraint(c1)).func == -zt + xt[1] + dt_c1
+    @test constraint_object(IOTO.transcription_constraint(c1)).func == -zt + xt[1] + dt_c1 + ft[1]
     @test constraint_object(IOTO.transcription_constraint(c2)).func == zt + xt[1]
     expected = IOTO.transcription_variable(meas2)[2] - 2 * IOTO.transcription_variable(y0) + xt[2] + IOTO.transcription_variable(fin)
     @test constraint_object(IOTO.transcription_constraint(c4)).func == expected

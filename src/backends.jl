@@ -409,7 +409,6 @@ function JuMP.optimize!(
         return model.optimize_hook(model; kwargs...)
     end
     if !transformation_backend_ready(model)
-        println("Building transformation backend...")
         build_transformation_backend!(model; kwargs...)
     end
     return JuMP.optimize!(model.backend)

@@ -59,6 +59,7 @@ end
     build_transformation_backend!(m)
     tb = m.backend
     tdata = IOTO.transcription_data(tb)
+    ft = transformation_variable(f, tb)
     # Test transformation_variable
     @testset "transformation_variable" begin
         # test normal usage
@@ -66,7 +67,8 @@ end
         @test transformation_variable(x0) == IOTO.transcription_variable(x0)
         @test transformation_variable(z) == IOTO.transcription_variable(z)
         @test transformation_variable(d1, label = InternalLabel) == IOTO.transcription_variable(d1, label = InternalLabel)
-        @test transformation_variable(f) == [0, sin(1)]
+        @test ft isa Array{JuMP.VariableRef}
+        @test JuMP.parameter_value.(ft) == [0, sin(1)]
         # test deprecation 
         @test (@test_deprecated optimizer_model_variable(z)) == transformation_variable(z)
         # test fallback
@@ -104,7 +106,7 @@ end
         @test transformation_expression(x^2 + z) == [xt[1]^2 + zt, xt[3]^2 + zt]
         @test transformation_expression(x^2 + z, label = All) == [xt[1]^2 + zt, xt[2]^2 + zt, xt[3]^2 + zt]
         @test transformation_expression(2z - 3) == 2zt - 3
-        @test transformation_expression(2 * f) == [zero(AffExpr), zero(AffExpr) + sin(1) * 2]
+        @test transformation_expression(2 * f) == [2 * ft[1], 2* ft[2]]
         # test deprecation
         @test (@test_deprecated optimizer_model_expression(2z-4)) == 2zt - 4
         # test fallback
