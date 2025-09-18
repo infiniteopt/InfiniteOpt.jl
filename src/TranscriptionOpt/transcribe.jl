@@ -136,6 +136,21 @@ function _make_var_name(base_name, param_nums, tuple_supp, var_idx)
     end
 end
 
+"""
+    transcribe_parameter_functions!(
+        backend::TranscriptionBackend,
+        model::InfiniteOpt.InfiniteModel
+        )::Nothing
+
+Create transcription variables (i.e., JuMP Parameters) corresponding to 
+all supports of each `Parameter Function` stored in `model` and add them to 
+`backend`. The variable mappings are also stored in 
+`TranscriptionData.infvar_mappings` in accordance with 
+`TranscriptionData.infvar_lookup`which enable [`transcription_variable`](@ref)
+and [`lookup_by_support`](@ref). Note that the supports will not be generated
+until `InfiniteOpt.variable_supports` is invoked via `InfiniteOpt.supports`. 
+Note that `TranscriptionData.infvar_support_labels` is also populated.
+"""
 function transcribe_parameter_functions!(
     backend::TranscriptionBackend,
     model::InfiniteOpt.InfiniteModel,
