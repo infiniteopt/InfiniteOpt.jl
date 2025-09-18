@@ -61,15 +61,24 @@ end)
 # Optimize the model:
 optimize!(m)
 
-# Extract the results:
-x_opt = value.(x);
+# Extract the results. The [`InfiniteInterpolate`](@ref infiniteInterpolate)
+# extension can be used to get a smooth interpolated function for x, which is
+# invoked when both the `Interpolations` and `InfiniteOpt` packages are imported.
+# Here, cubic splines are used as the interpolation method for both x1 and x2:
+using Interpolations
+xFunc = value.(x, cubic_spline_interpolation);
+
+# Query our interpolated function for the values of x1 and x2:
+tvals = LinRange(0, 60, 100)
+x1Vals = xFunc[1](tvals)
+x2Vals = xFunc[2](tvals);
 
 # Plot the results:
 using Plots
-scatter(xw[1,:], xw[2,:], label = "Waypoints", background_color = :transparent)
-plot!(x_opt[1], x_opt[2], label = "Trajectory")
+scatter(xw[1,:], xw[2,:], label = "Waypoints")
 xlabel!("x_1")
 ylabel!("x_2")
+plot!(x1Vals, x2Vals, label = "Trajectory")
 
 # That's it, now we have our optimal trajectory!
 
@@ -79,8 +88,10 @@ using Test
 tol = 1E-6
 @test termination_status(m) == MOI.LOCALLY_SOLVED
 @test has_values(m)
-@test x_opt isa Vector{<:Vector{<:Real}}
+@test x1Vals isa Vector{<:Real}
+@test x2Vals isa Vector{<:Real}
 @test isapprox(objective_value(m), 0.043685293177035435, atol=tol)
 @test isapprox(value(u[1])[end], -0.010503853944039986, atol=tol)
 @test isapprox(value(u[2])[end], 0.005456780217220367, atol=tol)
-
+@test isapprox(x1Vals[15], 1.3837274935883543, atol=tol)
+@test isapprox(x2Vals[15], 1.6386021193421085, atol=tol)
