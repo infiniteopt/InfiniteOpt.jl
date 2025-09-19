@@ -351,13 +351,13 @@ function transcription_variable(
     return var
 end
 
-# InfVarIndex
+# InfVarIndex & ParameterFunctionIndex
 function transcription_variable(
     vref::InfiniteOpt.GeneralVariableRef,
     ::Type{V},
     backend::TranscriptionBackend,
     label::Type{<:InfiniteOpt.AbstractSupportLabel}
-    ) where {V <: InfVarIndex}
+    ) where {V <: Union{InfVarIndex, InfiniteOpt.ParameterFunctionIndex}}
     vars = get(transcription_data(backend).infvar_mappings, vref, nothing)
     if isnothing(vars)
         error("Variable reference $vref not used in transcription backend.")
@@ -367,32 +367,6 @@ function transcription_variable(
     else 
         group_idxs = InfiniteOpt.parameter_group_int_indices(vref)
         return _truncate_by_label(vars, vref, label, group_idxs, backend)
-    end
-end
-
-# ParameterFunctionIndex
-function transcription_variable(
-    fref::InfiniteOpt.GeneralVariableRef,
-    ::Type{InfiniteOpt.ParameterFunctionIndex},
-    backend::TranscriptionBackend,
-    label::Type{<:InfiniteOpt.AbstractSupportLabel}
-    )
-    # get the parameter group integer indices of the expression and form the support iterator
-    group_idxs = InfiniteOpt.parameter_group_int_indices(fref)
-    support_indices = support_index_iterator(backend, group_idxs)
-    dims = size(support_indices)[group_idxs]
-    vals = Array{Float64, length(dims)}(undef, dims...)
-    # iterate over the indices and compute the values
-    for idx in support_indices
-        supp = index_to_support(backend, idx)
-        val_idx = idx.I[group_idxs]
-        @inbounds vals[val_idx...] = transcription_expression(fref, backend, supp)
-    end
-    # return the values
-    if _ignore_label(backend, label)
-        return vals
-    else
-        return _truncate_by_label(vals, fref, label, group_idxs, backend)
     end
 end
 
@@ -521,28 +495,17 @@ _supp_error() = error("""
     parameters.
     """)
 
-# InfiniteIndex
+# InfiniteIndex & ParameterFunctionIndex
 function lookup_by_support(
     vref::InfiniteOpt.GeneralVariableRef,
     ::Type{V},
     backend::TranscriptionBackend,
     support::Vector
-    ) where {V <: InfVarIndex}
+    ) where {V <: Union{InfVarIndex, InfiniteOpt.ParameterFunctionIndex}}
     if !haskey(transcription_data(backend).infvar_lookup, vref)
         error("Variable reference $vref not used in transcription backend.")
     end
     return get(_supp_error, transcription_data(backend).infvar_lookup[vref], support)
-end
-
-# ParameterFunctionIndex
-function lookup_by_support(
-    fref::InfiniteOpt.GeneralVariableRef,
-    ::Type{InfiniteOpt.ParameterFunctionIndex},
-    backend::TranscriptionBackend,
-    support::Vector
-    )
-    prefs = InfiniteOpt.raw_parameter_refs(fref)
-    return InfiniteOpt.call_function(fref, Tuple(support, prefs)...)
 end
 
 # FiniteIndex

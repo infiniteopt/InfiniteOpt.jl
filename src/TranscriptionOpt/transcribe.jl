@@ -137,6 +137,62 @@ function _make_var_name(base_name, param_nums, tuple_supp, var_idx)
 end
 
 """
+    transcribe_parameter_functions!(
+        backend::TranscriptionBackend,
+        model::InfiniteOpt.InfiniteModel
+        )::Nothing
+
+Create transcription variables (i.e., JuMP Parameters) corresponding to 
+all supports of each `Parameter Function` stored in `model` and add them to 
+`backend`. The variable mappings are also stored in 
+`TranscriptionData.infvar_mappings` in accordance with 
+`TranscriptionData.infvar_lookup` which enable [`transcription_variable`](@ref)
+and [`lookup_by_support`](@ref). Note that the supports will not be generated
+until `InfiniteOpt.variable_supports` is invoked via `InfiniteOpt.supports`. 
+Note that `TranscriptionData.infvar_support_labels` is also populated.
+"""
+function transcribe_parameter_functions!(
+    backend::TranscriptionBackend,
+    model::InfiniteOpt.InfiniteModel,
+    )
+    for (idx, object) in model.param_functions
+        # get the basic parameter function information
+        pf = object.func
+        base_name = object.name
+        func = pf.func
+        param_nums = pf.parameter_nums
+        group_idxs = pf.group_int_idxs
+        prefs = pf.parameter_refs
+        # prepare for iterating over its supports
+        supp_indices = support_index_iterator(backend, group_idxs)
+        dims = size(supp_indices)[group_idxs]
+        vrefs = Array{JuMP.VariableRef, length(dims)}(undef, dims...)
+        supp_type = typeof(Tuple(ones(length(prefs)), prefs))
+        supps = Array{supp_type, length(dims)}(undef, dims...)
+        lookup_dict = sizehint!(Dict{Vector{Float64}, JuMP.VariableRef}(), length(vrefs))
+        # Create a parameter for each support
+        for i in supp_indices
+            supp = index_to_support(backend, i)[param_nums]
+            var_idx = i.I[group_idxs]
+            tuple_supp = Tuple(supp, prefs)
+            p_name = _make_var_name(base_name, param_nums, tuple_supp, var_idx)
+            pValue = func(tuple_supp...)
+            jump_pref = JuMP.@variable(backend.model, base_name = p_name, set = MOI.Parameter(pValue))
+            vrefs[var_idx...] = jump_pref
+            lookup_dict[supp] = jump_pref
+            supps[var_idx...] = tuple_supp
+        end
+        # save the transcription information
+        pfref = InfiniteOpt.GeneralVariableRef(model, idx)
+        data = transcription_data(backend)
+        data.infvar_lookup[pfref] = lookup_dict
+        data.infvar_mappings[pfref] = vrefs
+        data.infvar_supports[pfref] = supps
+    end
+    return
+end
+
+"""
     transcribe_infinite_variables!(
         backend::TranscriptionBackend,
         model::InfiniteOpt.InfiniteModel
@@ -475,16 +531,8 @@ function transcription_expression(
     backend::TranscriptionBackend,
     support::Vector{Float64}
     )
-    ivref = InfiniteOpt.infinite_variable_ref(vref)
-    if InfiniteOpt._index_type(ivref) == InfiniteOpt.ParameterFunctionIndex 
-        prefs = InfiniteOpt.raw_parameter_refs(ivref)
-        param_nums = InfiniteOpt._parameter_numbers(ivref)
-        func = InfiniteOpt.raw_function(ivref)
-        return func(Tuple(support[param_nums], prefs)...)
-    else 
-        param_nums = InfiniteOpt._parameter_numbers(vref)
-        return lookup_by_support(vref, index_type, backend, support[param_nums])
-    end
+    param_nums = InfiniteOpt._parameter_numbers(vref)
+    return lookup_by_support(vref, index_type, backend, support[param_nums])
 end
 
 # Point variables, finite variables and finite parameters
@@ -979,6 +1027,7 @@ function build_transcription_backend!(
     transcribe_finite_parameters!(backend, model)
     transcribe_finite_variables!(backend, model)
     transcribe_infinite_variables!(backend, model)
+    transcribe_parameter_functions!(backend, model)
     transcribe_derivative_variables!(backend, model)
     transcribe_semi_infinite_variables!(backend, model)
     transcribe_point_variables!(backend, model)

@@ -121,6 +121,15 @@ end
     @variable(tb.model, d)
     @variable(tb.model, e)
     @variable(tb.model, f)
+    @variable(tb.model, p1a in Parameter(sin(0)))
+    @variable(tb.model, p1b in Parameter(sin(0.5)))
+    @variable(tb.model, p1c in Parameter(sin(1)))
+    @variable(tb.model, p2a in Parameter(1))
+    @variable(tb.model, p2b in Parameter(1))
+    @variable(tb.model, p2c in Parameter(1))
+    @variable(tb.model, p2d in Parameter(1))
+    @variable(tb.model, p2e in Parameter(1))
+    @variable(tb.model, p2f in Parameter(1))
     # test _ignore_label
     @testset "_ignore_label" begin
         @test IOTO._ignore_label(tb, All)
@@ -156,10 +165,20 @@ end
     end
     # test IOTO.transcription_variable (Parameter Function)
     @testset "IOTO.transcription_variable (Parameter Function)" begin
+        # test error
+        @test_throws ErrorException IOTO.transcription_variable(f1, tb)
+        @test_throws ErrorException IOTO.transcription_variable(f2, tb)
         # test normal
-        @test IOTO.transcription_variable(f1, tb) == [sin(0), sin(1)]
-        @test IOTO.transcription_variable(f1, tb, label = All) == sin.([0, 0.5, 1])
-        @test IOTO.transcription_variable(f2, tb) == ones(2, 2)
+        data.infvar_mappings[f1] = [p1a, p1b, p1c]
+        data.infvar_mappings[f2] = [p2a p2b; p2c p2d; p2e p2f]
+        @test JuMP.parameter_value.([p1a, p1b, p1c]) == sin.([0., 0.5, 1.])
+        @test JuMP.parameter_value.([p2a p2b; p2c p2d; p2e p2f]) == ones(3, 2)
+        @test IOTO.transcription_variable(f1, tb) isa Vector{JuMP.VariableRef}
+        @test IOTO.transcription_variable(f1, tb) == [p1a, p1c]
+        @test IOTO.transcription_variable(f1, tb, label = All) == [p1a, p1b, p1c]
+        @test IOTO.transcription_variable(f2, tb) isa Matrix{JuMP.VariableRef}
+        @test IOTO.transcription_variable(f2, tb) == [p2a p2b; p2e p2f]
+        @test IOTO.transcription_variable(f2, tb, label = All) == [p2a p2b; p2c p2d; p2e p2f]
     end
     # test IOTO.transcription_variable (Fallback)
     @testset "IOTO.transcription_variable (Fallback)" begin
@@ -170,7 +189,7 @@ end
         @test IOTO.transcription_variable(y) == a
         @test IOTO.transcription_variable(x, label = All) == [a b; c d; e f]
         @test IOTO.transcription_variable(x0) == a
-        @test IOTO.transcription_variable(f2) == ones(2, 2)
+        @test IOTO.transcription_variable(f2) == [p2a p2b; p2e p2f]
     end
     # test transformation_variable extension
     @testset "transformation_variable" begin
@@ -247,8 +266,30 @@ end
     end
     # test lookup_by_support (infinite parameter functions)
     @testset "lookup_by_support (Parameter Function)" begin
-        @test IOTO.lookup_by_support(f1, tb, [0.]) == 0
-        @test IOTO.lookup_by_support(f2, tb, [0., 0., 1.]) == 1
+        lookups = Dict{Vector{Float64}, VariableRef}(
+            [0.] => p1a,
+            [0.5] => p1b,
+            [1.] => p1c
+            )
+        data.infvar_lookup[f1] = lookups
+        lookups = Dict{Vector{Float64}, VariableRef}(
+            [0., 0., 0.] => p2a,
+            [0.5, 0., 0.] => p2b,
+            [1., 0., 0.] => p2c,
+            [0., 1., 1.] => p2d,
+            [0.5, 1., 1.] => p2e,
+            [1., 1., 1.] => p2f
+            )
+        data.infvar_lookup[f2] = lookups
+        # test errors
+                @test_throws ErrorException IOTO.lookup_by_support(f1, tb, [0.75])
+        @test_throws ErrorException IOTO.lookup_by_support(f2, tb, [0., 0., 1.])
+        # test normal
+        @test IOTO.lookup_by_support(f1, tb, [0.]) == p1a
+        @test IOTO.lookup_by_support(f1, tb, [0.5]) == p1b
+        @test IOTO.lookup_by_support(f1, tb, [1.]) == p1c
+        @test IOTO.lookup_by_support(f2, tb, [0.5, 0., 0.]) == p2b
+        @test IOTO.lookup_by_support(f2, tb, [0.5, 1., 1.]) == p2e
     end
     # test lookup_by_support (finite vars)
     @testset "lookup_by_support (Finite)" begin
@@ -405,15 +446,19 @@ end
     @variable(tb.model, c)
     @variable(tb.model, d)
     @variable(tb.model, e in Parameter(42))
+    @variable(tb.model, pf1 in Parameter(1))
+    @variable(tb.model, pf2 in Parameter(1))
     # transcribe the variables and measures
     data = IOTO.transcription_data(tb)
     data.finvar_mappings[y] = a
     data.finvar_mappings[x0] = a
     data.finvar_mappings[finpar] = e
+    data.infvar_mappings[f] = [pf1, pf2]
     data.infvar_mappings[x] = reshape([a, b], :, 1)
     data.measure_mappings[meas1] = fill(-2 * zero(AffExpr))
     data.measure_mappings[meas2] = [a^2 + c^2 - 2a, b^2 + d^2 - 2a]
     data.infvar_lookup[x] = Dict([0, 0, 0] => a, [1, 0, 0] => b)
+    data.infvar_lookup[f] = Dict([0, 0, 0] => pf1, [1, 0, 0] => pf2)
     data.measure_lookup[meas1] = Dict(Float64[] => 1)
     data.measure_lookup[meas2] = Dict([0] => 1, [1] => 2)
     @test IOTO.set_parameter_supports(tb, m) isa Nothing
@@ -425,14 +470,16 @@ end
     @testset "IOTO.transcription_expression (Infinite Variable)" begin
         @test IOTO.transcription_expression(x, tb, [0., 0., 0.]) == a
         @test IOTO.transcription_expression(meas1, tb, [0., 0., 1.]) == -2 * zero(AffExpr)
-        @test IOTO.transcription_expression(f, tb, [0., 0., 1.]) == 1
+        @test IOTO.transcription_expression(f, tb, [0., 0., 1.]) == pf2
     end
     # test transcription expression for semi_infinite variables with 3 args
     @testset "IOTO.transcription_expression (Semi-Infinite Variable)" begin
         # semi_infinite of parameter function
         rv = add_variable(m, build_variable(error, f, Dict(1=>1.)),
                           add_support = false)
-        @test IOTO.transcription_expression(rv, tb, [0., 0., 1.]) == 1
+        data.infvar_mappings[rv] = [pf2]
+        data.infvar_lookup[rv] = Dict([0, 0] => pf2)
+        @test IOTO.transcription_expression(rv, tb, [0., 0., 1.]) == pf2
         # semi_infinite of infinite variable
         rv = add_variable(m, build_variable(error, x, Dict(1=>1.)),
                           add_support = false)

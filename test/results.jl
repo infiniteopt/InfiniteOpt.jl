@@ -190,6 +190,7 @@ end
     inf2t = transformation_variable(inf2, label = All)
     d1t = transformation_variable(d1, label = All)
     rvt = transformation_variable(rv, label = All)
+    at = transformation_variable(a, label = All)
     cref = UpperBoundRef(g)
     creft = transformation_constraint(cref, label = All)
     # setup the optimizer
@@ -213,6 +214,9 @@ end
     MOI.set(mockoptimizer, MOI.VariablePrimal(1), JuMP.optimizer_index(d1t[1]), 2.0)
     MOI.set(mockoptimizer, MOI.VariablePrimal(1), JuMP.optimizer_index(d1t[2]), 1.0)
     MOI.set(mockoptimizer, MOI.VariablePrimal(1), JuMP.optimizer_index(d1t[3]), 2.0)
+    MOI.set(mockoptimizer, MOI.VariablePrimal(1), JuMP.optimizer_index(at[1]), sin(0.0))
+    MOI.set(mockoptimizer, MOI.VariablePrimal(1), JuMP.optimizer_index(at[2]), sin(0.5))
+    MOI.set(mockoptimizer, MOI.VariablePrimal(1), JuMP.optimizer_index(at[3]), sin(1.0))
     # test has_values
     @testset "JuMP.has_values" begin
         @test has_values(m)
@@ -242,8 +246,9 @@ end
         @test value(par, label = All) == [0., 0.5, 1.]
         @test value(fin) == 42
         @test value(fin, label = All) == 42
-        @test value(a) == [sin(0.), sin(1.)]
-        @test value(a, label = All) == [sin(0.), sin(0.5), sin(1.)]
+        @test value(a) == sin.([0., 1.])
+        @test value(a, label = All) == sin.([0., 0.5, 1.])
+        @test value(sin(0.0)) == sin(0.0)
     end
     #test Reduced Cost
     @testset "map_reduced_cost" begin
