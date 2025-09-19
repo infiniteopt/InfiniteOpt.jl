@@ -248,6 +248,7 @@ end
         @test value(fin, label = All) == 42
         @test value(a) == sin.([0., 1.])
         @test value(a, label = All) == sin.([0., 0.5, 1.])
+        @test value(sin(0.0)) == sin(0.0)
     end
     #test Reduced Cost
     @testset "map_reduced_cost" begin
