@@ -9,7 +9,6 @@
     @variable(m, y, Infinite(par, pars))
     @variable(m, x0, Point(x, 0))
     @variable(m, y0, SemiInfinite(y, 0, pars))
-    @finite_parameter(m, pf0 == sin(1))
     tb = m.backend
     @variable(tb.model, a)
     @variable(tb.model, b)
