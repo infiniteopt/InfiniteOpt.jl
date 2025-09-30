@@ -96,3 +96,16 @@ function InfiniteOpt.add_semi_infinite_variable(
         return rvref
     end
 end
+
+function InfiniteOpt.make_point_variable_ref(
+    write_model::TranscriptionBackend, 
+    ivref, 
+    support, 
+    ::Union{Type{InfiniteOpt.ParameterFunctionIndex}}
+    )
+    prefs = parameter_list(ivref)
+    for i in eachindex(support)
+        support[i] = round(support[i], sigdigits = significant_digits(prefs[i]))
+    end 
+    return add_point_variable(write_model, ivref, support)
+end
