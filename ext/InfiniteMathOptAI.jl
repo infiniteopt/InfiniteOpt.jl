@@ -11,10 +11,10 @@ function MathOptAI.add_variables(
 )
     inds = InfiniteOpt.parameter_group_int_indices(x)
     if isempty(inds)
-        return @variable(model, [1:n], base_name = base_name)
+        return JuMP.@variable(model, [1:n], base_name = base_name)
     end
     params = InfiniteOpt.parameter_refs(model)[inds]
-    return @variable(
+    return JuMP.@variable(
         model,
         [1:n],
         base_name = base_name,
