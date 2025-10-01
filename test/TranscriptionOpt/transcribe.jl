@@ -182,8 +182,11 @@ end
 @testset "Measure/Objective Transcription" begin 
     # Prepare the model 
     m = InfiniteModel()
-    @infinite_parameter(m, pars[1:2] in [0, 1], supports = [0, 1])
     @infinite_parameter(m, par in [0, 1], supports = [0, 1])
+    @infinite_parameter(m, par2 in [3, 4], supports = [3, 4])
+    @infinite_parameter(m, pars[1:2] in [0, 1], supports = [0, 1])
+    @parameter_function(m, pf1 == par -> sin(par))
+    @parameter_function(m, pf2 == (par, par2) -> sin(par)*cos(par2))
     @variable(m, x >= 0, Infinite(par))
     @variable(m, y == 2, Infinite(par, pars), start = (p, ps) -> p + sum(ps))
     @variable(m, 0 <= z <= 1, Bin)
@@ -192,10 +195,13 @@ end
     meas2 = integral(w, par)
     meas3 = integral(y^2, pars)
     meas4 = integral(pars[1], pars[1])
+    meas5 = integral(pf1, par)
+    meas6 = integral(pf2, par2)
     tb = m.backend
     IOTO.set_parameter_supports(tb, m)
     IOTO.transcribe_finite_variables!(tb, m)
     IOTO.transcribe_infinite_variables!(tb, m)
+    IOTO.transcribe_parameter_functions!(tb, m)
     tx = IOTO.transcription_variable(x)
     ty = IOTO.transcription_variable(y)
     tz = IOTO.transcription_variable(z)
@@ -207,9 +213,16 @@ end
         @test IOTO.transcription_variable(meas2) == tw + 0
         @test IOTO.transcription_variable(meas3) isa Vector
         @test IOTO.transcription_variable(meas4) isa AffExpr
+        meas5Eval = 0.5*sum(IOTO.transcription_variable.(pf1))
+        @test IOTO.transcription_variable(meas5) == meas5Eval
+        tpf2 = IOTO.transcription_variable.(pf2)
+        meas6Eval = 0.5.*[tpf2[1] + tpf2[3], tpf2[2] + tpf2[4]]
+        @test IOTO.transcription_variable(meas6) == meas6Eval
         @test supports(meas1) == ()
         @test supports(meas2) == ()
         @test supports(meas3) == [(0.,), (1., )]
+        @test supports(meas5) == ()
+        @test supports(meas6) == [(0.0,), (1.0,)]
     end
     # test transcribe_objective!
     @testset "transcribe_objective!" begin 
