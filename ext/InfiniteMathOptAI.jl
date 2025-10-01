@@ -2,7 +2,18 @@ module InfiniteMathOptAI
 
 import InfiniteOpt, JuMP, MathOptAI
 
-# Extend MathOptAI to add variables correctly
+"""
+    function MathOptAI.add_variables(
+        model::InfiniteModel, x::Vector{GeneralVariableRef},
+        n::Int,
+        base_name::String,
+    )::Vector{GeneralVariableRef}
+
+Extend `MathOptAI.add_variables` to properly support infinite variables (i.e., ensure
+the output variables of a predictor have the necessary infinite parameter dependencies).
+This method should not be directly used by users, it is used to enable the use of 
+[`MathOptAI.add_predictor`](https://lanl-ansi.github.io/MathOptAI.jl/stable/api/#add_predictor).
+"""
 function MathOptAI.add_variables(
     model::InfiniteOpt.InfiniteModel,
     x::Vector{InfiniteOpt.GeneralVariableRef},

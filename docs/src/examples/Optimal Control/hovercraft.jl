@@ -61,12 +61,12 @@ end)
 # Optimize the model:
 optimize!(m)
 
-# Extract the results. The [`InfiniteInterpolate`](@ref infiniteInterpolate)
+# Extract the results. The [`InfiniteInterpolations`](@ref interpolate)
 # extension can be used to get a smooth interpolated function for x, which is
 # invoked when both the `Interpolations` and `InfiniteOpt` packages are imported.
 # Here, cubic splines are used as the interpolation method for both x1 and x2:
 using Interpolations
-xFunc = value.(x, cubic_spline_interpolation);
+xFunc = value.(x, Cubic());
 
 # Query our interpolated function for the values of x1 and x2:
 tvals = LinRange(0, 60, 100)

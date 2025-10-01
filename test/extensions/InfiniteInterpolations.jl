@@ -1,6 +1,6 @@
 using Interpolations # TODO: Move to runtests.jl once OffSetArrays type piracy problem is resolved 
 
-function test_infiniteInterpolate()
+@testset "InfiniteInterpolations" begin
     # Set up model with mock optimizer
     Optimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()), eval_objective_value=false)
     model = InfiniteModel(Optimizer)
@@ -214,8 +214,4 @@ function test_infiniteInterpolate()
     @test ωValue == 3.5
     @test isapprox(dxFunc(1.35), 1.62957825, atol=tol)
     @test isapprox(dyFunc(1.35, 3.86), 2.083256, atol=tol)
-end
-
-@testset "InfiniteInterpolate" begin
-    test_infiniteInterpolate()
 end
