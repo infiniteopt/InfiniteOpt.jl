@@ -66,7 +66,7 @@ optimize!(m)
 # invoked when both the `Interpolations` and `InfiniteOpt` packages are imported.
 # Here, cubic splines are used as the interpolation method for both x1 and x2:
 using Interpolations
-xFunc = value.(x, Cubic());
+xFunc = value.(x, cubic_spline_interpolation);
 
 # Query our interpolated function for the values of x1 and x2:
 tvals = LinRange(0, 60, 100)
