@@ -101,8 +101,11 @@ makedocs(;
     modules = [
         InfiniteOpt,
         isdefined(Base, :get_extension) ?
-            Base.get_extension(InfiniteOpt, :InfiniteInterpolate) :
-            InfiniteOpt.InfiniteInterpolate
+            Base.get_extension(InfiniteOpt, :InfiniteInterpolations) :
+            InfiniteOpt.InfiniteInterpolations,
+        isdefined(Base, :get_extension) ?
+            Base.get_extension(InfiniteOpt, :InfiniteMathOptAI) :
+            InfiniteOpt.InfiniteMathOptAI,
     ],
     checkdocs = :none,
     linkcheck = true,
