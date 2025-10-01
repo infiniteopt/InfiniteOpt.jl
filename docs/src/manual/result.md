@@ -1,6 +1,6 @@
 # [Results](@id result_manual)
 A technical manual for querying optimized `InfiniteOpt` models. See the 
-respective [guide](@ref result_manual) for more information.
+respective [guide](@ref result_docs) for more information.
 
 ## Statuses 
 ```@docs
@@ -34,11 +34,6 @@ JuMP.has_values(::InfiniteModel)
 JuMP.value(::GeneralVariableRef)
 JuMP.reduced_cost(::GeneralVariableRef)
 JuMP.optimizer_index(::GeneralVariableRef)
-```
-
-## [InfiniteInterpolate](@id infiniteInterpolate)
-```@docs
-JuMP.value(::GeneralVariableRef, ::Interpolations.InterpolationType)
 ```
 
 ## Constraints

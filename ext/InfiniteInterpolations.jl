@@ -1,4 +1,4 @@
-module InfiniteInterpolate
+module InfiniteInterpolations
 
 import JuMP
 import InfiniteOpt

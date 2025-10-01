@@ -1,4 +1,4 @@
-using Documenter, InfiniteOpt, Distributions, Literate, Random, Interpolations
+using Documenter, InfiniteOpt, Distributions, Literate, Random, Interpolations, MathOptAI
 
 if !@isdefined(EXAMPLE_DIR)
     const EXAMPLE_DIR = joinpath(@__DIR__, "src", "examples")
@@ -71,7 +71,8 @@ makedocs(;
             "Constraints" => "guide/constraint.md",
             "Model Transcription" => "guide/transcribe.md",
             "Optimization" => "guide/optimize.md",
-            "Results" => "guide/result.md"
+            "Results" => "guide/result.md",
+            "Extensions" => "guide/extensions.md"
             ],
         "API Manual" => [
             "Infinite Models" => "manual/model.md",
@@ -86,7 +87,8 @@ makedocs(;
             "Constraints" => "manual/constraint.md",
             "Backends" => "manual/backend.md",
             "TranscriptionOpt" => "manual/transcribe.md",
-            "Results" => "manual/result.md"
+            "Results" => "manual/result.md",
+            "Extensions" => "manual/extensions.md"
             ],
         "Development" => [
             "Extensions" => "develop/extensions.md",
@@ -99,8 +101,11 @@ makedocs(;
     modules = [
         InfiniteOpt,
         isdefined(Base, :get_extension) ?
-            Base.get_extension(InfiniteOpt, :InfiniteInterpolate) :
-            InfiniteOpt.InfiniteInterpolate
+            Base.get_extension(InfiniteOpt, :InfiniteInterpolations) :
+            InfiniteOpt.InfiniteInterpolations,
+        isdefined(Base, :get_extension) ?
+            Base.get_extension(InfiniteOpt, :InfiniteMathOptAI) :
+            InfiniteOpt.InfiniteMathOptAI,
     ],
     checkdocs = :none,
     linkcheck = true,
