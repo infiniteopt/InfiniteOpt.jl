@@ -27,7 +27,7 @@ FastGaussQuadrature = "0.3.2 - 0.4, 0.5, 1"
 JuMP = "1.18"
 MutableArithmetics = "1"
 Reexport = "0.2, 1"
-julia = "^1.6"
+julia = "1.10"
 Interpolations = "0.16"
 MathOptAI = "0.1.15"
 
