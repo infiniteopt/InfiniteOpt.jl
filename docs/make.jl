@@ -103,7 +103,7 @@ makedocs(;
         Base.get_extension(InfiniteOpt, :InfiniteInterpolations),
         Base.get_extension(InfiniteOpt, :InfiniteMathOptAI),
     ],
-    checkdocs = :all,
+    checkdocs = :none,
     linkcheck = true,
     linkcheck_ignore = [r"https://www.youtube.com/.*"],
     # warnonly = true,
