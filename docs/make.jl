@@ -100,12 +100,8 @@ makedocs(;
     authors = "Joshua Pulsipher and Weiqi Zhang",
     modules = [
         InfiniteOpt,
-        isdefined(Base, :get_extension) ?
-            Base.get_extension(InfiniteOpt, :InfiniteInterpolations) :
-            InfiniteOpt.InfiniteInterpolations,
-        isdefined(Base, :get_extension) ?
-            Base.get_extension(InfiniteOpt, :InfiniteMathOptAI) :
-            InfiniteOpt.InfiniteMathOptAI,
+        Base.get_extension(InfiniteOpt, :InfiniteInterpolations),
+        Base.get_extension(InfiniteOpt, :InfiniteMathOptAI),
     ],
     checkdocs = :none,
     linkcheck = true,
