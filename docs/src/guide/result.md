@@ -137,7 +137,7 @@ parameter dependencies.
     This also holds true for many other methods in `InfiniteOpt`. For example, 
     adding the dot also vectorizes `dual` and `set_binary`.
 
-We can also query the dual of a constraint via 
+We can query the dual of a constraint via 
 [`dual`](@ref JuMP.dual(::InfOptConstraintRef)) if a model has duals available
 as indicated by [`has_duals`](@ref):
 ```jldoctest results
@@ -183,6 +183,10 @@ These again all have a 1-to-1 correspondence.
     In the case that our variables/constraints depend on multiple infinite 
     parameters, an n-dimensional array will typically be returned
     whose dimensions correspond to the supports of the infinite parameters. 
+
+## Interpolation-Based Continuous Values
+We can use interpolations to obtain continuous functions instead of discretized
+value arrays. See the [InfiniteInterpolations guide](@ref interpolate) to learn more.
 
 ## Termination Queries
 Termination queries are those that question about how the infinite model was 

@@ -1447,7 +1447,7 @@ Feasibility problem with:
   Measures: 0
 Transformation backend information:
   Backend type: TranscriptionBackend
-  Solver name: No optimizer attached.
+  Solver: none
   Transformation built and up-to-date: false
 
 julia> model = InfiniteModel(Ipopt.Optimizer)
@@ -1460,7 +1460,7 @@ Feasibility problem with:
   Measures: 0
 Transformation backend information:
   Backend type: TranscriptionBackend
-  Solver name: Ipopt
+  Solver: Ipopt
   Transformation built and up-to-date: false
 ```
 """

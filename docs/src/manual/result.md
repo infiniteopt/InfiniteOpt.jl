@@ -1,6 +1,6 @@
 # [Results](@id result_manual)
 A technical manual for querying optimized `InfiniteOpt` models. See the 
-respective [guide](@ref result_manual) for more information.
+respective [guide](@ref result_docs) for more information.
 
 ## Statuses 
 ```@docs

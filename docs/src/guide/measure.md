@@ -342,12 +342,12 @@ tmodel = transformation_model(model);
 
 # output
 A JuMP Model
-Minimization problem with:
-Variables: 3
-Objective function type: QuadExpr
-Model mode: AUTOMATIC
-CachingOptimizer state: NO_OPTIMIZER
-Solver name: No optimizer attached.
+├ solver: none
+├ objective_sense: MIN_SENSE
+│ └ objective_function_type: QuadExpr
+├ num_variables: 3
+├ num_constraints: 0
+└ Names registered in the model: none
 
 ```
 
@@ -384,12 +384,12 @@ trans_m = transformation_model(model);
 
 # output
 A JuMP Model
-Minimization problem with:
-Variables: 5
-Objective function type: QuadExpr
-Model mode: AUTOMATIC
-CachingOptimizer state: NO_OPTIMIZER
-Solver name: No optimizer attached.
+├ solver: none
+├ objective_sense: MIN_SENSE
+│ └ objective_function_type: QuadExpr
+├ num_variables: 5
+├ num_constraints: 0
+└ Names registered in the model: none
 
 ```
 Now let's look again at the number of supports, the transcription of `u`, and the 
@@ -442,12 +442,12 @@ tmodel = transformation_model(model);
 
 # output
 A JuMP Model
-Minimization problem with:
-Variables: 2
-Objective function type: QuadExpr
-Model mode: AUTOMATIC
-CachingOptimizer state: NO_OPTIMIZER
-Solver name: No optimizer attached.
+├ solver: none
+├ objective_sense: MIN_SENSE
+│ └ objective_function_type: QuadExpr
+├ num_variables: 2
+├ num_constraints: 0
+└ Names registered in the model: none
 
 ```
 Then we get the supports are consistent for `u` and the integral:

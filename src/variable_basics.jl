@@ -1191,7 +1191,7 @@ function JuMP.delete(model::InfiniteModel, vref::DecisionVariableRef)
     _delete_variable_dependencies(vref)
     gvref = GeneralVariableRef(model, JuMP.index(vref))
     # remove from measures if used
-    for mindex in _measure_dependencies(vref)
+    for mindex in copy(_measure_dependencies(vref))
         mref = dispatch_variable_ref(model, mindex)
         func = measure_function(mref)
         data = measure_data(mref)

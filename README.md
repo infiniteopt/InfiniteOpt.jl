@@ -43,7 +43,7 @@ can be installed by entering the following in the REPL.
 ```julia
 julia> ]
 
-(v1.10) pkg> add InfiniteOpt
+(v1.11) pkg> add InfiniteOpt
 ```
 
 ## Documentation
@@ -78,7 +78,7 @@ citing it.
 A pre-print version is freely available though [arXiv](https://arxiv.org/abs/2106.12689).
 
 ## Project Status
-The package is tested against Julia `1.6` and `1.10` on Linux, Mac, and Windows.
+The package is tested against Julia's LTS release and the latest released version on Linux, Mac, and Windows.
 
 ## Contributing
 `InfiniteOpt` is being actively developed and suggestions or other forms of contribution are encouraged.

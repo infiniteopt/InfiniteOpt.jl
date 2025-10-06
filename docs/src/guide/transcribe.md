@@ -68,16 +68,16 @@ julia> build_transformation_backend!(inf_model)
 
 julia> trans_model = transformation_model(inf_model)
 A JuMP Model
-Minimization problem with:
-Variables: 4
-Objective function type: AffExpr
-`AffExpr`-in-`MathOptInterface.EqualTo{Float64}`: 1 constraint
-`QuadExpr`-in-`MathOptInterface.LessThan{Float64}`: 3 constraints
-`VariableRef`-in-`MathOptInterface.GreaterThan{Float64}`: 3 constraints
-`VariableRef`-in-`MathOptInterface.ZeroOne`: 1 constraint
-Model mode: AUTOMATIC
-CachingOptimizer state: NO_OPTIMIZER
-Solver name: No optimizer attached.
+├ solver: none
+├ objective_sense: MIN_SENSE
+│ └ objective_function_type: AffExpr
+├ num_variables: 4
+├ num_constraints: 8
+│ ├ AffExpr in MOI.EqualTo{Float64}: 1
+│ ├ QuadExpr in MOI.LessThan{Float64}: 3
+│ ├ VariableRef in MOI.GreaterThan{Float64}: 3
+│ └ VariableRef in MOI.ZeroOne: 1
+└ Names registered in the model: none
 
 julia> print(trans_model)
 Min 2 z + y(0.0) + y(5.0) + y(10.0)
@@ -357,27 +357,27 @@ which wraps [`build_transcription_backend!`](@ref InfiniteOpt.TranscriptionOpt.b
 julia> backend1 = TranscriptionBackend() # make an empty backend
 A TranscriptionBackend that uses a
 A JuMP Model
-Feasibility problem with:
-Variables: 0
-Model mode: AUTOMATIC
-CachingOptimizer state: NO_OPTIMIZER
-Solver name: No optimizer attached.
+├ solver: none
+├ objective_sense: FEASIBILITY_SENSE
+├ num_variables: 0
+├ num_constraints: 0
+└ Names registered in the model: none
 
 julia> build_transformation_backend!(inf_model); 
 
 julia> backend2 = transformation_backend(inf_model) # generate from an InfiniteModel
 A TranscriptionBackend that uses a
 A JuMP Model
-Minimization problem with:
-Variables: 4
-Objective function type: AffExpr
-`AffExpr`-in-`MathOptInterface.EqualTo{Float64}`: 1 constraint
-`QuadExpr`-in-`MathOptInterface.LessThan{Float64}`: 3 constraints
-`VariableRef`-in-`MathOptInterface.GreaterThan{Float64}`: 3 constraints
-`VariableRef`-in-`MathOptInterface.ZeroOne`: 1 constraint
-Model mode: AUTOMATIC
-CachingOptimizer state: NO_OPTIMIZER
-Solver name: No optimizer attached.
+├ solver: none
+├ objective_sense: MIN_SENSE
+│ └ objective_function_type: AffExpr
+├ num_variables: 4
+├ num_constraints: 8
+│ ├ AffExpr in MOI.EqualTo{Float64}: 1
+│ ├ QuadExpr in MOI.LessThan{Float64}: 3
+│ ├ VariableRef in MOI.GreaterThan{Float64}: 3
+│ └ VariableRef in MOI.ZeroOne: 1
+└ Names registered in the model: none
 ```
 The call to `build_transformation_backend!` is the backbone 
 behind infinite model transformation and is what encapsulates all the methods to 
@@ -391,11 +391,11 @@ via [`transformation_model`](@ref):
 ```jldoctest transcribe; setup = :(empty!(inf_model.backend))
 julia> transformation_model(inf_model)
 A JuMP Model
-Feasibility problem with:
-Variables: 0
-Model mode: AUTOMATIC
-CachingOptimizer state: NO_OPTIMIZER
-Solver name: No optimizer attached.
+├ solver: none
+├ objective_sense: FEASIBILITY_SENSE
+├ num_variables: 0
+├ num_constraints: 0
+└ Names registered in the model: none
 ```
 Here we observe that such a model is currently empty and hasn't been populated 
 yet.
@@ -468,4 +468,14 @@ julia> supports(y^2 + z - 42)
 
 julia> parameter_refs(y^2 + z - 42)
 (t,)
+```
+For finite parameters, we can also retrieve their corresponding `JuMP` parameter with `transformation_variable`.
+```jldoctest transcribe
+julia> param = @finite_parameter(inf_model, p == 42)
+p
+
+julia> build_transformation_backend!(inf_model)
+
+julia> transformation_variable(p)
+p
 ```

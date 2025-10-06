@@ -67,7 +67,7 @@ through step by step how this should be done.
   8. Create a pull request. Go [here](https://github.com/infiniteopt/InfiniteOpt.jl) 
      to `InfiniteOpt`'s main page and create a pull request drawing from your forked 
      repository. A step by step explanation is provided 
-     [here](https://jarv.is/notes/how-to-pull-request-fork-github/).
+     [here](https://jarv.is/notes/how-to-pull-request-fork-github).
   9. Make necessary changes if the tests fail and/or we ask you to make specific 
      changes. The Codecov tests will ensure every new line of code is tested at least 
      once with the new test functions and the GitHub Actions CI will ensure that 
