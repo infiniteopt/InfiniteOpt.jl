@@ -140,14 +140,14 @@ function _check_tuple_values(
     return
 end
 
-# Convert JuMP.VariableInfo to RestrictedVariableDomainInfo
+# Convert JuMP.VariableInfo to RestrictedDomainInfo
 function _process_restricted_info(_error::Function, info::JuMP.VariableInfo)
     if info.is_binary || info.is_integer
         _error("Cannot set the integrality of a point or semi-infinite " *
                "variable. They only inherit the integrality of the infinite " *
                "variable they originate from.")
     end
-    return RestrictedVariableDomainInfo(
+    return RestrictedDomainInfo(
         info.has_lb, info.lower_bound,
         info.has_ub, info.upper_bound,
         info.has_fix, info.fixed_value,

@@ -769,7 +769,7 @@ struct InfiniteVariable{
 end
 
 """
-    RestrictedVariableDomainInfo
+    RestrictedDomainInfo
 
 A structure for storing variable domain information of semi-infinite
 and point variables. By default, these variables will inherit the
@@ -778,7 +778,7 @@ the attributes that overide the domain of the infinite variable. This
 not intended to be used by users directly unless they are creating a
 new transformation backend.
 """
-struct RestrictedVariableDomainInfo
+struct RestrictedDomainInfo
     active_lower_bound_info::Bool
     lower_bound::Float64
     active_upper_bound_info::Bool
@@ -798,7 +798,7 @@ A `DataType` for storing semi-infinite variables which partially support an
 infinite variable.
 
 **Fields**
-- `info::RestrictedVariableDomainInfo`: Distinguished domain info.
+- `info::RestrictedDomainInfo`: Distinguished domain info.
 - `infinite_variable_ref::I`: The original infinite/derivative variable.
 - `eval_supports::Dict{Int, Float64}`: The original parameter tuple linear indices
                                      to the evaluation supports.
@@ -810,7 +810,7 @@ infinite variable.
 struct SemiInfiniteVariable{
     I <: JuMP.AbstractVariableRef
     } <: JuMP.AbstractVariable
-    info::RestrictedVariableDomainInfo
+    info::RestrictedDomainInfo
     infinite_variable_ref::I
     eval_supports::Dict{Int, Float64}
     parameter_nums::Vector{Int}
@@ -827,7 +827,7 @@ A `DataType` for storing point variable information. Note that the elements
 defined in [`InfiniteVariable`](@ref)
 
 **Fields**
-- `info::RestrictedVariableDomainInfo`: Domain info.
+- `info::RestrictedDomainInfo`: Domain info.
 - `infinite_variable_ref::I`: The infinite variable/derivative reference
     associated with the point variable.
 - `parameter_values::Vector{Float64}`: The infinite parameter values
@@ -836,7 +836,7 @@ defined in [`InfiniteVariable`](@ref)
 struct PointVariable{
     I <: JuMP.AbstractVariableRef
     } <: JuMP.AbstractVariable
-    info::RestrictedVariableDomainInfo
+    info::RestrictedDomainInfo
     infinite_variable_ref::I
     parameter_values::Vector{Float64}
 end
