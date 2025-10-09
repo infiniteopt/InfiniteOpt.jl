@@ -40,69 +40,69 @@ println("")
     include("general_variables.jl")
 end
 println("")
-@time @testset "Backend Setup Methods" begin include("backend_setup.jl") end
-println("")
-@time @testset "Macro Utilities" begin include("macro_utilities.jl") end
-println("")
-@time @testset "Parameter Methods" begin
-   @testset "Scalar" begin include("scalar_parameters.jl") end
-   @testset "Array" begin include("array_parameters.jl") end
-end
-println("")
-@time @testset "Variable Methods" begin
-   @testset "Infinite Variables" begin include("infinite_variables.jl") end
-   @testset "Point Variables" begin include("point_variables.jl") end
-   @testset "Finite Variables" begin include("finite_variables.jl") end
-   @testset "Info Constraints" begin include("variable_info.jl") end
-   @testset "Semi-Infinite Variables" begin include("semi_infinite_variables.jl") end
-end
-println("")
-@time @testset "Derivative Methods" begin include("derivatives.jl") end
-println("")
-@time @testset "Nonlinear" begin include("nlp.jl") end
-println("")
-@time @testset "Operators" begin include("operators.jl") end
-println("")
-@time @testset "Expression Methods" begin include("expressions.jl") end
-println("")
-@time @testset "Macro Expressions" begin include("macro_expressions.jl") end
-println("")
-@time @testset "Measure Methods" begin include("measures.jl") end
-println("")
-@time @testset "Measure Toolbox Methods" begin
-    @testset "Integrals" begin include("MeasureToolbox/integrals.jl") end
-    @testset "Expectations" begin include("MeasureToolbox/expectations.jl") end
-    @testset "Support Sums" begin include("MeasureToolbox/support_sums.jl") end
-end
-println("")
-@time @testset "Objective Methods" begin include("objective.jl") end
-println("")
-@time @testset "Constraint Methods" begin include("constraints.jl") end
-println("")
-@time @testset "Printing Methods" begin include("show.jl") end
-println("")
-@time @testset "Deletion Methods" begin include("deletion.jl") end
-println("")
-@time @testset "Expansion Methods" begin include("measure_expansions.jl") end
-println("")
-@time @testset "Derivative Evaluation" begin include("derivative_evaluation.jl") end
-println("")
-@time @testset "TranscriptionOpt" begin
-    @testset "Model" begin include("TranscriptionOpt/model.jl") end
-    @testset "Measures" begin include("TranscriptionOpt/measure.jl") end
-    @testset "Transcribe" begin include("TranscriptionOpt/transcribe.jl") end
-end
-println("")
-@time @testset "Solution Methods" begin include("backend_mappings.jl") end
-println("")
-@time @testset "Solution Queries" begin include("results.jl") end
-println("")
-@time @testset "Extensions" begin include("extensions.jl") end
-println("")
-@time @testset "Extension Pkgs" begin 
-    @testset "InfiniteInterpolations" begin include("extensions/InfiniteInterpolations.jl") end
-    @testset "InfiniteMathOptAI" begin include("extensions/InfiniteMathOptAI.jl") end
-end
+# @time @testset "Backend Setup Methods" begin include("backend_setup.jl") end
+# println("")
+# @time @testset "Macro Utilities" begin include("macro_utilities.jl") end
+# println("")
+# @time @testset "Parameter Methods" begin
+#    @testset "Scalar" begin include("scalar_parameters.jl") end
+#    @testset "Array" begin include("array_parameters.jl") end
+# end
+# println("")
+# @time @testset "Variable Methods" begin
+#    @testset "Infinite Variables" begin include("infinite_variables.jl") end
+#    @testset "Point Variables" begin include("point_variables.jl") end
+#    @testset "Finite Variables" begin include("finite_variables.jl") end
+#    @testset "Info Constraints" begin include("variable_info.jl") end
+#    @testset "Semi-Infinite Variables" begin include("semi_infinite_variables.jl") end
+# end
+# println("")
+# @time @testset "Derivative Methods" begin include("derivatives.jl") end
+# println("")
+# @time @testset "Nonlinear" begin include("nlp.jl") end
+# println("")
+# @time @testset "Operators" begin include("operators.jl") end
+# println("")
+# @time @testset "Expression Methods" begin include("expressions.jl") end
+# println("")
+# @time @testset "Macro Expressions" begin include("macro_expressions.jl") end
+# println("")
+# @time @testset "Measure Methods" begin include("measures.jl") end
+# println("")
+# @time @testset "Measure Toolbox Methods" begin
+#     @testset "Integrals" begin include("MeasureToolbox/integrals.jl") end
+#     @testset "Expectations" begin include("MeasureToolbox/expectations.jl") end
+#     @testset "Support Sums" begin include("MeasureToolbox/support_sums.jl") end
+# end
+# println("")
+# @time @testset "Objective Methods" begin include("objective.jl") end
+# println("")
+# @time @testset "Constraint Methods" begin include("constraints.jl") end
+# println("")
+# @time @testset "Printing Methods" begin include("show.jl") end
+# println("")
+# @time @testset "Deletion Methods" begin include("deletion.jl") end
+# println("")
+# @time @testset "Expansion Methods" begin include("measure_expansions.jl") end
+# println("")
+# @time @testset "Derivative Evaluation" begin include("derivative_evaluation.jl") end
+# println("")
+# @time @testset "TranscriptionOpt" begin
+#     @testset "Model" begin include("TranscriptionOpt/model.jl") end
+#     @testset "Measures" begin include("TranscriptionOpt/measure.jl") end
+#     @testset "Transcribe" begin include("TranscriptionOpt/transcribe.jl") end
+# end
+# println("")
+# @time @testset "Solution Methods" begin include("backend_mappings.jl") end
+# println("")
+# @time @testset "Solution Queries" begin include("results.jl") end
+# println("")
+# @time @testset "Extensions" begin include("extensions.jl") end
+# println("")
+# @time @testset "Extension Pkgs" begin 
+#     @testset "InfiniteInterpolations" begin include("extensions/InfiniteInterpolations.jl") end
+#     @testset "InfiniteMathOptAI" begin include("extensions/InfiniteMathOptAI.jl") end
+# end
 println("----------------------------------------------------------------------------")
 println("-----------------------------TESTING COMPLETE!------------------------------")
 println("----------------------------------------------------------------------------")

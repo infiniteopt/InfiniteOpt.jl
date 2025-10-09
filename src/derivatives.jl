@@ -236,10 +236,10 @@ function build_derivative(
     order::Int = 1
     )
     # check the derivative numerator and denominator 
-    if !(_index_type(parameter_ref) <: InfiniteParameterIndex)
-        _error("Derivatives must be with respect to an infinite parameter, but " * 
-               "$parameter_ref was given.")
-    elseif !(_parameter_number(parameter_ref) in _parameter_numbers(argument_ref))
+    if _index_type(parameter_ref) != IndependentParameterIndex
+        _error("Derivatives must be with respect to an independent infinite " *
+               "parameter, but $parameter_ref was given.")
+    elseif !(parameter_group_int_index(parameter_ref) in parameter_group_int_indices(argument_ref))
         _error("Derivative arguments must dependent on the infinite parameter " * 
                "it is with respect to. Here $argument_ref does not depend on " * 
                "$parameter_ref.")
@@ -409,7 +409,7 @@ function _build_deriv_expr(vref::GeneralVariableRef, pref, order)
         return vref
     elseif isequal(vref, pref)
         return isone(order) ? 1.0 : 0.0
-    elseif _parameter_number(pref) in _parameter_numbers(vref)
+    elseif parameter_group_int_index(pref) in parameter_group_int_indices(vref)
         return _build_add_derivative(vref, pref, order)
     else 
         return 0.0
@@ -496,8 +496,8 @@ julia> deriv_expr = deriv(y^2 + z, t, t)
 """
 function deriv(expr, prefs::GeneralVariableRef...)
     # Check inputs 
-    if !all(_index_type(pref) <: InfiniteParameterIndex for pref in prefs)
-        error("Can only take derivative with respect to infinite parameters.")
+    if !all(_index_type(pref) == IndependentParameterIndex for pref in prefs)
+        error("Can only take derivative with respect to independent infinite parameters.")
     elseif length(prefs) == 0
         error("Must specify at least one infinite parameter with which to define " * 
               "the derivative operator.")
@@ -574,7 +574,7 @@ produced via `\\partial`.
 function ∂(
     expr, 
     prefs::GeneralVariableRef...
-    )::Union{JuMP.AbstractJuMPScalar, Float64}
+    )
     return deriv(expr, prefs...)
 end
 
@@ -627,7 +627,7 @@ Return a vector of the parameter references that `dref` depends on. This is
 primarily an internal method where [`parameter_refs`](@ref parameter_refs(::DerivativeRef))
 is intended as the preferred user function.
 """
-function parameter_list(dref::DerivativeRef)::Vector{GeneralVariableRef}
+function parameter_list(dref::DerivativeRef)
     return raw_parameter_refs(dref).values
 end
 
@@ -638,7 +638,7 @@ end
 function _update_variable_info(
     dref::DerivativeRef,
     info::JuMP.VariableInfo
-    )::Nothing
+    )
     vref = derivative_argument(dref)
     pref = operator_parameter(dref)
     order = derivative_order(dref)
@@ -668,7 +668,7 @@ julia> set_start_value_function(dref, my_func) # each value will be made via my_
 function set_start_value_function(
     dref::DerivativeRef,
     start::Union{Real, Function}
-    )::Nothing
+    )
     info = _variable_info(dref)
     set_transformation_backend_ready(JuMP.owner_model(dref), false)
     prefs = raw_parameter_refs(dref)
@@ -695,7 +695,7 @@ this is triggered by deleting an infinite parameter that `dref` depends on.
 julia> reset_start_value_function(dref)
 ```
 """
-function reset_start_value_function(dref::DerivativeRef)::Nothing
+function reset_start_value_function(dref::DerivativeRef)
     info = _variable_info(dref)
     set_transformation_backend_ready(JuMP.owner_model(dref), false)
     new_info = JuMP.VariableInfo(info.has_lb, info.lower_bound, info.has_ub,
@@ -728,7 +728,7 @@ julia> num_derivatives(model)
 12
 ```
 """
-function num_derivatives(model::InfiniteModel)::Int 
+function num_derivatives(model::InfiniteModel)
     return length(_data_dictionary(model, Derivative))
 end
 
@@ -746,7 +746,7 @@ julia> all_derivatives(model)
  ∂/∂x[∂/∂x[T(x, t)]]
 ```
 """
-function all_derivatives(model::InfiniteModel)::Vector{GeneralVariableRef}
+function all_derivatives(model::InfiniteModel)
     vrefs_list = Vector{GeneralVariableRef}(undef, num_derivatives(model))
     for (i, (index, _)) in enumerate(_data_dictionary(model, Derivative))
         vrefs_list[i] = GeneralVariableRef(model, index)
@@ -771,7 +771,7 @@ Return a list of the derivative evaluation constraints for `dref` that have been
 added directly to the `InfiniteModel` associated with `dref`. An empty vector is 
 returned is there are no such constraints.
 """
-function derivative_constraints(dref::DerivativeRef)::Vector{InfOptConstraintRef}
+function derivative_constraints(dref::DerivativeRef)
     return [InfOptConstraintRef(JuMP.owner_model(dref), idx) 
             for idx in _derivative_constraint_dependencies(dref)]
 end
@@ -782,7 +782,7 @@ end
 Delete any derivative constraints of `dref` that have been directly added to the 
 `InfiniteModel`.
 """
-function delete_derivative_constraints(dref::DerivativeRef)::Nothing 
+function delete_derivative_constraints(dref::DerivativeRef)
     model = JuMP.owner_model(dref)
     for cref in derivative_constraints(dref)
         JuMP.delete(model, cref)
@@ -800,7 +800,7 @@ end
 #                                 DELETION
 ################################################################################
 # Extend _delete_variable_dependencies (for use with JuMP.delete)
-function _delete_variable_dependencies(dref::DerivativeRef)::Nothing
+function _delete_variable_dependencies(dref::DerivativeRef)
     # remove variable info constraints associated with dref
     _delete_info_constraints(dref)
     # update variable and parameter mapping

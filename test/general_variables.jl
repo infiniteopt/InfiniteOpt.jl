@@ -245,8 +245,6 @@ end
     gvref = GeneralVariableRef(m, 1, TestIndex)
     gvrefs = [GeneralVariableRef(m, 1, TestIndex),
               GeneralVariableRef(m, 2, TestIndex)]
-    sparse_gvrefs = convert(JuMPC.SparseAxisArray, gvrefs)
-    dense_gvrefs = JuMPC.DenseAxisArray(gvrefs, 3:4)
     sdomain = IntervalDomain(0, 1)
     adomain = CollectionDomain([sdomain, sdomain])
     # test _parameter_number
@@ -438,7 +436,7 @@ end
     # test 1 argument methods 
     for f in (:raw_parameter_refs, :parameter_refs, :parameter_list,
               :start_value_function, :reset_start_value_function,
-              :infinite_variable_ref, :eval_supports, :raw_parameter_values,
+              :infinite_variable_ref, :eval_support, :raw_parameter_values,
               :parameter_values)
         @test_throws ArgumentError eval(f)(dvref)
         @test_throws ArgumentError eval(f)(gvref)

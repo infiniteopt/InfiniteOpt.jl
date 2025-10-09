@@ -398,7 +398,7 @@ end
     @test InfiniteVariable(inf_info, IC.VectorTuple(pref), [1], [1], true) isa InfiniteVariable
     # Semi-Infinite variable
     @test SemiInfiniteVariable <: JuMP.AbstractVariable
-    @test SemiInfiniteVariable(vref, Dict(1 => Float64(2)), [1], [1]) isa SemiInfiniteVariable
+    @test SemiInfiniteVariable(vref, [0.5], Dict(1 => UnitRange(1:1)), [1], [1]) isa SemiInfiniteVariable
     # Point variable
     @test PointVariable <: JuMP.AbstractVariable
     @test PointVariable(sample_info, vref, Float64[1]) isa PointVariable
@@ -422,7 +422,7 @@ end
     @test Derivative <: JuMP.AbstractVariable
     @test Derivative(inf_info, true, vref, pref, 1) isa Derivative
     # Semi-infinite derivative
-    @test SemiInfiniteVariable(dref, Dict(1 => Float64(2)), [1], [1]) isa SemiInfiniteVariable
+    @test SemiInfiniteVariable(dref, [0.5], Dict(1 => UnitRange(1, 1)), [1], [1]) isa SemiInfiniteVariable
     # Point derivative
     @test PointVariable(sample_info, dref, Float64[1]) isa PointVariable
     # VariableData

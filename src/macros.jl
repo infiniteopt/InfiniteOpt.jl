@@ -329,15 +329,15 @@ macro infinite_parameter(args...)
             end
         end
         # now let's make the build call
-        inds_var = gensym() # used as a placeholder variable for the ContainerIndices used to vectorize
+        info_var = gensym() # used as a placeholder variable for the vectorize info
         domain_var = gensym() # used as a placeholder for the domain container
-        vect_domain_call = :( Collections.vectorize($domain_var, $inds_var) )
-        build_call = :( _build_parameters($_error, $vect_domain_call, $inds_var) )
+        vect_domain_var = gensym() 
+        build_call = :( _build_parameters($_error, $vect_domain_var, $info_var) )
         for (k, v) in array_kwargs
             code = JuMPC.container_code(idxvars, inds, 
                                         _esc_non_constant(v), 
                                         kwargs)
-            vect_code = :( Collections.vectorize($code, $inds_var) )
+            vect_code = :( Collections.vectorize($code)[1] )
             push!(build_call.args, Expr(:kw, k, vect_code))
         end
     end
@@ -352,12 +352,13 @@ macro infinite_parameter(args...)
         # multi-dimensional dependent parameters
         domain_call = JuMPC.container_code(idxvars, inds, domain, kwargs)
         name_expr = JuMPC.container_code(idxvars, inds, name_expr, kwargs)
-        name_expr = :( Collections.vectorize($name_expr, $inds_var) )
+        name_expr = :( Collections.vectorize($name_expr)[1] )
         vect_add_call = :( add_parameters($model, $build_call, $name_expr) )
         creation_code = quote 
             $domain_var = $domain_call
-            $inds_var = Collections.indices($domain_var)
-            Collections.unvectorize($vect_add_call, $inds_var)
+            _enforce_parameter_container_type($_error, $domain_var)
+            $vect_domain_var, $info_var = Collections.vectorize($domain_var)
+            Collections.unvectorize($vect_add_call, $info_var)
         end
     end
 

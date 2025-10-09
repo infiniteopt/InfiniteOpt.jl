@@ -524,8 +524,8 @@ function variable_string(print_mode, vref::SemiInfiniteVariableRef)
             base_name = variable_string(print_mode, ivref) # we have a derivative
         end
         prefs = raw_parameter_refs(ivref)
-        eval_supps = eval_supports(vref)
-        raw_list = [i in keys(eval_supps) ? eval_supps[i] : prefs[i]
+        eval_supp, mappings = eval_support(vref)
+        raw_list = [isnan(eval_supp[i]) ? prefs[i] : eval_supp[i]
                     for i in eachindex(prefs)]
         param_name_tuple = "("
         for i in 1:size(prefs, 1)

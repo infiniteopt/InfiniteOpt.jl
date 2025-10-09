@@ -2,14 +2,17 @@
 #                           DERIVATIVE METHOD DATATYPES
 ################################################################################
 """
-    OrthogonalCollocation{Q <: MeasureToolbox.AbstractUnivariateMethod
-                          } <: GenerativeDerivativeMethod 
+    OrthogonalCollocation{
+        Q <: MeasureToolbox.AbstractUnivariateMethod
+    } <: GenerativeDerivativeMethod 
 
 A `DataType` for storing information about orthogonal collocation over finite 
 elements to approximate derivatives. The constructor is of the form:
 ```
-    OrthogonalCollocation(num_nodes::Int, 
-                          [quad::AbstractUnivariateMethod = GaussLobatto])
+    OrthogonalCollocation(
+        num_nodes::Int, 
+        [quad::AbstractUnivariateMethod = GaussLobatto]
+    )
 ```
 Note that if `num_nodes > 2` and the problem contains control variables, then 
 [`constant_over_collocation`](@ref constant_over_collocation(::InfiniteVariableRef, ::GeneralVariableRef)) 
@@ -23,8 +26,9 @@ differential equations which are then discretized using orthogonal collocation.
 - `num_nodes::Int`: The number of collocation points (nodes) per finite element.
 - `quadrature_method::Q`: The quadrature method uses to choose the collocation points.
 """
-struct OrthogonalCollocation{Q <: MeasureToolbox.AbstractUnivariateMethod
-                             } <: GenerativeDerivativeMethod 
+struct OrthogonalCollocation{
+    Q <: MeasureToolbox.AbstractUnivariateMethod
+    } <: GenerativeDerivativeMethod 
     num_nodes::Int
     quadrature_method::Q
     function OrthogonalCollocation{Q}(
@@ -176,12 +180,20 @@ function make_reduced_expr(
     support, 
     write_model
     )
-    data = DiscreteMeasureData(pref, [1], [support], InternalLabel, # NOTE the label will not be used
-                               default_weight, NaN, NaN, false)
+    data = DiscreteMeasureData(
+        pref,
+        [1],
+        [support],
+        InternalLabel, # NOTE the label will not be used
+        default_weight, 
+        NaN, 
+        NaN, 
+        false
+    )
     return expand_measure(mref, data, write_model)
 end
 
-# InfiniteVariableIndex/DerivativeIndex
+# InfiniteVariableIndex/DerivativeIndex/ParameterFunctionIndex
 function make_reduced_expr(
     vref, 
     ::Union{Type{InfiniteVariableIndex}, Type{DerivativeIndex}, Type{ParameterFunctionIndex}}, 
@@ -195,9 +207,11 @@ function make_reduced_expr(
         return make_point_variable_ref(write_model, vref, [support])
     # there are other parameters so make semi-infinite variable
     else 
-        pindex = findfirst(isequal(pref), prefs)
-        return make_semi_infinite_variable_ref(write_model, vref, [pindex], 
-                                               [support])
+        idx = findfirst(isequal(pref), prefs)
+        mappings = Dict(parameter_group_int_index(pref) => UnitRange(idx, idx))
+        supp = fill(NaN, length(prefs))
+        supp[idx] = support
+        return make_semi_infinite_variable_ref(write_model, vref, mappings, supp)
     end
 end
 
@@ -214,20 +228,24 @@ function make_reduced_expr(
     ivref = infinite_variable_ref(vref)
     var_prefs = parameter_list(dvref)
     orig_prefs = parameter_list(ivref)
-    eval_supps = eval_supports(dvref)
-    pindex = findfirst(isequal(pref), orig_prefs)
+    eval_supp, mappings = eval_support(dvref)
     # we only have 1 parameter so we need to make a point variable
     if length(var_prefs) == 1
-        processed_support = _make_point_support(orig_prefs, eval_supps, pindex, 
-                                                support)
-        return make_point_variable_ref(write_model, ivref, processed_support)
+        supp = [isnan(s) ? support : s for s in eval_support]
+        return make_point_variable_ref(write_model, ivref, supp)
     # otherwise we need to make another semi-infinite variable
     else
-        indices = collect(keys(eval_supps))
-        vals = map(k -> eval_supps[k], indices)
-        push!(indices, pindex)
-        push!(vals, support)
-        return make_semi_infinite_variable_ref(write_model, ivref, indices, vals)
+        idx = findfirst(isequal(pref), orig_prefs)
+        new_mappings = copy(mappings)
+        new_mappings[parameter_group_int_index(pref)] = UnitRange(idx, idx)
+        new_eval_support = copy(eval_support)
+        new_eval_support[idx] = support
+        return make_semi_infinite_variable_ref(
+            write_model,
+            ivref,
+            new_mappings,
+            new_eval_support
+        )
     end
 end
 

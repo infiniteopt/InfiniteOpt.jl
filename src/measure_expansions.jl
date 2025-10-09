@@ -113,13 +113,14 @@ end
     make_semi_infinite_variable_ref(
         write_model::Union{InfiniteModel, AbstractTransformationBackend},
         ivref::GeneralVariableRef,
-        indices::Vector{Int},
-        values::Vector{Float64}
+        group_int_idxs_to_supports::Dict{Int, UnitRange{Int}},
+        eval_support::Vector{Float64}
         )::GeneralVariableRef
 
 Make a semi-infinite variable for infinite variable/derivative/parameter 
-function `ivref` at `support`, add it to the `write_model`, and return the 
-`GeneralVariableRef`. This is an internal method for semi-infinite variables 
+function `ivref` at `eval_support` (see [`SemiInfiniteVariable`](@ref)), add it to 
+the `write_model`, and return the `GeneralVariableRef`. This is an internal method 
+for semi-infinite variables 
 produced by expanding measures via [`expand_measure`](@ref). This is also useful 
 for those writing extension transformation backends and wish to expand measures without 
 modifiying the `InfiniteModel`. In such cases, `write_model` should be the 
@@ -133,13 +134,12 @@ currently stored in `InfiniteModel.backend`.
 function make_semi_infinite_variable_ref(
     write_model::InfiniteModel,
     ivref::GeneralVariableRef,
-    indices::Vector{Int},
-    values::Vector{Float64}
+    group_idx_mappings::Dict{Int, UnitRange{Int}},
+    eval_support::Vector{Float64}
     )
-    eval_supps = Dict(indices[i] => values[i] for i in eachindex(indices))
-    existing_index = get(write_model.semi_lookup, (ivref, eval_supps), nothing)
+    existing_index = get(write_model.semi_lookup, (ivref, eval_support), nothing)
     if isnothing(existing_index)
-        var = JuMP.build_variable(error, ivref, eval_supps, check = false)
+        var = JuMP.build_variable(error, ivref, eval_support, group_idx_mappings, check = false)
         return JuMP.add_variable(write_model, var, add_support = false)
     else 
         return GeneralVariableRef(write_model, existing_index)
@@ -172,11 +172,10 @@ end
 function make_semi_infinite_variable_ref(
     write_model::AbstractTransformationBackend,
     ivref::GeneralVariableRef,
-    indices::Vector{Int},
-    values::Vector{Float64}
+    group_idx_mappings::Dict{Int, UnitRange{Int}},
+    eval_support::Vector{Float64}
     )
-    eval_supps = Dict(indices[i] => values[i] for i in eachindex(indices))
-    var = JuMP.build_variable(error, ivref, eval_supps, check = false)
+    var = JuMP.build_variable(error, ivref, eval_support, group_idx_mappings, check = false)
     return add_semi_infinite_variable(write_model, var)
 end
 
@@ -240,7 +239,7 @@ function expand_measure(
     write_model::Union{InfiniteModel, AbstractTransformationBackend}
     )
     # pull in the needed information
-    var_prefs = parameter_list(ivref)
+    var_prefs = raw_parameter_refs(ivref)
     pref = parameter_refs(data)
     supps = supports(data)
     coeffs = coefficients(data)
@@ -251,16 +250,40 @@ function expand_measure(
         return JuMP.GenericAffExpr{Float64, GeneralVariableRef}(0, ivref => var_coef)
     # make point variables if var_prefs = pref (it is the only dependence)
     elseif length(var_prefs) == 1
-        return @_expr(sum(coeffs[i] * w(supps[i]) *
-                    make_point_variable_ref(write_model, ivref, [supps[i]])
-                    for i in eachindex(coeffs)))
+        return @_expr(sum(
+            coeffs[i] * w(supps[i]) *
+            make_point_variable_ref(write_model, ivref, [supps[i]])
+            for i in eachindex(coeffs)
+        ))
     # make semi-infinite variables if the variable contains other parameters
     else
-        index = [findfirst(isequal(pref), var_prefs)]
-        return @_expr(sum(coeffs[i] * w(supps[i]) *
-                    make_semi_infinite_variable_ref(write_model, ivref, index, [supps[i]])
-                    for i in eachindex(coeffs)))
+        idx = [findfirst(isequal(pref), var_prefs)]
+        mappings = Dict(group_int_idx(pref) => UnitRange(idx:idx))
+        return @_expr(sum(
+            coeffs[i] * w(supps[i]) *
+            make_semi_infinite_variable_ref(
+                write_model, 
+                ivref, 
+                mappings, 
+                [p == pref ? supps[i] : NaN for p in var_prefs]
+            )
+            for i in eachindex(coeffs)
+        ))
     end
+end
+
+# produce the eval_support needed for a semi-infinite variable
+function _finalize_eval_support!(base_eval_supp, mappings, supp, prefs)
+    # we have a group of dependent parameters
+    if isone(length(mappings))
+        base_eval_supp[first(values(mappings))] = supp
+    else # we have multiple independent parameters
+        group_idxs = parameter_group_int_index.(prefs)
+        for (idx, range) in mappings
+            base_eval_supp[range.start] = supp[findfirst(isequal(idx), group_idxs)]
+        end
+    end
+    return base_eval_supp
 end
 
 # InfiniteVariableRef/DerivativeRef/ParameterFunctionRef (Multi DiscreteMeasureData)
@@ -271,16 +294,18 @@ function expand_measure(
     write_model::Union{InfiniteModel, AbstractTransformationBackend}
     )
     # pull in the needed information
-    var_prefs = parameter_list(ivref)
+    var_prefs = raw_parameter_refs(ivref)
     prefs = parameter_refs(data)
     supps = supports(data)
     coeffs = coefficients(data)
     w = weight_function(data)
     # var_prefs == prefs so let's make a point variable
-    if isequal(var_prefs, prefs)
-        return @_expr(sum(coeffs[i] * w(supps[:, i]) *
-                    make_point_variable_ref(write_model, ivref, supps[:, i])
-                    for i in eachindex(coeffs)))
+    if isequal(var_prefs.values, prefs)
+        return @_expr(sum(
+            coeffs[i] * w(supps[:, i]) *
+            make_point_variable_ref(write_model, ivref, supps[:, i])
+            for i in eachindex(coeffs)
+        ))
     # treat variable as constant if doesn't have measure parameter
     elseif !any(any(isequal(pref), var_prefs) for pref in prefs)
         var_coef = sum(coeffs[i] * w(supps[:, i]) for i in eachindex(coeffs))
@@ -289,33 +314,36 @@ function expand_measure(
     elseif all(any(isequal(pref), prefs) for pref in var_prefs)
         indices = [findfirst(isequal(pref), prefs) for pref in var_prefs]
         new_supps = supps[indices, :]
-        return @_expr(sum(coeffs[i] * w(supps[:, i]) *
-                    make_point_variable_ref(write_model, ivref, new_supps[:, i])
-                    for i in eachindex(coeffs)))
+        return @_expr(sum(
+            coeffs[i] * w(supps[:, i]) *
+            make_point_variable_ref(write_model, ivref, new_supps[:, i])
+            for i in eachindex(coeffs)
+        ))
     # make semi-infinite variables if the variable contains other parameters
     else
-        # get indices of each pref to map properly
-        indices = [findfirst(isequal(pref), var_prefs) for pref in prefs]
-        # check that if any of the indices are empty and truncate as needed
-        empty = map(isnothing, indices)
-        if any(empty)
-            indices = convert(Vector{Int}, deleteat!(indices, empty))
-            supps = supps[.!empty, :]
-        end
-        return @_expr(sum(coeffs[i] * w(supps[:, i]) *
-                    make_semi_infinite_variable_ref(write_model, ivref, indices, supps[:, i])
-                    for i in eachindex(coeffs)))
+        # get the mappings of group indices to parameter indices in the variable
+        mappings = Dict(
+            idx => var_prefs.ranges[i] 
+            for (i, idx) in enumerate(parameter_group_int_indices(ivref)) 
+            if var_prefs[i, 1] in prefs
+        )
+        # make the expression
+        return @_expr(sum(
+            coeffs[i] * w(supps[:, i]) *
+            make_semi_infinite_variable_ref(
+                write_model,
+                ivref, 
+                mappings,
+                _finalize_eval_support!(
+                    fill(NaN, length(var_prefs)), 
+                    mappings, 
+                    supps[:, i], 
+                    prefs
+                )
+            )
+            for i in eachindex(coeffs)
+        ))
     end
-end
-
-# Write point support given semi_infinite info and the support
-function _make_point_support(
-    orig_prefs::Vector{GeneralVariableRef},
-    support_dict::Dict{Int, Float64},
-    idx::Int, 
-    value::Float64
-    )
-    return [i == idx ? value : support_dict[i] for i in eachindex(orig_prefs)]
 end
 
 # SemiInfiniteVariableRef (1D DiscreteMeasureData)
@@ -330,7 +358,7 @@ function expand_measure(
     ivref = infinite_variable_ref(drvref)
     orig_prefs = parameter_list(ivref)
     var_prefs = parameter_list(drvref)
-    eval_supps = eval_supports(drvref)
+    eval_supp, mappings = eval_support(drvref)
     pref = parameter_refs(data)
     supps = supports(data)
     coeffs = coefficients(data)
@@ -342,34 +370,32 @@ function expand_measure(
     # make point variables if var_prefs = pref (it is the only dependence)
     elseif length(var_prefs) == 1
         index = findfirst(isequal(pref), orig_prefs)
-        expr = @_expr(sum(coeffs[i] * w(supps[i]) *
-                    make_point_variable_ref(write_model, ivref,
-                    _make_point_support(orig_prefs, eval_supps, index, supps[i]))
-                    for i in eachindex(coeffs)))
+        expr = @_expr(sum(
+            coeffs[i] * w(supps[i]) *
+            make_point_variable_ref(
+                write_model, 
+                ivref,
+                [isnan(s) ? supps[i] : s for s in eval_supp]
+            )
+            for i in eachindex(coeffs)
+        ))
     # make semi-infinite variables if the variable contains other parameters
     else
-        index = findfirst(isequal(pref), orig_prefs)
-        collected_indices = collect(keys(eval_supps))
-        vals = map(k -> eval_supps[k], collected_indices) # a support will be appended on the fly
-        indices = push!(collected_indices, index)
-        expr = @_expr(sum(coeffs[i] * w(supps[i]) *
-                    make_semi_infinite_variable_ref(write_model, ivref, indices, vcat(vals, supps[i]))
-                    for i in eachindex(coeffs)))
+        new_mappings = copy(mappings)
+        idx = findfirst(isequal(pref), orig_prefs)
+        new_mappings[parameter_group_int_index(pref)] = UnitRange(idx, idx)
+        expr = @_expr(sum(
+            coeffs[i] * w(supps[i]) *
+            make_semi_infinite_variable_ref(
+                write_model, 
+                ivref,
+                mappings, 
+                [j == idx ? supps[i] : s for (j, s) in enumerate(eval_supp)]
+            )
+            for i in eachindex(coeffs)
+        ))
     end
     return expr
-end
-
-# Write point support given semi_infinite info and the support
-function _make_point_support(
-    orig_prefs::Vector{GeneralVariableRef},
-    support_dict::Dict{Int, Float64},
-    new_indices::Vector{Int},
-    values::Vector{Float64}
-    )
-    # these might overlap with the old dict, so we favor the old dict
-    new_dict = Dict(new_indices[i] => values[i] for i in eachindex(values))
-    return [haskey(support_dict, i) ? support_dict[i] : new_dict[i]
-            for i in eachindex(orig_prefs)]
 end
 
 # SemiInfiniteVariableRef (Multi DiscreteMeasureData)
@@ -382,9 +408,9 @@ function expand_measure(
     # pull in the needed information
     drvref = dispatch_variable_ref(rvref)
     ivref = infinite_variable_ref(drvref)
-    orig_prefs = parameter_list(ivref)
+    orig_prefs = raw_parameter_refs(ivref)
     var_prefs = parameter_list(drvref)
-    eval_supps = eval_supports(drvref)
+    eval_supp, mappings = eval_support(drvref)
     prefs = parameter_refs(data)
     supps = supports(data)
     coeffs = coefficients(data)
@@ -392,40 +418,52 @@ function expand_measure(
     # treat variable as constant if doesn't have measure parameter
     if !any(any(isequal(pref), var_prefs) for pref in prefs)
         var_coef = sum(coeffs[i] * w(supps[:, i]) for i in eachindex(coeffs))
-        expr = JuMP.GenericAffExpr{Float64, GeneralVariableRef}(0, rvref => var_coef)
+        return JuMP.GenericAffExpr{Float64, GeneralVariableRef}(0, rvref => var_coef)
+    end
+    tuple_idx_to_supp_idx = Dict(
+        i => findfirst(isequal(orig_prefs[i]), prefs) 
+        for i in eachindex(orig_prefs) if orig_prefs[i] in prefs
+    )
     # make point variables if prefs includes all var_prefs
-    elseif all(any(isequal(pref), prefs) for pref in var_prefs)
-        # get the indices of measure prefs to reorder/truncate as needed
-        supp_indices = [findfirst(isequal(pref), prefs) for pref in var_prefs]
-        # reorder/truncate if necesary
-        if supp_indices != 1:size(supps, 1)
-            supps = supps[supp_indices, :]
-        end
-        # get the parameter indices of the variable parameters to be reduced
-        indices = [findfirst(isequal(pref), orig_prefs) for pref in var_prefs]
-        # make the expression
-        expr = @_expr(sum(coeffs[i] * w(supps[:, i]) *
-                    make_point_variable_ref(write_model, ivref,
-                    _make_point_support(orig_prefs, eval_supps, indices, supps[:, i]))
-                    for i in eachindex(coeffs)))
+    if all(any(isequal(pref), prefs) for pref in var_prefs)
+        expr = @_expr(sum(
+            coeffs[i] * w(supps[:, i]) *
+            make_point_variable_ref(
+                write_model,
+                ivref,
+                [isnan(s) ? supps[tuple_idx_to_supp_idx[j], i] : s 
+                 for (j, s) in enumerate(eval_supp)]
+            )
+            for i in eachindex(coeffs)
+        ))
     # make semi-infinite variables if the variable contains other parameters
     else
-        # get the indices of prefs in terms of the ivref
-        new_indices = [findfirst(isequal(pref), orig_prefs) for pref in prefs]
-        # check that if any of the indices are empty or already reduced and truncate as needed
-        bad_index = map(i -> isnothing(i) || i in keys(eval_supps), new_indices)
-        if any(bad_index)
-            deleteat!(new_indices, bad_index)
-            supps = supps[.!bad_index, :]
+        # get the group mappings
+        new_mappings = Dict(
+            idx => orig_prefs.ranges[i] 
+            for (i, idx) in enumerate(parameter_group_int_indices(ivref)) 
+            if orig_prefs[i, 1] in prefs
+        )
+        for (idx, range) in mappings
+            new_mappings[idx] = range
         end
-        # prepare the indices and values for semi-infinite variable construction
-        collected_indices = collect(keys(eval_supps))
-        vals = map(k -> eval_supps[k], collected_indices) # a support will be appended on the fly
-        indices = append!(collected_indices, new_indices)
         # make the expression
-        expr = @_expr(sum(coeffs[i] * w(supps[:, i]) *
-                    make_semi_infinite_variable_ref(write_model, ivref, indices, vcat(vals, supps[:, i]))
-                    for i in eachindex(coeffs)))
+        expr = @_expr(sum(
+            coeffs[i] * w(supps[:, i]) *
+            make_semi_infinite_variable_ref(
+                write_model,
+                ivref,
+                mappings, 
+                [begin
+                    if isnan(s) && haskey(tuple_idx_to_supp_idx, j)
+                        supps[tuple_idx_to_supp_idx[j], i]
+                    else
+                        s
+                    end
+                end for (j, s) in enumerate(eval_support)]
+            )
+            for i in eachindex(coeffs)
+        ))
     end
     return expr
 end
