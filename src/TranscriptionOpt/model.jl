@@ -22,7 +22,7 @@ mutable struct TranscriptionData
 
     # Internal variables (created via internal measure expansions)
     semi_infinite_vars::Vector{InfiniteOpt.SemiInfiniteVariable{InfiniteOpt.GeneralVariableRef}}
-    semi_lookup::Dict{Tuple{InfiniteOpt.GeneralVariableRef, Dict{Int, Float64}}, InfiniteOpt.GeneralVariableRef}
+    semi_lookup::Dict{Tuple{InfiniteOpt.GeneralVariableRef, Vector{Float64}}, InfiniteOpt.GeneralVariableRef}
     last_point_index::Int
     point_lookup::Dict{Tuple{InfiniteOpt.GeneralVariableRef, Vector{Float64}}, InfiniteOpt.GeneralVariableRef}
 
@@ -54,7 +54,7 @@ mutable struct TranscriptionData
             Dict{Any, Array{Bool}}(),
             # internal variables
             Vector{InfiniteOpt.SemiInfiniteVariable{InfiniteOpt.GeneralVariableRef}}(),
-            Dict{Tuple{InfiniteOpt.GeneralVariableRef, Dict{Int, Float64}}, InfiniteOpt.GeneralVariableRef}(),
+            Dict{Tuple{InfiniteOpt.GeneralVariableRef, Vector{Float64}}, InfiniteOpt.GeneralVariableRef}(),
             0,
             Dict{Tuple{InfiniteOpt.GeneralVariableRef, Vector{Float64}}, InfiniteOpt.GeneralVariableRef}(),
             # measure info
@@ -649,7 +649,7 @@ function transcription_expression(
     group_idxs = InfiniteOpt.parameter_group_int_indices(expr)
     support_indices = support_index_iterator(backend, group_idxs)
     dims = size(support_indices)[group_idxs]
-    exprs = Array{JuMP.AbstractJuMPScalar, length(dims)}(undef, dims...)
+    exprs = Array{Union{JuMP.AbstractJuMPScalar, Real}, length(dims)}(undef, dims...)
     # iterate over the indices and compute the values
     for idx in support_indices
         supp = index_to_support(backend, idx)

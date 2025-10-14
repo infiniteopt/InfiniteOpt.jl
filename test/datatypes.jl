@@ -165,14 +165,14 @@ end
     # test DependentParameters
     @test DependentParameters <: InfOptParameter
     @test DependentParameters(CollectionDomain([IntervalDomain(0, 1)]),
-                              OrderedDict(zeros(1) => Set([All])), 6, [method]).domain isa CollectionDomain
+                              OrderedDict(zeros(1) => Set([All])), 6).domain isa CollectionDomain
     # test ScalarParameterData
     @test ScalarParameterData <: AbstractDataObject
     @test ScalarParameterData(FiniteParameter(42), 1, 1, "bob").name == "bob"
     # test MultiParameterData
     @test MultiParameterData <: AbstractDataObject
     params = DependentParameters(CollectionDomain([IntervalDomain(0, 1)]),
-                                 OrderedDict(zeros(1) => Set([All])), 6, [method])
+                                 OrderedDict(zeros(1) => Set([All])), 6)
     @test MultiParameterData(params, 1, 1:1, ["par[1]"]) isa MultiParameterData
 end
 
@@ -398,7 +398,7 @@ end
     @test InfiniteVariable(inf_info, IC.VectorTuple(pref), [1], [1], true) isa InfiniteVariable
     # Semi-Infinite variable
     @test SemiInfiniteVariable <: JuMP.AbstractVariable
-    @test SemiInfiniteVariable(vref, [0.5], Dict(1 => UnitRange(1:1)), [1], [1]) isa SemiInfiniteVariable
+    @test SemiInfiniteVariable(vref, [0.5], [1], [1]) isa SemiInfiniteVariable
     # Point variable
     @test PointVariable <: JuMP.AbstractVariable
     @test PointVariable(sample_info, vref, Float64[1]) isa PointVariable
@@ -422,7 +422,7 @@ end
     @test Derivative <: JuMP.AbstractVariable
     @test Derivative(inf_info, true, vref, pref, 1) isa Derivative
     # Semi-infinite derivative
-    @test SemiInfiniteVariable(dref, [0.5], Dict(1 => UnitRange(1, 1)), [1], [1]) isa SemiInfiniteVariable
+    @test SemiInfiniteVariable(dref, [0.5], [1], [1]) isa SemiInfiniteVariable
     # Point derivative
     @test PointVariable(sample_info, dref, Float64[1]) isa PointVariable
     # VariableData

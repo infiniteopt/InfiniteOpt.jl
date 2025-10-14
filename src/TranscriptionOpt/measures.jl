@@ -91,7 +91,7 @@ function InfiniteOpt.add_semi_infinite_variable(
             lookup_dict[supp] = lookup_by_support(ivref, backend, ivref_supp)
         end
         data.infvar_lookup[rvref] = lookup_dict
-        data.semi_lookup[(ivref, eval_supps)] = rvref
+        data.semi_lookup[(ivref, eval_supp)] = rvref
         return rvref
     end
 end

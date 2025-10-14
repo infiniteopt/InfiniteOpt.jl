@@ -135,13 +135,13 @@ struct SemiInfinite{T} <: InfOptVariableType
         ) where {T}
         processed_vals = _process_value.(vt.values)
         if !isequal(processed_vals, vt.values)
-            vt2 = Collections.VectorTuple(processed_vals, vt.ranges, vt.indices, vt.num_columns)
+            vt2 = Collections.VectorTuple(processed_vals, vt.ranges, vt.dimensions, vt.num_columns)
             return new{only(typeof(vt2).parameters)}(ivref, vt2)
         end
         return new{T}(ivref, vt)
     end
 end
-function SemiInfinite(ivref, vals...)
+function SemiInfinite(ivref::GeneralVariableRef, vals...)
     vt = Collections.VectorTuple(vals)
     return SemiInfinite(ivref, vt)
 end
@@ -197,19 +197,16 @@ function JuMP.build_variable(
     end
     # make the evaluation supports
     eval_support = Float64[p isa Real ? p : NaN for p in raw_params]
-    group_idx_mappings = Dict{Int, UnitRange{Int}}()
+    # check that no dependent parameters are partially transcribed
     for r in ivref_prefs.ranges
         real_inds = map(s -> !isnan(s), @view(eval_support[r]))
         if any(real_inds) != all(real_inds)
             _error("Cannot partially evaluate a multi-dimensional input of an " *
                    "infinite variable.")
-        elseif any(real_inds)
-            group_idx = parameter_group_int_index(ivref_prefs[r.start])
-            group_idx_mappings[group_idx] = r
         end
     end
     # dispatch to the main builder 
-    return JuMP.build_variable(_error, ivref, eval_support, group_idx_mappings)
+    return JuMP.build_variable(_error, ivref, eval_support)
 end
 
 """
@@ -232,8 +229,7 @@ use in evaluating measures.
 function JuMP.build_variable(
     _error::Function, 
     ivref::GeneralVariableRef,
-    eval_support::Vector{Float64},
-    group_idx_mappings::Dict{Int, UnitRange{Int}};
+    eval_support::Vector{Float64};
     check::Bool = true
     )
     # check the inputs
@@ -253,10 +249,12 @@ function JuMP.build_variable(
         end
     end
     # get the parameter group integer indices of the dependencies
-    group_int_idxs = filter(
-        i -> !haskey(group_idx_mappings, i), 
-        parameter_group_int_indices(dvref)
-    )
+    raw_prefs = raw_parameter_refs(dvref)
+    group_int_idxs = [
+        idx
+        for (i, idx) in enumerate(parameter_group_int_indices(dvref))
+        if isnan(eval_support[raw_prefs.ranges[i].start])
+    ]
     # get the parameter numbers
     orig_nums = _parameter_numbers(ivref)
     param_nums = [orig_nums[i] for i in eachindex(orig_nums)
@@ -272,7 +270,6 @@ function JuMP.build_variable(
     return SemiInfiniteVariable(
         ivref,
         eval_support,
-        group_idx_mappings,
         param_nums, 
         group_int_idxs
     )
@@ -303,16 +300,6 @@ function _add_semi_infinite_support(
     return
 end
 
-# Update the parameter supports as needed
-function _update_param_supports(ivref, eval_supp, group_idx_mappings)
-    prefs = parameter_list(ivref)
-    for (_, range) in group_idx_mappings
-        dprefs = dispatch_variable_ref.(prefs[range])
-        _add_semi_infinite_support(dprefs, eval_supp[range])
-    end
-    return
-end
-
 """
     JuMP.add_variable(model::InfiniteModel, var::SemiInfiniteVariable,
                       [name::String = ""])::GeneralVariableRef
@@ -337,8 +324,14 @@ function JuMP.add_variable(
         data_object = VariableData(var, name)
         vindex = _add_data_object(model, data_object)
         push!(_semi_infinite_variable_dependencies(divref), vindex)
-        if add_support 
-            _update_param_supports(divref, eval_supp, var.group_int_idxs_to_supports)
+        if add_support
+            prefs = raw_parameter_refs(divref)
+            for r in prefs.ranges
+                if !isnan(eval_supp[r.start])
+                    dprefs = dispatch_variable_ref.(prefs[r])
+                    _add_semi_infinite_support(dprefs, eval_supp[r])
+                end
+            end
         end
         model.semi_lookup[(ivref, eval_supp)] = vindex
     else
@@ -370,28 +363,30 @@ function infinite_variable_ref(vref::SemiInfiniteVariableRef)
 end
 
 """
-    eval_support(vref::SemiInfiniteVariableRef)::Tuple{Vector{Float64}, Dict{Int, UnitRange{Int}}}
+    eval_support(vref::SemiInfiniteVariableRef)::Vector{Float64}
 
 Return the evaluation supports associated with the semi-infinite variable
-`vref` along with the dictionary mapping parameter group indices to the 
-support indices.
+`vref`. Any element corresponding to an infinite parameter that is not
+evaluated is filled with a `NaN`.
 
 **Example**
 ```julia-repl
-julia>supps, mappings  = eval_support(vref)
-([0.0, NaN], Dict{Int64, UnitRange{Int64}}(1 => 1:1))
+julia> supp = eval_support(vref)
+[0.0, NaN]
 ```
 """
 function eval_support(vref::SemiInfiniteVariableRef)
     var = core_object(vref)
-    return var.eval_support, var.group_int_idxs_to_supports
+    return var.eval_support
 end
 
 # helper version of raw_parameter_refs
 function raw_parameter_refs(var::SemiInfiniteVariable)
     orig_prefs = raw_parameter_refs(var.infinite_variable_ref)
-    mappings = var.group_int_idxs_to_supports
-    delete_indices = [!haskey(mappings, i) for i in 1:size(orig_prefs, 1)]
+    delete_indices = [
+        isnan(var.eval_support[orig_prefs.ranges[i].start])
+        for i in 1:size(orig_prefs, 1)
+    ]
     return Collections.restricted_copy(orig_prefs, delete_indices)
 end
 
@@ -433,7 +428,7 @@ is intended as the preferred user function.
 """
 function parameter_list(vref::SemiInfiniteVariableRef)
     orig_prefs = parameter_list(infinite_variable_ref(vref))
-    eval_supp, _ = eval_support(vref)
+    eval_supp = eval_support(vref)
     return [orig_prefs[i] for i in eachindex(orig_prefs) if isnan(eval_supp[i])]
 end
 
@@ -795,6 +790,6 @@ function _delete_variable_dependencies(vref::SemiInfiniteVariableRef)
         JuMP.delete(model, dispatch_variable_ref(model, index))
     end
     # remove the lookup entry
-    delete!(JuMP.owner_model(vref).semi_lookup, (ivref, eval_support(vref)[1]))
+    delete!(JuMP.owner_model(vref).semi_lookup, (ivref, eval_support(vref)))
     return
 end

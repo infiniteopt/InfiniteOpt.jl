@@ -46,9 +46,6 @@ end
 
     # Test normal usage
     @test InfiniteOpt._index_type(expect(inf, x)) == MeasureIndex
-    warn = "Cannot specify a nonzero `num_supports` for individual " *
-           "dependent parameters."
-    @test_logs (:warn, warn) expect(inf, xi[1], num_supports = 3)
     @test !InfiniteOpt._is_expect(core_object(expect(inf, y)).data)
     @test 𝔼(inf, x) isa GeneralVariableRef
 
@@ -57,9 +54,8 @@ end
     @test 𝔼(y, y, pdf = y -> 1) isa GeneralVariableRef
 
     # Test with JuMP container 
-    @infinite_parameter(m, z[2:3] in [-1, 1])
+    @infinite_parameter(m, z[1:2] in [-1, 1])
     @test_throws ErrorException expect(z[2], z)
-    @test expect(z[2], z[2]) isa GeneralVariableRef
 end
 
 @testset "Macro" begin

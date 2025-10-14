@@ -807,7 +807,7 @@ end
 
 # Make method to reset derivative constraints (supports are handled separately)
 function _reset_derivative_constraints(
-    pref::Union{IndependentParameterRef, DependentParameterRef}
+    pref::IndependentParameterRef
     )
     if has_derivative_constraints(pref)
         @warn("Support/method changes will invalidate existing derivative evaluation " *
@@ -883,6 +883,29 @@ function set_derivative_method(
     _set_core_object(pref, new_param)
     if is_used(pref)
         set_transformation_backend_ready(JuMP.owner_model(pref), false)
+    end
+    return
+end
+
+"""
+    set_all_derivative_methods(model::InfiniteModel, 
+                               method::AbstractDerivativeMethod)::Nothing
+
+Sets the desired evaluation method `method` for all the derivatives currently added 
+to `model`. Note that this is done with respect to the infinite parameters.
+
+**Example**
+```julia-repl
+julia> set_all_derivative_methods(model, OrthogonalCollocation(2))
+
+```
+"""
+function set_all_derivative_methods(
+    model::InfiniteModel, 
+    method::AbstractDerivativeMethod
+    )
+    for pref in all_parameters(model, IndependentParameter)
+        set_derivative_method(pref, method)
     end
     return
 end

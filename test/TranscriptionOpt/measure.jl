@@ -59,11 +59,11 @@
     # test add_semi_infinite_variable
     @testset "add_semi_infinite_variable" begin
         # add one that was already added to the infinite model
-        var = SemiInfiniteVariable(y, Dict(1 => 0.), [2, 3], [2])
+        var = SemiInfiniteVariable(y, [0.0, NaN, NaN], [2, 3], [2])
         @test isequal(InfiniteOpt.add_semi_infinite_variable(tb, var), y0)
         @test IOTO.transcription_variable(y0) == [a, b]
         # add a new one
-        var = SemiInfiniteVariable(y, Dict(1 => 1.), [2, 3], [2])
+        var = SemiInfiniteVariable(y, [1.0, NaN, NaN], [2, 3], [2])
         vref = GeneralVariableRef(m, -1, SemiInfiniteVariableIndex)
         @test isequal(InfiniteOpt.add_semi_infinite_variable(tb, var), vref)
         @test isequal(data.semi_infinite_vars, [var])
@@ -73,12 +73,6 @@
         @test isequal(InfiniteOpt.add_semi_infinite_variable(tb, var), vref)
         @test isequal(data.semi_infinite_vars, [var])
         @test IOTO.transcription_expression(vref, tb, [1., 0., 0.]) == c
-        @test IOTO.transcription_expression(vref, tb, [1., 1., 1.]) == d
-        # test with partially evaluated dependent parameter group
-        var2 = SemiInfiniteVariable(y, Dict(1 => 1., 2 => 1.0), [3], [2])
-        vref = GeneralVariableRef(m, -2, SemiInfiniteVariableIndex)
-        @test isequal(InfiniteOpt.add_semi_infinite_variable(tb, var2), vref)
-        @test isequal(data.semi_infinite_vars, [var, var2])
         @test IOTO.transcription_expression(vref, tb, [1., 1., 1.]) == d
     end
 end

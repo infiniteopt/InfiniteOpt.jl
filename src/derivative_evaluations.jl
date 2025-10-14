@@ -208,10 +208,9 @@ function make_reduced_expr(
     # there are other parameters so make semi-infinite variable
     else 
         idx = findfirst(isequal(pref), prefs)
-        mappings = Dict(parameter_group_int_index(pref) => UnitRange(idx, idx))
         supp = fill(NaN, length(prefs))
         supp[idx] = support
-        return make_semi_infinite_variable_ref(write_model, vref, mappings, supp)
+        return make_semi_infinite_variable_ref(write_model, vref, supp)
     end
 end
 
@@ -228,22 +227,19 @@ function make_reduced_expr(
     ivref = infinite_variable_ref(vref)
     var_prefs = parameter_list(dvref)
     orig_prefs = parameter_list(ivref)
-    eval_supp, mappings = eval_support(dvref)
+    eval_supp = eval_support(dvref)
     # we only have 1 parameter so we need to make a point variable
     if length(var_prefs) == 1
-        supp = [isnan(s) ? support : s for s in eval_support]
+        supp = [isnan(s) ? support : s for s in eval_supp]
         return make_point_variable_ref(write_model, ivref, supp)
     # otherwise we need to make another semi-infinite variable
     else
         idx = findfirst(isequal(pref), orig_prefs)
-        new_mappings = copy(mappings)
-        new_mappings[parameter_group_int_index(pref)] = UnitRange(idx, idx)
-        new_eval_support = copy(eval_support)
+        new_eval_support = copy(eval_supp)
         new_eval_support[idx] = support
         return make_semi_infinite_variable_ref(
             write_model,
             ivref,
-            new_mappings,
             new_eval_support
         )
     end

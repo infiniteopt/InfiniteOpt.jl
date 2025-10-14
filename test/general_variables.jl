@@ -273,8 +273,6 @@ end
     # test infinite_domain (GeneralVariableRef Array)
     @testset "infinite_domain (GeneralVariableRef Array)" begin
         @test_throws ArgumentError infinite_domain(gvrefs)
-        @test_throws ArgumentError infinite_domain(dense_gvrefs)
-        @test_throws ArgumentError infinite_domain(sparse_gvrefs)
     end
     # test set_infinite_domain (Fallback)
     @testset "set_infinite_domain (Fallback)" begin
@@ -287,8 +285,6 @@ end
     # test set_infinite_domain (GeneralVariableRef Array)
     @testset "set_infinite_domain (GeneralVariableRef Array)" begin
         @test_throws ArgumentError set_infinite_domain(gvrefs, adomain)
-        @test_throws ArgumentError set_infinite_domain(dense_gvrefs, adomain)
-        @test_throws ArgumentError set_infinite_domain(sparse_gvrefs, adomain)
     end
     # test num_supports (Fallback)
     @testset "num_supports (Fallback)" begin
@@ -301,8 +297,6 @@ end
     # test num_supports (GeneralVariableRef Array)
     @testset "num_supports (GeneralVariableRef Array)" begin
         @test_throws ArgumentError num_supports(gvrefs, label = All)
-        @test_throws ArgumentError num_supports(dense_gvrefs, label = All)
-        @test_throws ArgumentError num_supports(sparse_gvrefs, label = All)
     end
     # test has_supports (Fallback)
     @testset "has_supports (Fallback)" begin
@@ -315,8 +309,6 @@ end
     # test has_supports (GeneralVariableRef Array)
     @testset "has_supports (GeneralVariableRef Array)" begin
         @test_throws ArgumentError has_supports(gvrefs)
-        @test_throws ArgumentError has_supports(dense_gvrefs)
-        @test_throws ArgumentError has_supports(sparse_gvrefs)
     end
     # test supports (Fallback)
     @testset "supports (Fallback)" begin
@@ -329,8 +321,6 @@ end
     # test supports (GeneralVariableRef Array)
     @testset "supports (GeneralVariableRef Array)" begin
         @test_throws ArgumentError supports(gvrefs, label = All)
-        @test_throws ArgumentError supports(dense_gvrefs, label = All)
-        @test_throws ArgumentError supports(sparse_gvrefs, label = All)
     end
     # test set_supports (Fallback)
     @testset "set_supports (Fallback)" begin
@@ -344,10 +334,6 @@ end
     @testset "set_supports (GeneralVariableRef Array)" begin
         @test_throws ArgumentError set_supports(gvrefs, ones(1, 1), label = All,
                                                 force = true)
-        @test_throws ArgumentError set_supports(dense_gvrefs, ones(1, 1),
-                                                label = All, force = true)
-        @test_throws ArgumentError set_supports(sparse_gvrefs, ones(1, 1),
-                                                label = All, force = true)
     end
     # test add_supports (Fallback)
     @testset "add_supports (Fallback)" begin
@@ -361,10 +347,6 @@ end
     @testset "add_supports (GeneralVariableRef Array)" begin
         @test_throws ArgumentError add_supports(gvrefs, ones(1, 1), label = All,
                                                 check = true)
-        @test_throws ArgumentError add_supports(dense_gvrefs, ones(1, 1),
-                                                label = All, check = true)
-        @test_throws ArgumentError add_supports(sparse_gvrefs, ones(1, 1),
-                                                label = All, check = true)
     end
     # test delete_supports (Fallback)
     @testset "delete_supports (Fallback)" begin
@@ -377,8 +359,6 @@ end
     # test delete_supports (GeneralVariableRef Array)
     @testset "delete_supports (GeneralVariableRef Array)" begin
         @test_throws ArgumentError delete_supports(gvrefs)
-        @test_throws ArgumentError delete_supports(dense_gvrefs)
-        @test_throws ArgumentError delete_supports(sparse_gvrefs)
     end
     # test fill_in_supports! (Fallback)
     @testset "fill_in_supports! (Fallback)" begin
@@ -391,8 +371,6 @@ end
     # test fill_in_supports! (GeneralVariableRef Array)
     @testset "fill_in_supports! (GeneralVariableRef Array)" begin
         @test_throws ArgumentError fill_in_supports!(gvrefs, num_supports = 1)
-        @test_throws ArgumentError fill_in_supports!(dense_gvrefs, num_supports = 1)
-        @test_throws ArgumentError fill_in_supports!(sparse_gvrefs,num_supports = 1)
     end
     # test JuMP.set_value (Fallback)
     @testset "JuMP.set_value (Fallback)" begin

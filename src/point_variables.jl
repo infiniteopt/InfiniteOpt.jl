@@ -76,18 +76,23 @@ of both real valued supports.
 - `parameter_values::VectorTuple{T}`: The infinite parameter support values the 
    variable will depend on.
 """
-struct Point{T <: Real} <: InfOptVariableType 
+struct Point{T} <: InfOptVariableType 
     infinite_variable_ref::GeneralVariableRef
     parameter_values::Collections.VectorTuple{T}
     function Point(
         vref::GeneralVariableRef,
         vt::Collections.VectorTuple{T}
-        ) where {T <: Real}
+        ) where {T}
         return new{T}(vref, vt)
     end
 end
-function Point(ivref, vals...)
-    return Point(ivref, Collections.VectorTuple(vals))
+function Point(ivref::GeneralVariableRef, vals...)
+    if isempty(vals)
+        error("No point values given for point variable.")
+    end
+    vt = Collections.VectorTuple(vals)
+
+    return Point(ivref, vt)
 end
 
 # Ensure parameter values match shape of parameter reference tuple stored in the
@@ -237,11 +242,6 @@ function JuMP.build_variable(
     end
     # check the infinite variable reference
     ivref = var_type.infinite_variable_ref
-    if !(ivref isa GeneralVariableRef)
-        _error("Expected an infinite variable/derivative reference dependency ",
-               "of type `GeneralVariableRef`, but got an argument of type ",
-               "$(typeof(ivref)).")
-    end
     dispatch_ivref = dispatch_variable_ref(ivref)
     if !(dispatch_ivref isa Union{InfiniteVariableRef, DerivativeRef})
         _error("Expected an infinite variable/derivative reference dependency,", 

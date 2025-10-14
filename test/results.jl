@@ -179,7 +179,7 @@ end
     @parameter_function(m, a == sin(par))
     @variable(m, g <=3)
     d1 = @deriv(inf, par)
-    var = build_variable(error, inf2, Dict{Int, Float64}(2 => 0))
+    var = build_variable(error, inf2, [NaN, 0])
     rv = add_variable(m, var)
     @objective(m, Min, g^2)
     @constraint(m, c1, 2 * g <= 1)

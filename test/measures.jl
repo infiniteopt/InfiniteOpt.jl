@@ -78,8 +78,6 @@ end
     @infinite_parameter(m, par in [0, 1])
     @infinite_parameter(m, pars[1:2] in [0, 1]) # Vector
     @infinite_parameter(m, pars2[1:2, 1:3] in [0, 1]) # Matrix
-    @infinite_parameter(m, pars3[2:3] in [0, 1]) # DenseAxisArray
-    @infinite_parameter(m, pars4[i = 1:2, j = 1:2; i <= j] in [0, 1]) # SparseAxisArray
     @finite_parameter(m, fpar == 42)
     coeff_func(x) = 1
     # test default weight function
@@ -111,26 +109,18 @@ end
         @test_throws ErrorException InfiniteOpt._check_params(fpar)
         @test_throws ErrorException InfiniteOpt._check_params([par, pars[1]])
         @test_throws ErrorException InfiniteOpt._check_params([pars[1], pars2[1]])
-        @test_throws ErrorException InfiniteOpt._check_params([pars4[1, 1], pars4[1, 2]])
+        @test_throws ErrorException InfiniteOpt._check_params([pars2[1, 1], pars2[1, 2]])
         @test InfiniteOpt._check_params(pars) isa Nothing
     end
     # test _prepare_supports
     @testset "_prepare_supports" begin
         # vector
         supp = [[0, 0], [1, 1]]
-        @test InfiniteOpt._prepare_supports(supp, IC.indices(pars)) == [0 1; 0 1]
+        @test InfiniteOpt._prepare_supports(supp) == [0 1; 0 1]
         # array
         supp = [zeros(2, 3), ones(2, 3)]
         expected = [zeros(6, 1) ones(6, 1)]
-        @test InfiniteOpt._prepare_supports(supp, IC.indices(pars2)) == expected
-        # DenseAxisArray
-        supp = [JuMPC.DenseAxisArray([0, 0], axes(pars3)),
-                JuMPC.DenseAxisArray([1, 1], axes(pars3))]
-        @test InfiniteOpt._prepare_supports(supp, IC.indices(pars3)) == [0 1; 0 1]
-        # SparseAxisArrays
-        supp = [JuMPC.SparseAxisArray(Dict(k => 0 for k in keys(pars4.data))),
-                JuMPC.SparseAxisArray(Dict(k => 1 for k in keys(pars4.data)))]
-        @test isequal(InfiniteOpt._prepare_supports(supp, IC.indices(pars4)), [0 1; 0 1; 0 1])
+        @test InfiniteOpt._prepare_supports(supp) == expected
     end
     # test _check_supports_in_bounds (IndependentParameterRefs)
     @testset "_check_supports_in_bounds (IndependentParameterRefs)" begin
@@ -157,8 +147,6 @@ end
         @test_throws ErrorException DiscreteMeasureData([fpar, fpar], [1],
                                                         [[1, 1]])
         @test_throws ErrorException DiscreteMeasureData([par, pars[1]], [1], [[1, 1]])
-        @test_throws ErrorException DiscreteMeasureData(pars3, [1], [[1, 2]])
-        @test_throws ErrorException DiscreteMeasureData(pars3, [1], [JuMPC.DenseAxisArray([1,2],2:3)], lower_bounds = [NaN, NaN])
     end
     # test _check_bounds_in_domain (IndependentParameter)
     @testset "_check_bounds_in_domain (independent parameters)" begin
@@ -178,7 +166,7 @@ end
     @testset "FunctionalDiscreteMeasureData (multidim)" begin
         @test isa(FunctionalDiscreteMeasureData(pars, coeff_func, 10, All, lower_bounds = [0.3, 0.3], upper_bounds = [0.7, 0.7]), FunctionalDiscreteMeasureData)
         @test_throws ErrorException FunctionalDiscreteMeasureData(pars, coeff_func, -1, All)
-        @test_throws ErrorException FunctionalDiscreteMeasureData(pars3, coeff_func, 5, MCSample, lower_bounds = [NaN, NaN])
+        @test_throws ErrorException FunctionalDiscreteMeasureData(pars2, coeff_func, 5, MCSample, lower_bounds = [NaN, NaN])
 
     end
     # test copy methods
@@ -480,8 +468,6 @@ end
         # test functionality
         @test isa(add_supports_to_parameters(data5), Nothing)
         @test num_supports(par) == 5
-        # test error 
-        @test_throws ErrorException add_supports_to_parameters(data6)
         # clear supports
         delete_supports(par)
         add_supports_to_parameters(data7)
@@ -567,15 +553,6 @@ end
     # test is_analytic
     @testset "is_analytic" begin
         @test !is_analytic(mref)
-    end
-    # test _make_param_tuple_element (IndependentParameterIndex)
-    @testset "_make_param_tuple_element (IndependentParameterIndex)" begin
-        @test isequal(InfiniteOpt._make_param_tuple_element(m, IndependentParameterIndex(1), [1]), par)
-    end
-    # test _make_param_tuple_element (DependentParameterIndex)
-    @testset "_make_param_tuple_element (DependentParameterIndex)" begin
-        @test isequal(InfiniteOpt._make_param_tuple_element(m, DependentParametersIndex(1), [2, 3]), pars)
-        @test isequal(InfiniteOpt._make_param_tuple_element(m, DependentParametersIndex(1), [2]), pars[1])
     end
     # test parameter_refs for measure
     @testset "parameter_refs (measure)" begin

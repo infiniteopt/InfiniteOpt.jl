@@ -215,7 +215,7 @@ julia> md_x = DiscreteMeasureData(x, 0.25 * ones(4), [[0.25, 0.25], [0.25, 0.75]
 ```
 where `md_x` cuts the domain into four 0.5-by-0.5 squares, and evaluates the 
 integrand on the center of these squares. Note that for multivariate parameters,  
-each support point should be an `AbstractArray` that stores the value at each dimension. 
+each support point should be an `Array` that stores the value at each dimension. 
 
 In addition to the intuitive [`DiscreteMeasureData`], another type of measure data  
 object is [`FunctionalDiscreteMeasureData`](@ref). This type captures measure data 

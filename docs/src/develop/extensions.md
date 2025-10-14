@@ -516,12 +516,12 @@ struct DiscreteVarianceData <: AbstractMeasureData
     label::DataType
     # constructor
     function DiscreteVarianceData(
-        parameter_refs::Union{GeneralVariableRef, AbstractArray{<:GeneralVariableRef}},
+        parameter_refs::Union{GeneralVariableRef, Array{<:GeneralVariableRef}},
         supports::Vector,
         label::DataType = InfiniteOpt.generate_unique_label()
         )
         # convert input as necessary to proper array format
-        if parameter_refs isa AbstractArray
+        if parameter_refs isa Array
             parameter_refs = convert(Vector, parameter_refs)
             supports = [convert(Vector, arr) for arr in supports]
         end
@@ -631,7 +631,7 @@ variance measures more convenient:
 ```jldoctest measure_data; output = false
 function variance(
     expr::Union{JuMP.GenericAffExpr, GeneralVariableRef},
-    params::Union{GeneralVariableRef, AbstractArray{GeneralVariableRef}};
+    params::Union{GeneralVariableRef, Array{GeneralVariableRef}};
     name::String = "Var", 
     num_supports::Int = 10,
     use_existing::Bool = false

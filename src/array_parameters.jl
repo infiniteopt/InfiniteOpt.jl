@@ -90,12 +90,13 @@ end
 # MultiDistributionDomain
 function _make_array_domain(
     _error::Function,
-    domains::Vector{T},
+    domains::Vector{<:MultiDistributionDomain},
     info::Tuple{Int, Int}
-    ) where {T <: MultiDistributionDomain}
+    )
     _check_same_domain(_error, domains)
     dist = first(domains).distribution
-    if size(dist) != (length(domains)/info[2], info[2])
+    param_size = (length(domains)/info[2], info[2]) # ignore the 2nd element if vector
+    if any(ds != ps for (ds, ps) in zip(param_size, size(dist)))
         _error("The dimensions of the parameters are incompatible with the ",
                "specified multi-dimensional distribution $(dist).")
     end
@@ -105,9 +106,9 @@ end
 # CollectionDomain
 function _make_array_domain(
     _error::Function,
-    domains::Vector{T},
+    domains::Vector{<:CollectionDomain},
     info::Tuple{Int, Int}
-    ) where {T <: CollectionDomain}
+    )
     _check_same_domain(_error, domains)
     if length(collection_domains(first(domains))) != length(domains)
         _error("The dimensions of the parameters and the specified ",
@@ -119,9 +120,9 @@ end
 # Fallback for other InfiniteArrayDomains
 function _make_array_domain(
     _error::Function,
-    domains::Vector{T},
+    domains::Vector{<:InfiniteArrayDomain},
     info::Tuple{Int, Int}
-    ) where {T <: InfiniteArrayDomain}
+    )
     _check_same_domain(_error, domains)
     return first(domains)
 end
@@ -129,9 +130,9 @@ end
 # InfiniteScalarDomains
 function _make_array_domain(
     _error::Function,
-    domains::Vector{T},
+    domains::Vector{<:InfiniteScalarDomain},
     info::Tuple{Int, Int}
-    ) where {T <: InfiniteScalarDomain}
+    )
     return CollectionDomain(domains)
 end
 
@@ -221,29 +222,6 @@ function _process_array_supports(
     error("Unrecognized support input. Please consult the docs.")
 end
 
-## Use dispatch to make the formatting of the derivative method vector 
-# Valid vector 
-function _process_derivative_methods(
-    _error::Function,
-    methods::V,
-    domains
-    ) where {V <: Vector{<:NonGenerativeDerivativeMethod}}
-    return methods
-end
-
-# Default or invalid vector 
-function _process_derivative_methods(
-    _error::Function,
-    methods::Vector,
-    domains
-    )
-    if isempty(methods)
-        return map(i -> DefaultDerivativeMethod, domains)
-    end
-    _error("Can only subtypes of `NonGenerativeDerivativeMethod` can be ",
-           "used with the `derivative_method` keywords argument.") 
-end
-
 # A helper function for dependent parameter builds in @infinite_parameter
 function _build_parameters(
     _error::Function,
@@ -252,7 +230,6 @@ function _build_parameters(
     num_supports::Int = 0,
     sig_digits::Int = DefaultSigDigits,
     supports = Float64[],
-    derivative_method::Vector = [],
     extra_kwargs...
     )
     # error with extra keywords
@@ -279,10 +256,8 @@ function _build_parameters(
     else
         supp_dict = DataStructures.OrderedDict{Vector{Float64}, Set{DataType}}()
     end
-    # check the derivative methods
-    methods = _process_derivative_methods(_error, derivative_method, domains)
     # make the parameter object
-    return DependentParameters(domain, supp_dict, sig_digits, methods)
+    return DependentParameters(domain, supp_dict, sig_digits)
 end
 
 """
@@ -475,20 +450,9 @@ function used_by_constraint(pref::DependentParameterRef)
     return !isempty(_constraint_dependencies(pref))
 end
 
-"""
-    used_by_derivative(pref::DependentParameterRef)::Bool
-
-Return a `Bool` indicating if the dependent infinite parameter `pref` is used by
-a derivative.
-
-**Example**
-```julia-repl
-julia> used_by_derivative(pref)
-false
-```
-"""
+# Extend used by derivative
 function used_by_derivative(pref::DependentParameterRef)
-    return !isempty(_derivative_dependencies(pref))
+    return false
 end
 
 # Extend used by objective
@@ -508,8 +472,7 @@ true
 """
 function is_used(pref::DependentParameterRef)
     return used_by_measure(pref) || used_by_constraint(pref) ||
-           used_by_infinite_variable(pref) || used_by_derivative(pref) ||
-           used_by_parameter_function(pref)
+           used_by_infinite_variable(pref) || used_by_parameter_function(pref)
 end
 
 ################################################################################
@@ -553,10 +516,9 @@ function _adaptive_data_update(pref::DependentParameterRef, params::P1,
     new_data = MultiParameterData(params, data.group_int_idx, data.parameter_nums, 
                                   data.names, data.parameter_func_indices,
                                   data.infinite_var_indices, 
-                                  data.derivative_indices, data.measure_indices,
+                                  data.measure_indices,
                                   data.constraint_indices,
-                                  data.has_internal_supports, 
-                                  data.has_deriv_constrs)
+                                  data.has_internal_supports)
     _data_dictionary(pref)[JuMP.index(pref).object_index] = new_data
     return
 end
@@ -571,7 +533,7 @@ function _set_core_object(
 end
 
 ################################################################################
-#                        DERIVATIVE METHOD FUNCTIONS
+#                     GENERATIVE SUPPORT FUNCTIONS
 ################################################################################
 # Extend fallback for dependent parameters
 function has_generative_supports(pref::DependentParameterRef)
@@ -591,112 +553,7 @@ end
 
 # Extend has derivative constraints 
 function has_derivative_constraints(pref::DependentParameterRef)
-    return _data_object(pref).has_deriv_constrs[_param_index(pref)]
-end
-
-# Extend setting if has derivative constraints 
-function _set_has_derivative_constraints(pref::DependentParameterRef, 
-                                         status::Bool)
-    _data_object(pref).has_deriv_constrs[_param_index(pref)] = status
-    return
-end
-
-# Get the raw derivative method vector
-function _derivative_methods(pref::DependentParameterRef)
-    return core_object(pref).derivative_methods
-end
-
-"""
-    derivative_method(pref::DependentParameterRef)::NonGenerativeDerivativeMethod
-
-Returns the numerical derivative evaluation method employed with `pref` when it 
-is used as an operator parameter in a derivative.
-
-**Example**
-```julia-repl
-julia> derivative_method(pref) 
-FiniteDifference
-```
-"""
-function derivative_method(pref::DependentParameterRef)
-    return _derivative_methods(pref)[_param_index(pref)]
-end
-
-## Define helper methods for setting the derivative method efficiently
-# Compatible with vector type 
-function _adaptive_method_update(pref, 
-    p::DependentParameters{S, M1}, 
-    method::M2
-    ) where {S, M1 <: NonGenerativeDerivativeMethod, M2 <: M1}
-    p.derivative_methods[_param_index(pref)] = method
-    return
-end
-
-# Not compatible
-function _adaptive_method_update(pref, 
-    p::DependentParameters{S, M1}, 
-    method::M2
-    ) where {S, M1, M2}
-    methods = p.derivative_methods
-    new_methods = [i == _param_index(pref) ? method : m 
-                   for (i, m) in enumerate(methods)]
-    new_params = DependentParameters(p.domain, p.supports, p.sig_digits, new_methods)
-    _set_core_object(pref, new_params)
-    return
-end
-
-"""
-    set_derivative_method(pref::DependentParameterRef, 
-                          method::NonGenerativeDerivativeMethod)::Nothing
-
-Specfies the desired derivative evaluation method `method` for derivatives that are 
-taken with respect to `pref`. Errors if `method` is generative (i.e., it requires 
-the definition of additional supports)
-
-**Example**
-```julia-repl
-julia> set_derivative_method(d, FiniteDifference())
-
-```
-"""
-function set_derivative_method(
-    pref::DependentParameterRef, 
-    method::AbstractDerivativeMethod
-    )
-    if !(method isa NonGenerativeDerivativeMethod)
-        error("Must specify a subtype of `NonGenerativeDerivativeMethod` for " *
-              "for a dependent parameter.")
-    end
-    _adaptive_method_update(pref, core_object(pref), method)
-    _reset_derivative_constraints(pref)
-    if is_used(pref)
-        set_transformation_backend_ready(JuMP.owner_model(pref), false)
-    end
-    return
-end
-
-"""
-    set_all_derivative_methods(model::InfiniteModel, 
-                               method::AbstractDerivativeMethod)::Nothing
-
-Sets the desired evaluation method `method` for all the derivatives currently added 
-to `model`. Note that this is done with respect to the infinite parameters. Errors 
-if a generative method is specified and the model contains dependent parameters.
-
-**Example**
-```julia-repl
-julia> set_all_derivative_methods(model, OrthogonalCollocation(2))
-
-```
-"""
-function set_all_derivative_methods(
-    model::InfiniteModel, 
-    method::AbstractDerivativeMethod
-    )
-    for pref in all_parameters(model, InfiniteParameter)
-        set_derivative_method(pref, method)
-    end
-    return
+    return false
 end
 
 ################################################################################
@@ -774,14 +631,8 @@ function _update_parameter_domain(
     )
     new_supports = DataStructures.OrderedDict{Vector{Float64}, Set{DataType}}()
     sig_figs = significant_digits(pref)
-    methods = _derivative_methods(pref)
-    new_params = DependentParameters(new_domain, new_supports, sig_figs, methods)
+    new_params = DependentParameters(new_domain, new_supports, sig_figs)
     _set_core_object(pref, new_params)
-    for i in 1:length(new_domain)
-        idx = DependentParameterIndex(JuMP.index(pref).object_index, i)
-        p = DependentParameterRef(JuMP.owner_model(pref), idx)
-        _reset_derivative_constraints(p)
-    end
     _set_has_internal_supports(pref, false)
     if is_used(pref)
         set_transformation_backend_ready(JuMP.owner_model(pref), false)
@@ -1211,13 +1062,9 @@ function _update_parameter_supports(
         s => Set([label]) for s in eachcol(supports)
         )
     sig_figs = significant_digits(first(prefs))
-    methods = _derivative_methods(first(prefs))
-    new_params = DependentParameters(domain, new_supps, sig_figs, methods)
+    new_params = DependentParameters(domain, new_supps, sig_figs)
     _set_core_object(first(prefs), new_params)
     _set_has_internal_supports(first(prefs), label <: InternalLabel)
-    for pref in prefs 
-        _reset_derivative_constraints(pref)
-    end
     if any(is_used(pref) for pref in prefs)
         set_transformation_backend_ready(JuMP.owner_model(first(prefs)), false)
     end
@@ -1396,9 +1243,6 @@ function add_supports(
         _set_has_internal_supports(first(prefs), true)
     end
     if added_new_support
-        for pref in prefs
-            _reset_derivative_constraints(pref)
-        end
         if any(is_used(pref) for pref in prefs)
             set_transformation_backend_ready(JuMP.owner_model(first(prefs)), false)
         end
@@ -1434,9 +1278,6 @@ function delete_supports(
     )
     _check_complete_param_array(prefs)
     supp_dict = _parameter_supports(first(prefs))
-    for pref in prefs
-        _reset_derivative_constraints(pref)
-    end
     if label == All
         if any(used_by_measure(pref) for pref in prefs)
             error("Cannot delete supports with measure dependencies.")
@@ -1833,12 +1674,6 @@ function JuMP.delete(
     # get the object and parameter numbers
     group_int_idx = parameter_group_int_index(first(prefs))
     param_nums = collect(_data_object(first(prefs)).parameter_nums)
-    # delete derivatives that depend on any of these parameters 
-    for pref in gvrefs 
-        for index in _derivative_dependencies(pref)
-            JuMP.delete(model, dispatch_variable_ref(model, index))
-        end
-    end
     # delete parameter information stored in model
     _delete_data_object(first(prefs))
     # update the parameter group integer indices and parameter numbers

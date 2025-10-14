@@ -75,8 +75,8 @@ function _make_vt_components(tuple::Tuple)
         end
     end
     # get the dimensions
-    dims = [_get_dimension(t) for t in tuple]
-    numcols = [_get_numcol(t) for t in tuple]
+    dims = Int[_get_dimension(t) for t in tuple]
+    numcols = Int[_get_numcol(t) for t in tuple]
     # prepare the values vector
     vals = [j for i in eachindex(tuple) for j in tuple[i]]
     # return everything
