@@ -26,7 +26,7 @@ InfiniteOpt.Collections.VectorTuple
 ```@docs
 SemiInfinite
 JuMP.build_variable(::Function, ::JuMP.VariableInfo, ::SemiInfinite)
-JuMP.build_variable(::Function, ::GeneralVariableRef, ::Dict{Int, Float64})
+JuMP.build_variable(::Function, ::GeneralVariableRef, ::Vector{Float64})
 JuMP.add_variable(::InfiniteModel, ::SemiInfiniteVariable, ::String)
 SemiInfiniteVariable
 SemiInfiniteVariableIndex

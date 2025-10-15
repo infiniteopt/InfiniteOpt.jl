@@ -1,22 +1,3 @@
-## Extend convert to handle JuMP containers
-# Array -> SparseAxisArray
-# function Base.convert(::Type{JuMPC.SparseAxisArray}, arr::Array)
-#     data = Dict(Tuple(k) => arr[k] for k in CartesianIndices(arr))
-#     return JuMPC.SparseAxisArray(data)
-# end
-
-# # DenseAxisArray -> SparseAxisArray
-# function Base.convert(::Type{JuMPC.SparseAxisArray},
-#                       arr::JuMPC.DenseAxisArray)
-#     data = Dict(k.I => arr[k] for k in keys(arr))
-#     return JuMPC.SparseAxisArray(data)
-# end
-
-# Convert numbers to jump objects 
-# function Base.convert(::Type{JuMP.AbstractJuMPScalar}, c::Number) 
-#     return zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}) + c
-# end
-
 ## Define efficient function to check if all elements in array are equal
 # method found at https://stackoverflow.com/questions/47564825/check-if-all-the-elements-of-a-julia-array-are-equal/47578613
 @inline function _allequal(x::AbstractArray)::Bool
