@@ -56,15 +56,15 @@ function InfiniteOpt.add_semi_infinite_variable(
     )
     # check if an internal variable was already created
     ivref = var.infinite_variable_ref
-    eval_supps = var.eval_supports
+    eval_supp = var.eval_support
     data = transcription_data(backend)
-    internal_vref = get(data.semi_lookup, (ivref, eval_supps), nothing)
+    internal_vref = get(data.semi_lookup, (ivref, eval_supp), nothing)
     if !isnothing(internal_vref)
         return internal_vref
     end
     # check if whether the infinite model already has one, else create one
     inf_model = JuMP.owner_model(ivref)
-    inf_model_index = get(inf_model.semi_lookup, (ivref, eval_supps), nothing)
+    inf_model_index = get(inf_model.semi_lookup, (ivref, eval_supp), nothing)
     if !isnothing(inf_model_index)
         return InfiniteOpt.GeneralVariableRef(inf_model, inf_model_index)
     else
@@ -72,7 +72,11 @@ function InfiniteOpt.add_semi_infinite_variable(
         semi_infinite_vars = data.semi_infinite_vars
         raw_index = -1 * (length(semi_infinite_vars) + 1)
         # make the reference and map it to a transcription variable
-        rvref = InfiniteOpt.GeneralVariableRef(inf_model, raw_index, InfiniteOpt.SemiInfiniteVariableIndex)
+        rvref = InfiniteOpt.GeneralVariableRef(
+            inf_model,
+            raw_index,
+            InfiniteOpt.SemiInfiniteVariableIndex
+        )
         push!(semi_infinite_vars, var)
         ivref_param_nums = InfiniteOpt._parameter_numbers(ivref)
         param_nums = var.parameter_nums
@@ -81,16 +85,13 @@ function InfiniteOpt.add_semi_infinite_variable(
         sizehint!(lookup_dict, length(supp_indices))
         for i in supp_indices
             raw_supp = index_to_support(backend, i)
-            if any(!isnan(raw_supp[ivref_param_nums[k]]) && raw_supp[ivref_param_nums[k]] != v for (k, v) in eval_supps)
-                continue
-            end
-            ivref_supp = [haskey(eval_supps, j) ? eval_supps[j] : raw_supp[k] 
-                        for (j, k) in enumerate(ivref_param_nums)]
+            ivref_supp = [isnan(s) ? raw_supp[ivref_param_nums[j]] : s 
+                          for (j, s) in enumerate(eval_supp)]
             supp = raw_supp[param_nums]
             lookup_dict[supp] = lookup_by_support(ivref, backend, ivref_supp)
         end
         data.infvar_lookup[rvref] = lookup_dict
-        data.semi_lookup[(ivref, eval_supps)] = rvref
+        data.semi_lookup[(ivref, eval_supp)] = rvref
         return rvref
     end
 end

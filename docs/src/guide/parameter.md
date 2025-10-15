@@ -295,20 +295,7 @@ julia> θ = @infinite_parameter(model, [1:2] ~ dist, num_supports = 3, base_name
 ```
 
 ### Containers for Multi-Dimensional Parameters
-Because we build on JuMP, we can use any indices we like when making containers 
-(e.g., arrays) for multi-dimensional parameters. For example, we can define:
-```jldoctest; setup = :(using InfiniteOpt; model= InfiniteModel())
-julia> @infinite_parameter(model, x[i = [:a, :b]] in [0, 1])
-1-dimensional DenseAxisArray{GeneralVariableRef,1,...} with index sets:
-    Dimension 1, [:a, :b]
-And data, a 2-element Vector{GeneralVariableRef}:
- x[a]
- x[b]
-```
-
-See 
-[`JuMP`'s documentation on containers](https://jump.dev/JuMP.jl/v1/manual/containers/) 
-for more information.
+Unlike other modelling objects, only `Array` containers are supported for infinite parameters. 
 
 ## Supports
 For an infinite parameter, its supports are a finite set of points that the 
@@ -452,7 +439,7 @@ In this section we introduce automatic support generation for defined
 parameters with no associated supports. This can be done using the 
 [`fill_in_supports!`](@ref) functions. [`fill_in_supports!`](@ref) can take as 
 argument a [`GeneralVariableRef`](@ref) or an 
-`AbstractArray{<:GeneralVariableRef}`, in which case it will generate 
+`Array{<:GeneralVariableRef}`, in which case it will generate 
 supports for the associated infinite parameter. Alternatively, 
 [`fill_in_supports!`](@ref) can also take an [`InfiniteModel`](@ref) as an 
 argument, in which case it will generate supports for all infinite parameters 

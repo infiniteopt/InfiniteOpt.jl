@@ -73,7 +73,7 @@ function _adaptive_data_update(
     mref::MeasureRef, 
     m::M, 
     data::MeasureData{M}
-    )::Nothing where {M <: Measure}
+    ) where {M <: Measure}
     data.measure = m
     return
 end
@@ -116,7 +116,7 @@ end
 #                              MEASURE DATA METHODS
 ################################################################################
 # Extend Base.copy for DiscreteMeasureData
-function Base.copy(data::D)::D where {D <: DiscreteMeasureData}
+function Base.copy(data::DiscreteMeasureData)
     return DiscreteMeasureData(copy(data.parameter_refs), copy(data.coefficients),
                                copy(data.supports), data.label, 
                                data.weight_function, copy(data.lower_bounds),
@@ -124,7 +124,7 @@ function Base.copy(data::D)::D where {D <: DiscreteMeasureData}
 end
 
 # Extend Base.copy for FunctionalDiscreteMeasureData
-function Base.copy(data::D)::D where {D <: FunctionalDiscreteMeasureData}
+function Base.copy(data::FunctionalDiscreteMeasureData)
     return FunctionalDiscreteMeasureData(copy(data.parameter_refs),
                                          data.coeff_function, data.min_num_supports,
                                          data.label, copy(data.generative_supp_info),
@@ -142,9 +142,11 @@ Default weight function for [`DiscreteMeasureData`](@ref) and
 default_weight(t) = 1
 
 # Ensure that a pref is valid for use in measure data
-function _check_params(pref::GeneralVariableRef)::Nothing
+function _check_params(pref::GeneralVariableRef)
     if !(_index_type(pref) <: InfiniteParameterIndex)
         error("$pref is not an infinite parameter.")
+    elseif _index_type(pref) == DependentParameterIndex
+        error("Cannot measure over a single dependent infinite parameter.")
     end
     return
 end
@@ -174,15 +176,16 @@ may choose a different behavior but should do so with caution.
 julia> data = DiscreteMeasureData(pref, [0.5, 0.5], [1, 2]);
 ```
 """
-function DiscreteMeasureData(pref::GeneralVariableRef,
+function DiscreteMeasureData(
+    pref::GeneralVariableRef,
     coefficients::Vector{<:Real},
     supports::Vector{<:Real};
     label::Type{<:AbstractSupportLabel} = generate_unique_label(),
-    weight_function::F = default_weight,
+    weight_function::Function = default_weight,
     lower_bound::Real = NaN,
     upper_bound::Real = NaN,
     is_expect::Bool = false
-    )::DiscreteMeasureData{GeneralVariableRef, 1, Float64, F} where {F <: Function}
+    )
     _check_params(pref)
     if length(coefficients) != length(supports)
         error("The amount of coefficients must match the amount of " *
@@ -198,7 +201,7 @@ function DiscreteMeasureData(pref::GeneralVariableRef,
 end
 
 # Ensure that an array of prefs is valid for use in multi-dimensional data
-function _check_params(prefs::AbstractArray{GeneralVariableRef})::Nothing
+function _check_params(prefs::Array{GeneralVariableRef})
     only_dep = all(_index_type(pref) == DependentParameterIndex for pref in prefs)
     only_indep = !only_dep && all(_index_type(pref) == IndependentParameterIndex
                                   for pref in prefs)
@@ -207,47 +210,28 @@ function _check_params(prefs::AbstractArray{GeneralVariableRef})::Nothing
     elseif only_dep && any(_raw_index(pref) != _raw_index(first(prefs)) for pref in prefs)
         error("Cannot specify multiple dependent parameter groups for one measure.")
     elseif only_dep && length(prefs) != _num_parameters(first(dispatch_variable_ref.(prefs)))
-        error("Cannot specify a subset of dependent parameters, consider using " *
-              "nested one-dimensional measures instead.")
+        error("Cannot specify a subset of dependent parameters.")
     end
     return
 end
 
 ## Define function to intelligently format supports properly
 # Vectors
-function _prepare_supports(
-    supps::Vector{Vector{T}},
-    inds::Collections.ContainerIndices{1, Nothing}
-    )::Matrix{T} where {T <: Real}
+function _prepare_supports(supps::Vector{<:Vector{<:Real}})
     return reduce(hcat, supps)
 end
 
-# DenseAxisArrays and Arrays
-function _prepare_supports(
-    supps::Union{Array{<:Array{T}},Vector{<:JuMPC.DenseAxisArray{T}}},
-    inds::Collections.ContainerIndices
-    )::Matrix{T} where {T <: Real}
+# Arrays
+function _prepare_supports(supps::Array{<:Array{<:Real}})
     return [supp[i] for i in eachindex(first(supps)), supp in supps]
 end
 
-# SparseAxisArray
-function _prepare_supports(
-    supps::Vector{<:JuMPC.SparseAxisArray},
-    inds::Collections.ContainerIndices{1, <:Vector}
-    )::Matrix{Float64}
-    new_supps = Matrix{Float64}(undef, length(inds), length(supps))
-    for i in eachindex(supps)
-        new_supps[:, i] = Collections.vectorize(supps[i], inds)
-    end
-    return new_supps
-end
-
-## Check if a matrix of supports repsect infinite domain(s)
+## Check if a matrix of supports respect infinite domain(s)
 # IndependentParameterRefs
 function _check_supports_in_bounds(
     prefs::Vector{IndependentParameterRef},
     supports::Matrix{<:Real}
-    )::Nothing
+    )
     for i in eachindex(prefs)
         domain = infinite_domain(prefs[i])
         if !supports_in_domain(supports[i, :], domain)
@@ -258,8 +242,10 @@ function _check_supports_in_bounds(
 end
 
 # DependentParameterRefs
-function _check_supports_in_bounds(prefs::Vector{DependentParameterRef},
-                                   supports::Matrix{<:Real})::Nothing
+function _check_supports_in_bounds(
+    prefs::Vector{DependentParameterRef},
+    supports::Matrix{<:Real}
+    )
     domain = _parameter_domain(first(prefs))
     if !supports_in_domain(supports, domain)
         error("Support points violate parameter domain.")
@@ -268,13 +254,14 @@ function _check_supports_in_bounds(prefs::Vector{DependentParameterRef},
 end
 
 """
-    DiscreteMeasureData(prefs::AbstractArray{GeneralVariableRef},
+    DiscreteMeasureData(
+        prefs::Array{GeneralVariableRef},
         coefficients::Vector{<:Real},
-        supports::Vector{<:AbstractArray{<:Real}};
+        supports::Vector{<:Array{<:Real}};
         label::Type{<:AbstractSupportLabel} = generate_unique_label(),
         weight_function::Function = [`default_weight`](@ref),
-        lower_bounds::AbstractArray{<:Real} = [NaN...],
-        upper_bounds::AbstractArray{<:Real} = [NaN...],
+        lower_bounds::Array{<:Real} = [NaN...],
+        upper_bounds::Array{<:Real} = [NaN...],
         is_expect::Bool = false
         )::DiscreteMeasureData
 
@@ -296,31 +283,30 @@ julia> data = DiscreteMeasureData(prefs, [0.5, 0.5], [[1, 1], [2, 2]]);
 ```
 """
 function DiscreteMeasureData(
-    prefs::AbstractArray{GeneralVariableRef},
+    prefs::Array{GeneralVariableRef},
     coefficients::Vector{<:Real},
-    supports::Vector{<:AbstractArray{<:Real}};
+    supports::Vector{<:Array{<:Real}};
     label::Type{<:AbstractSupportLabel} = generate_unique_label(),
-    weight_function::F = default_weight,
-    lower_bounds::AbstractArray{<:Real} = map(e -> NaN, prefs),
-    upper_bounds::AbstractArray{<:Real} = map(e -> NaN, prefs),
+    weight_function::Function = default_weight,
+    lower_bounds::Array{<:Real} = map(e -> NaN, prefs),
+    upper_bounds::Array{<:Real} = map(e -> NaN, prefs),
     is_expect::Bool = false
-    )::DiscreteMeasureData{Vector{GeneralVariableRef}, 2, Vector{Float64}, F} where {F <: Function}
+    )
     _check_params(prefs) # ensures that prefs are valid
-    if _keys(prefs) != _keys(first(supports))
+    if size(prefs) != size(first(supports))
         error("Parameter references and supports must use same container type.")
-    elseif _keys(prefs) != _keys(lower_bounds)
+    elseif size(prefs) != size(lower_bounds)
         error("Parameter references and bounds must use same container type.")
     end
     if length(coefficients) != length(supports)
         error("The amount of coefficients must match the amount of " *
               "support points.")
     end
-    inds = Collections.indices(prefs)
-    vect_prefs = Collections.vectorize(prefs, inds)
-    supps = _prepare_supports(supports, inds)
+    vect_prefs, _ = Collections.vectorize(prefs)
+    supps = _prepare_supports(supports)
     _check_supports_in_bounds(dispatch_variable_ref.(vect_prefs), supps)
-    lbs = Collections.vectorize(lower_bounds, inds)
-    ubs = Collections.vectorize(upper_bounds, inds)
+    lbs = Collections.vectorize(lower_bounds)[1]
+    ubs = Collections.vectorize(upper_bounds)[1]
     return DiscreteMeasureData(vect_prefs, coefficients, supps, label,
                                weight_function, lbs, ubs, is_expect)
 end
@@ -354,19 +340,16 @@ julia> data = FunctionalDiscreteMeasureData(pref, my_func, 20, UniformGrid);
 """
 function FunctionalDiscreteMeasureData(
     pref::GeneralVariableRef,
-    coeff_func::F1,
+    coeff_func::Function,
     min_num_supports::Int,
     label::Type{<:AbstractSupportLabel};
-    weight_function::F2 = default_weight,
+    weight_function::Function = default_weight,
     lower_bound::Real = NaN,
     upper_bound::Real = NaN,
     is_expect::Bool = false,
-    generative_support_info::I = NoGenerativeSupports()
-    )::FunctionalDiscreteMeasureData{GeneralVariableRef, Float64, I, F1, F2} where {F1 <: Function, F2 <: Function, I <: AbstractGenerativeInfo}
+    generative_support_info::AbstractGenerativeInfo = NoGenerativeSupports()
+    )
     _check_params(pref)
-    if _index_type(pref) == DependentParameterIndex && min_num_supports != 0
-        error("`min_num_supports` must be 0 for individual dependent parameters.")
-    end
     min_num_supports >= 0 || error("Number of supports must be nonnegative.")
     if !isnan(lower_bound) && !isnan(upper_bound)
         if !supports_in_domain([lower_bound, upper_bound], infinite_domain(pref))
@@ -381,8 +364,11 @@ end
 
 ## Check if the integral bounds satisfy the parameter domain(s)
 # IndependentParameterRefs
-function _check_bounds_in_domain(prefs::Vector{IndependentParameterRef}, lbs,
-                              ubs)::Nothing
+function _check_bounds_in_domain(
+    prefs::Vector{IndependentParameterRef},
+    lbs,
+    ubs
+    )
     for i in eachindex(prefs)
         if !supports_in_domain([lbs[i], ubs[i]], infinite_domain(prefs[i]))
             error("Bounds violate the infinite domain.")
@@ -392,8 +378,11 @@ function _check_bounds_in_domain(prefs::Vector{IndependentParameterRef}, lbs,
 end
 
 # DependentParameterRefs
-function _check_bounds_in_domain(prefs::Vector{DependentParameterRef}, lbs,
-                              ubs)::Nothing
+function _check_bounds_in_domain(
+    prefs::Vector{DependentParameterRef},
+    lbs,
+    ubs
+    )
     if !supports_in_domain(hcat(lbs, ubs), infinite_domain(prefs))
         error("Bounds violate the infinite domain.")
     end
@@ -401,13 +390,13 @@ function _check_bounds_in_domain(prefs::Vector{DependentParameterRef}, lbs,
 end
 
 """
-    FunctionalDiscreteMeasureData(prefs::AbstractArray{GeneralVariableRef},
+    FunctionalDiscreteMeasureData(prefs::Array{GeneralVariableRef},
         coeff_func::Function,
         min_num_supports::Int,
         label::Type{<:AbstractSupportLabel};
         [weight_function::Function = [`default_weight`](@ref),
-        lower_bounds::AbstractArray{<:Real} = [NaN...],
-        upper_bounds::AbstractArray{<:Real} = [NaN...],
+        lower_bounds::Array{<:Real} = [NaN...],
+        upper_bounds::Array{<:Real} = [NaN...],
         is_expect::Bool = false]
         )::FunctionalDiscreteMeasureData
 
@@ -428,24 +417,23 @@ julia> data = FunctionalDiscreteMeasureData(prefs, my_func, 20, MCSample);
 ```
 """
 function FunctionalDiscreteMeasureData(
-    prefs::AbstractArray{GeneralVariableRef},
-    coeff_func::F1,
+    prefs::Array{GeneralVariableRef},
+    coeff_func::Function,
     min_num_supports::Int,
     label::Type{<:AbstractSupportLabel};
-    weight_function::F2 = default_weight,
-    lower_bounds::AbstractArray{<:Real} = map(e -> NaN, prefs),
-    upper_bounds::AbstractArray{<:Real} = map(e -> NaN, prefs),
+    weight_function::Function = default_weight,
+    lower_bounds::Array{<:Real} = map(e -> NaN, prefs),
+    upper_bounds::Array{<:Real} = map(e -> NaN, prefs),
     is_expect::Bool = false
-    )::FunctionalDiscreteMeasureData{Vector{GeneralVariableRef}, Vector{Float64}, NoGenerativeSupports, F1, F2} where {F1 <: Function, F2 <: Function}
+    )
     _check_params(prefs)
-    if _keys(prefs) != _keys(lower_bounds)
+    if size(prefs) != size(lower_bounds)
         error("Parameter references and bounds must use same container type.")
     end
     min_num_supports >= 0 || error("Number of supports must be nonnegative.")
-    inds = Collections.indices(prefs)
-    vect_prefs = Collections.vectorize(prefs, inds)
-    vect_lbs = Collections.vectorize(lower_bounds, inds)
-    vect_ubs = Collections.vectorize(upper_bounds, inds)
+    vect_prefs, _ = Collections.vectorize(prefs)
+    vect_lbs, _ = Collections.vectorize(lower_bounds)
+    vect_ubs, _ = Collections.vectorize(upper_bounds)
     if !isnan(first(vect_lbs)) && !isnan(first(vect_ubs))
         dprefs = map(p -> dispatch_variable_ref(p), vect_prefs)
         _check_bounds_in_domain(dprefs, vect_lbs, vect_ubs)
@@ -456,8 +444,9 @@ function FunctionalDiscreteMeasureData(
 end
 
 """
-    parameter_refs(data::AbstractMeasureData)::Union{GeneralVariableRef,
-                                                     AbstractArray{GeneralVariableRef}}
+    parameter_refs(
+        data::AbstractMeasureData
+        )::Union{GeneralVariableRef, Array{GeneralVariableRef}}
 
 Return the infinite parameter reference(s) in `data`. This is intended as an
 internal function to be used with measure addition. User-defined measure data types
@@ -467,13 +456,10 @@ function parameter_refs(data::AbstractMeasureData)
     error("Function `parameter_refs` not extended for measure data of type $(typeof(data)).")
 end
 
-# DiscreteMeasureData
-function parameter_refs(data::DiscreteMeasureData{T})::T where {T}
-    return data.parameter_refs
-end
-
-# FunctionalDiscreteMeasureData
-function parameter_refs(data::FunctionalDiscreteMeasureData{T})::T where {T}
+# DiscreteMeasureData and FunctionalDiscreteMeasureData
+function parameter_refs(
+    data::Union{DiscreteMeasureData, FunctionalDiscreteMeasureData}
+    )
     return data.parameter_refs
 end
 
@@ -492,8 +478,9 @@ function support_label(data::AbstractMeasureData)
 end
 
 # DiscreteMeasureData and FunctionalDiscreteMeasureData
-function support_label(data::Union{FunctionalDiscreteMeasureData,
-                       DiscreteMeasureData})::DataType
+function support_label(
+    data::Union{FunctionalDiscreteMeasureData, DiscreteMeasureData}
+    )
     return data.label
 end
 
@@ -505,13 +492,14 @@ intended as an internal method, but may be useful for extensions. User-defined
 measure data types should extend this function if desired, otherwise `NaN` is
 returned
 """
-function JuMP.lower_bound(data::AbstractMeasureData)::Float64
+function JuMP.lower_bound(data::AbstractMeasureData)
     return NaN
 end
 
 # DiscreteMeasureData and FunctionalDiscreteMeasureData
-function JuMP.lower_bound(data::Union{FunctionalDiscreteMeasureData,
-                                      DiscreteMeasureData})
+function JuMP.lower_bound(
+    data::Union{FunctionalDiscreteMeasureData,DiscreteMeasureData}
+    )
     return data.lower_bounds
 end
 
@@ -523,25 +511,27 @@ intended as an internal method, but may be useful for extensions. User-defined
 measure data types should extend this function if desired, otherwise `NaN` is
 returned.
 """
-function JuMP.upper_bound(data::AbstractMeasureData)::Float64
+function JuMP.upper_bound(data::AbstractMeasureData)
     return NaN
 end
 
 # DiscreteMeasureData and FunctionalDiscreteMeasureData
-function JuMP.upper_bound(data::Union{FunctionalDiscreteMeasureData,
-                                      DiscreteMeasureData})
+function JuMP.upper_bound(
+    data::Union{FunctionalDiscreteMeasureData, DiscreteMeasureData}
+    )
     return data.upper_bounds
 end
 
 ## Indicate is the data is from an expectation call
 # Fallback
-function _is_expect(data::AbstractMeasureData)::Bool
+function _is_expect(data::AbstractMeasureData)
     return false
 end
 
 # DiscreteMeasureData and FunctionalDiscreteMeasureData
-function _is_expect(data::Union{FunctionalDiscreteMeasureData,
-                                DiscreteMeasureData})::Bool
+function _is_expect(
+    data::Union{FunctionalDiscreteMeasureData, DiscreteMeasureData}
+    )
     return data.is_expect
 end
 
@@ -552,7 +542,7 @@ Return the generative support creation info that corresponds to `data`. This is
 intended as an internal method and only needs to be extended for user-defined 
 measure data types that use generative supports.
 """
-function generative_support_info(data::AbstractMeasureData)::NoGenerativeSupports
+function generative_support_info(data::AbstractMeasureData)
     return NoGenerativeSupports()
 end
 
@@ -569,44 +559,46 @@ This is intended as en internal method for measure creation and ensures any
 new supports are added to parameters. User-defined measure data types should
 extend this function if appropriate, otherwise an empty vector is returned.
 """
-function supports(data::AbstractMeasureData)::Vector{Float64}
+function supports(data::AbstractMeasureData)
     return Float64[]
 end
 
 # DiscreteMeasureData
-function supports(data::DiscreteMeasureData{T, N})::Array{Float64, N} where {T, N}
+function supports(data::DiscreteMeasureData)
     return data.supports
 end
 
 ## Define helper functions for generative functional data
 # Include generative and uses All
-function _get_supports(pref, gen::Val{true}, info, label::Type{All})::Vector{Float64}
+function _get_supports(pref, gen::Val{true}, info, label::Type{All})
     return supports(pref, label = label)
 end
 
 # Include generative and does not use All
-function _get_supports(pref, gen::Val{true}, info, label)::Vector{Float64}
+function _get_supports(pref, gen::Val{true}, info, label)
     return supports(pref, label = Union{support_label(info), label})
 end
 
 # Exclude generative and uses All
-function _get_supports(pref, gen::Val{false}, info, label::Type{All})::Vector{Float64}
+function _get_supports(pref, gen::Val{false}, info, label::Type{All})
     gen_label = support_label(info)
     return findall(x -> any(v -> v != gen_label, x), _parameter_supports(pref))
 end
 
 # Exclude generative and does not use All
-function _get_supports(pref, gen::Val{false}, info, label)::Vector{Float64}
+function _get_supports(pref, gen::Val{false}, info, label)
     gen_label = support_label(info)
-    return supps = findall(x -> any(v -> v <: label && v != gen_label, x), 
-                           _parameter_supports(pref))
+    return supps = findall(
+        x -> any(v -> v <: label && v != gen_label, x), 
+        _parameter_supports(pref)
+    )
 end
 
 # 1D FunctionalDiscreteMeasureData (not NoGenerativeSupports)
 function supports(
     data::FunctionalDiscreteMeasureData{GeneralVariableRef};
     include_generative::Bool = true
-    )::Vector{Float64}
+    )
     info = generative_support_info(data)
     label = support_label(data)
     pref = dispatch_variable_ref(parameter_refs(data))
@@ -624,7 +616,7 @@ end
 function supports(
     data::FunctionalDiscreteMeasureData{GeneralVariableRef, Float64, NoGenerativeSupports};
     include_generative::Bool = true
-    )::Vector{Float64}
+    )
     supps = supports(parameter_refs(data), label = support_label(data))
     lb = JuMP.lower_bound(data)
     ub = JuMP.upper_bound(data)
@@ -639,7 +631,7 @@ end
 function supports(
     data::FunctionalDiscreteMeasureData{Vector{GeneralVariableRef}};
     include_generative::Bool = true
-    )::Matrix{Float64}
+    )
     supps = supports(parameter_refs(data), label = support_label(data))
     lb = JuMP.lower_bound(data)
     ub = JuMP.upper_bound(data)
@@ -659,14 +651,15 @@ This is intended as an internal method for measure creation. User-defined
 measure data types should extend this function if appropriate, otherwise
 0 is returned.
 """
-function num_supports(data::AbstractMeasureData)::Int
+function num_supports(data::AbstractMeasureData)
     return 0
 end
 
 # DiscreteMeasureData/FunctionalDiscreteMeasureData
-function num_supports(data::Union{FunctionalDiscreteMeasureData,
-                                  DiscreteMeasureData})::Int
-    return size(supports(data))[end]
+function num_supports(
+    data::Union{FunctionalDiscreteMeasureData, DiscreteMeasureData}
+    )
+    return last(size(supports(data)))
 end
 
 """
@@ -677,12 +670,12 @@ will just return `num_supports(data)`. This is primarily intended for internal
 queries of `FunctionalDiscreteMeasureData`, but can be extended for other
 measure data types if needed.
 """
-function min_num_supports(data::AbstractMeasureData)::Int
+function min_num_supports(data::AbstractMeasureData)
     return num_supports(data)
 end
 
 # FunctionalDiscreteMeasureData
-function min_num_supports(data::FunctionalDiscreteMeasureData)::Int
+function min_num_supports(data::FunctionalDiscreteMeasureData)
     return data.min_num_supports
 end
 
@@ -701,9 +694,7 @@ function coefficient_function(data::AbstractMeasureData)
 end
 
 # FunctionalDiscreteMeasureData
-function coefficient_function(
-    data::FunctionalDiscreteMeasureData{P, B, I, F}
-    )::F where {P, B, I, F}
+function coefficient_function(data::FunctionalDiscreteMeasureData)
     return data.coeff_function
 end
 
@@ -715,17 +706,17 @@ This is intended as en internal method for measure creation. User-defined measur
 data types should extend this function if appropriate, otherwise an empty vector
 is returned.
 """
-function coefficients(data::AbstractMeasureData)::Vector{Float64}
+function coefficients(data::AbstractMeasureData)
     return Float64[]
 end
 
 # DiscreteMeasureData
-function coefficients(data::DiscreteMeasureData)::Vector{Float64}
+function coefficients(data::DiscreteMeasureData)
     return data.coefficients
 end
 
 # FunctionalDiscreteMeasureData
-function coefficients(data::FunctionalDiscreteMeasureData)::Vector{Float64}
+function coefficients(data::FunctionalDiscreteMeasureData)
     return data.coeff_function(supports(data, include_generative = false))
 end
 
@@ -736,7 +727,7 @@ Return the weight function stored in `data` associated with its expansion abstra
 This is intended as en internal method for measure creation. User-defined measure
 data types should extend this function if appropriate, otherwise an error is thrown.
 """
-function weight_function(data::AbstractMeasureData)::Function
+function weight_function(data::AbstractMeasureData)
     error("Function `weight_function` not defined for measure data of type " *
           "$(typeof(data)).")
 end
@@ -765,7 +756,6 @@ function build_measure(
     expr::JuMP.AbstractJuMPScalar, 
     data::AbstractMeasureData
     )
-    vrefs = all_expression_variables(expr)
     expr_group_int_idxs = parameter_group_int_indices(expr)
     expr_param_nums = _parameter_numbers(expr)
     prefs = parameter_refs(data)
@@ -791,7 +781,7 @@ end
 function _check_and_set_generative_info(
     pref::DependentParameterRef, 
     info::NoGenerativeSupports
-    )::Nothing
+    )
     return 
 end
 
@@ -799,7 +789,7 @@ end
 function _check_and_set_generative_info(
     pref::DependentParameterRef, 
     info
-    )::Nothing
+    )
     error("Cannot use a measure that requires generative supports with respect to " * 
           "a dependent infinite parameter.")
 end
@@ -808,7 +798,7 @@ end
 function _check_and_set_generative_info(
     pref::IndependentParameterRef, 
     info::NoGenerativeSupports
-    )::Nothing
+    )
     return 
 end
 
@@ -817,13 +807,13 @@ function _check_and_set_generative_info(
     pref, 
     info1::NoGenerativeSupports, 
     info2
-    )::Nothing
+    )
     _set_generative_support_info(pref, info2)
     return
 end
 
 # IndependentParameterRef w/ info already
-function _check_and_set_generative_info(pref, info1, info2)::Nothing
+function _check_and_set_generative_info(pref, info1, info2)
     info1 != info2 && error("The generative support structure associated with " * 
                             "the desired measure conflicts with the current scheme. " * 
                             "This is likely due to the derivative method and/or other measures.")
@@ -834,7 +824,7 @@ end
 function _check_and_set_generative_info(
     pref::IndependentParameterRef, 
     info::AbstractGenerativeInfo
-    )::Nothing
+    )
     current_info = generative_support_info(pref)
     _check_and_set_generative_info(pref, current_info, info)
     return
@@ -845,7 +835,7 @@ function _add_supports_to_multiple_parameters(
     prefs::Vector{DependentParameterRef},
     supps::Array{Float64, 2},
     label::Type{<:AbstractSupportLabel}
-    )::Nothing
+    )
     add_supports(prefs, supps, label = label, check = false)
     return
 end
@@ -854,7 +844,7 @@ function _add_supports_to_multiple_parameters(
     prefs::Vector{IndependentParameterRef},
     supps::Array{Float64, 2},
     label::Type{<:AbstractSupportLabel}
-    )::Nothing
+    )
     for i in eachindex(prefs)
         add_supports(prefs[i], supps[i, :], label = label, check = false)
     end
@@ -877,7 +867,7 @@ end
 # scalar DiscreteMeasureData
 function add_supports_to_parameters(
     data::DiscreteMeasureData{GeneralVariableRef, 1}
-    )::Nothing
+    )
     pref = parameter_refs(data)
     supps = supports(data)
     label = support_label(data)
@@ -888,7 +878,7 @@ end
 # multi-dimensional DiscreteMeasureData
 function add_supports_to_parameters(
     data::DiscreteMeasureData{Vector{GeneralVariableRef}, 2}
-    )::Nothing
+    )
     prefs = map(p -> dispatch_variable_ref(p), parameter_refs(data))
     supps = supports(data)
     label = support_label(data)
@@ -899,22 +889,18 @@ end
 # scalar FunctionalDiscreteMeasureData
 function add_supports_to_parameters(
     data::FunctionalDiscreteMeasureData{GeneralVariableRef}
-    )::Nothing
+    )
     lb = JuMP.lower_bound(data)
     ub = JuMP.upper_bound(data) 
     label = support_label(data)
     pref = dispatch_variable_ref(parameter_refs(data))
-    if label == All && !isnan(lb) && !isnan(ub) && !isinf(lb) && !isinf(ub) && pref isa IndependentParameterRef
+    if label == All && !isnan(lb) && !isnan(ub) && !isinf(lb) && !isinf(ub)
         add_supports(pref, [lb, ub], label = MeasureBound, check = false)
     end
     # determine if we need to add more supports
     num_supps = min_num_supports(data)
     curr_num_supps = num_supports(data)
     if curr_num_supps < num_supps
-        # prepare the parameter reference
-        if pref isa DependentParameterRef # This is just a last line of defense
-            error("min_num_supports must be 0 for individual dependent parameters.")
-        end
         # prepare the generation domain
         if isnan(lb) || isnan(ub)
             domain = infinite_domain(pref)
@@ -932,10 +918,11 @@ end
 # DependentParameterRefs
 function _generate_multiple_functional_supports(
     prefs::Vector{DependentParameterRef},
-    num_supps::Int, label::Type{<:AbstractSupportLabel},
+    num_supps::Int, 
+    label::Type{<:AbstractSupportLabel},
     lower_bounds::Vector{<:Number},
     upper_bounds::Vector{<:Number}
-    )::Nothing
+    )
     # prepare the generation domain
     if isnan(first(lower_bounds)) || isnan(first(upper_bounds))
         domain = infinite_domain(prefs)
@@ -952,10 +939,11 @@ end
 # IndependentParameterRefs
 function _generate_multiple_functional_supports(
     prefs::Vector{IndependentParameterRef},
-    num_supps::Int, label::Type{<:AbstractSupportLabel},
+    num_supps::Int, 
+    label::Type{<:AbstractSupportLabel},
     lower_bounds::Vector{<:Number},
     upper_bounds::Vector{<:Number}
-    )::Nothing
+    )
     # we are gauranteed that each have the same number of supports
     for i in eachindex(prefs)
         # prepare the generation domain
@@ -974,7 +962,7 @@ end
 # multi-dimensional FunctionalDiscreteMeasureData
 function add_supports_to_parameters(
     data::FunctionalDiscreteMeasureData{Vector{GeneralVariableRef}}
-    )::Nothing
+    )
     prefs = map(p -> dispatch_variable_ref(p), parameter_refs(data))
     label = support_label(data)
     lbs = JuMP.lower_bound(data)
@@ -986,8 +974,7 @@ function add_supports_to_parameters(
     curr_num_supps = num_supports(data) # this will error check the support dims
     needed_supps = min_num_supps - curr_num_supps
     if needed_supps > 0
-        _generate_multiple_functional_supports(prefs, needed_supps, label, lbs,
-                                               ubs)
+        _generate_multiple_functional_supports(prefs, needed_supps, label, lbs, ubs)
     end
     return
 end
@@ -998,12 +985,12 @@ function _update_generative_measures(
     prefs, 
     info::NoGenerativeSupports, 
     mindex
-    )::Nothing
+    )
     return
 end
 
 # not NoGenerativeSupports and must be an IndependentParameterRef
-function _update_generative_measures(pref, info, mindex)::Nothing
+function _update_generative_measures(pref, info, mindex)
     push!(_generative_measures(pref), mindex)
     return
 end
@@ -1020,7 +1007,7 @@ function add_measure(
     model::InfiniteModel, 
     meas::Measure,
     name::String = "measure"
-    )::GeneralVariableRef
+    )
     # get the expression variables and check validity
     vrefs = all_expression_variables(meas.func)
     for vref in vrefs
@@ -1062,7 +1049,7 @@ julia> measure_function(meas)
 y(x, t) + 2
 ```
 """
-function measure_function(mref::MeasureRef)::JuMP.AbstractJuMPScalar
+function measure_function(mref::MeasureRef)
     return core_object(mref).func
 end
 
@@ -1079,7 +1066,7 @@ julia> typeof(data)
 FunctionalDiscreteMeasureData{Vector{GeneralVariableRef},Vector{Float64}}
 ```
 """
-function measure_data(mref::MeasureRef)::AbstractMeasureData
+function measure_data(mref::MeasureRef)
     return core_object(mref).data
 end
 
@@ -1094,31 +1081,8 @@ julia> is_analytic(meas)
 false
 ```
 """
-function is_analytic(mref::MeasureRef)::Bool
+function is_analytic(mref::MeasureRef)
     return core_object(mref).constant_func
-end
-
-## Return an element of a parameter reference tuple given the model, index, and parameter numbers
-# IndependentParameterIndex
-function _make_param_tuple_element(
-    model::InfiniteModel,
-    idx::IndependentParameterIndex,
-    param_nums::Vector{Int}
-    )
-    return GeneralVariableRef(model, idx)
-end
-
-# DependentParametersIndex
-function _make_param_tuple_element(
-    model::InfiniteModel,
-    idx::DependentParametersIndex,
-    param_nums::Vector{Int}
-    )
-    dpref = DependentParameterRef(model, DependentParameterIndex(idx, 1))
-    el_param_nums = _data_object(dpref).parameter_nums
-    prefs = [GeneralVariableRef(model, idx.value, DependentParameterIndex, i)
-             for i in eachindex(el_param_nums) if el_param_nums[i] in param_nums]
-    return length(prefs) > 1 ? prefs : first(prefs)
 end
 
 """
@@ -1138,9 +1102,7 @@ julia> parameter_refs(meas)
 function parameter_refs(mref::MeasureRef)
     model = JuMP.owner_model(mref)
     obj_indices = parameter_group_indices(model)[parameter_group_int_indices(mref)]
-    param_nums = _parameter_numbers(mref)
-    return Tuple(_make_param_tuple_element(model, idx, param_nums)
-                 for idx in obj_indices)
+    return Tuple(_make_param_tuple_element(model, idx) for idx in obj_indices)
 end
 
 # Extend raw_parameter_refs (this is helpful for defining derivatives)
@@ -1149,7 +1111,7 @@ function raw_parameter_refs(mref::MeasureRef)
 end
 
 # Extend parameter_list (this is helpful for defining derivatives)
-function parameter_list(mref::MeasureRef)::Vector{GeneralVariableRef}
+function parameter_list(mref::MeasureRef)
     return raw_parameter_refs(mref).values
 end
 
@@ -1422,7 +1384,7 @@ function JuMP.delete(model::InfiniteModel, mref::MeasureRef)
             _set_core_object(cref, new_constr)
             empty!(parameter_group_int_indices(cref))
             empty!(_measure_dependencies(cref))
-        elseif func isa AbstractArray && any(isequal(gvref), func)
+        elseif func isa Array && any(isequal(gvref), func)
             JuMP.delete(model, cref)
         else
             _remove_variable(func, gvref)

@@ -387,14 +387,14 @@ end
 
 """
     JuMP.delete(model::InfiniteModel,
-                prefs::AbstractArray{<:GeneralVariableRef})::Nothing
+                prefs::Array{<:GeneralVariableRef})::Nothing
 
 Extend `JuMP.delete` to delete a group of dependent infinite parameters and
 their dependencies. An `ArgumentError` is thrown if `prefs` are not dependent
 infinite parameters.
 """
 function JuMP.delete(model::InfiniteModel,
-                     prefs::AbstractArray{<:GeneralVariableRef})
+                     prefs::Array{<:GeneralVariableRef})
     return JuMP.delete(model, dispatch_variable_ref.(prefs))
 end
 
@@ -483,7 +483,7 @@ for op = (:infinite_domain, :num_supports, :significant_digits, :has_supports,
         information. Note that this is a auto generated wrapper and the underlying
         method may or may not use `kwargs`.
         """
-        function $op(prefs::Union{GeneralVariableRef, AbstractArray{<:GeneralVariableRef}}; kwargs...)
+        function $op(prefs::Union{GeneralVariableRef, Array{<:GeneralVariableRef}}; kwargs...)
             return $op(dispatch_variable_ref.(prefs); kwargs...)
         end
     end
@@ -511,7 +511,7 @@ function set_infinite_domain(
 end
 
 """
-    set_infinite_domain(prefs::AbstractArray{<:GeneralVariableRef},
+    set_infinite_domain(prefs::Array{<:GeneralVariableRef},
                      domain::InfiniteArrayDomain)::Nothing
 
 Specify the multi-dimensional infinite domain of the dependent infinite parameters
@@ -522,7 +522,7 @@ measures. An `ArgumentError` is thrown if `prefs` are not dependent infinite
 parameters.
 """
 function set_infinite_domain(
-    prefs::AbstractArray{<:GeneralVariableRef},
+    prefs::Array{<:GeneralVariableRef},
     domain::InfiniteArrayDomain
     )
     return set_infinite_domain(dispatch_variable_ref.(prefs), domain)
@@ -533,7 +533,7 @@ function supports(pref::DispatchVariableRef; kwargs...)
     throw(ArgumentError("`supports` not defined for variable reference type(s) " *
                         "`$(typeof(pref))`."))
 end
-function supports(prefs::AbstractArray; kwargs...)
+function supports(prefs::Array; kwargs...)
     throw(ArgumentError("`supports` not defined for variable reference type(s) " *
                         "`$(typeof(prefs))`."))
 end
@@ -567,8 +567,8 @@ end
 
 """
     set_supports(
-        prefs::Union{Vector{GeneralVariableRef}, AbstractArray{<:GeneralVariableRef}},
-        supports::Union{Array{<:Real, 2}, Vector{<:AbstractArray{<:Real}}};
+        prefs::Union{Vector{GeneralVariableRef}, Array{<:GeneralVariableRef}},
+        supports::Union{Array{<:Real, 2}, Vector{<:Array{<:Real}}};
         [force::Bool = false]
         )::Nothing
 
@@ -577,8 +577,8 @@ parameters `prefs`. An `ArgumentError` is thrown if `prefs` is are not
 dependent infinite parameters.
 """
 function set_supports(
-    prefs::AbstractArray{<:GeneralVariableRef},
-    supports::Union{Array{<:Real, 2}, Vector{<:AbstractArray{<:Real}}};
+    prefs::Array{<:GeneralVariableRef},
+    supports::Union{Array{<:Real, 2}, Vector{<:Array{<:Real}}};
     label::Type{<:AbstractSupportLabel} = UserDefined, 
     force::Bool = false
     )
@@ -614,8 +614,8 @@ end
 
 """
     add_supports(
-        prefs::Union{Vector{GeneralVariableRef}, AbstractArray{<:GeneralVariableRef}},
-        supports::Union{Array{<:Real, 2}, Vector{<:AbstractArray{<:Real}}}
+        prefs::Union{Vector{GeneralVariableRef}, Array{<:GeneralVariableRef}},
+        supports::Union{Array{<:Real, 2}, Vector{<:Array{<:Real}}}
         )::Nothing
 
 Add the support points `supports` to the dependent infinite
@@ -623,8 +623,8 @@ parameters `prefs`. An `ArgumentError` is thrown if `prefs` is are not
 dependent infinite parameters.
 """
 function add_supports(
-    prefs::AbstractArray{<:GeneralVariableRef},
-    supports::Union{Array{<:Real, 2}, Vector{<:AbstractArray{<:Real}}};
+    prefs::Array{<:GeneralVariableRef},
+    supports::Union{Array{<:Real, 2}, Vector{<:Array{<:Real}}};
     label::Type{<:AbstractSupportLabel} = UserDefined, 
     check::Bool = true
     )
@@ -710,7 +710,7 @@ end
 # Define single argument variable method wrappers and their fallbacks
 for op = (:raw_parameter_refs, :parameter_refs, :parameter_list,
           :start_value_function, :reset_start_value_function,
-          :infinite_variable_ref, :eval_supports, :raw_parameter_values,
+          :infinite_variable_ref, :eval_support, :raw_parameter_values,
           :parameter_values)
     @eval begin
         # define the fallback method

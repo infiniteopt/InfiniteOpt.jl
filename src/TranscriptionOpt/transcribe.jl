@@ -364,50 +364,36 @@ function transcribe_semi_infinite_variables!(
         rvref = InfiniteOpt.GeneralVariableRef(model, idx)
         # setup the mappings
         ivref = var.infinite_variable_ref
-        if InfiniteOpt._index_type(ivref) != InfiniteOpt.ParameterFunctionIndex
-            param_nums = var.parameter_nums
-            ivref_param_nums = InfiniteOpt._parameter_numbers(ivref)
-            eval_supps = var.eval_supports
-            group_idxs = var.group_int_idxs
-            prefs = InfiniteOpt.raw_parameter_refs(var)
-            # prepare for iterating over its supports
-            supp_indices = support_index_iterator(backend, group_idxs)
-            dims = size(supp_indices)[group_idxs]
-            vrefs = Array{JuMP.VariableRef, length(dims)}(undef, dims...)
-            supp_type = typeof(Tuple(ones(length(prefs)), prefs))
-            supps = Array{supp_type, length(dims)}(undef, dims...)
-            lookup_dict = sizehint!(Dict{Vector{Float64}, JuMP.VariableRef}(), length(vrefs))
-            valid_idxs = ones(Bool, dims...)
-            # map a variable for each support
-            for i in supp_indices
-                raw_supp = index_to_support(backend, i)
-                var_idx = i.I[group_idxs]
-                # ensure this support is valid with the reduced restriction
-                if any(!isnan(raw_supp[ivref_param_nums[k]]) && raw_supp[ivref_param_nums[k]] != v for (k, v) in eval_supps)
-                    valid_idxs[var_idx...] = false
-                    continue
-                end
-                # map to the current transcription variable
-                supp = raw_supp[param_nums]
-                ivref_supp = [haskey(eval_supps, j) ? eval_supps[j] : raw_supp[k] 
-                            for (j, k) in enumerate(ivref_param_nums)]
-                jump_vref = lookup_by_support(ivref, backend, ivref_supp)
-                @inbounds vrefs[var_idx...] = jump_vref
-                lookup_dict[supp] = jump_vref
-                @inbounds supps[var_idx...] = Tuple(supp, prefs)
-            end
-            # truncate vrefs if any supports were skipped because of dependent parameter supps and save
-            data = transcription_data(backend)
-            if !all(valid_idxs)
-                data.infvar_mappings[rvref] = vrefs[valid_idxs]
-                data.infvar_supports[rvref] = supps[valid_idxs]
-                data.valid_indices[rvref] = valid_idxs
-            else
-                data.infvar_mappings[rvref] = vrefs
-                data.infvar_supports[rvref] = supps
-            end
-            data.infvar_lookup[rvref] = lookup_dict
+        param_nums = var.parameter_nums
+        ivref_param_nums = InfiniteOpt._parameter_numbers(ivref)
+        eval_supp = var.eval_support
+        group_idxs = var.group_int_idxs
+        prefs = InfiniteOpt.raw_parameter_refs(var)
+        # prepare for iterating over its supports
+        supp_indices = support_index_iterator(backend, group_idxs)
+        dims = size(supp_indices)[group_idxs]
+        vrefs = Array{JuMP.VariableRef, length(dims)}(undef, dims...)
+        supp_type = typeof(Tuple(ones(length(prefs)), prefs))
+        supps = Array{supp_type, length(dims)}(undef, dims...)
+        lookup_dict = sizehint!(Dict{Vector{Float64}, JuMP.VariableRef}(), length(vrefs))
+        # map a variable for each support
+        for i in supp_indices
+            raw_supp = index_to_support(backend, i)
+            var_idx = i.I[group_idxs]
+            # map to the current transcription variable
+            supp = raw_supp[param_nums]
+            ivref_supp = [isnan(s) ? raw_supp[ivref_param_nums[j]] : s
+                          for (j, s) in enumerate(eval_supp)]
+            jump_vref = lookup_by_support(ivref, backend, ivref_supp)
+            @inbounds vrefs[var_idx...] = jump_vref
+            lookup_dict[supp] = jump_vref
+            @inbounds supps[var_idx...] = Tuple(supp, prefs)
         end
+        # truncate vrefs if any supports were skipped because of dependent parameter supps and save
+        data = transcription_data(backend)
+        data.infvar_mappings[rvref] = vrefs
+        data.infvar_supports[rvref] = supps
+        data.infvar_lookup[rvref] = lookup_dict
     end
     return
 end
@@ -555,7 +541,6 @@ function transcription_expression(
     param_num = InfiniteOpt._parameter_number(vref)
     return support[param_num]
 end
-
 
 # AffExpr and QuadExpr and NonlinearExpr
 function transcription_expression(

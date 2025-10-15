@@ -6,10 +6,10 @@ A technical manual for measures in `InfiniteOpt`. See the respective
 ```@docs
 AbstractMeasureData
 DiscreteMeasureData(::GeneralVariableRef, ::Vector{<:Real}, ::Vector{<:Real})
-DiscreteMeasureData(::AbstractArray{GeneralVariableRef}, ::Vector{<:Real}, ::Vector{<:AbstractArray{<:Real}})
+DiscreteMeasureData(::Array{GeneralVariableRef}, ::Vector{<:Real}, ::Vector{<:Array{<:Real}})
 DiscreteMeasureData
 FunctionalDiscreteMeasureData(::GeneralVariableRef,::Function,::Int,::Type{<:AbstractSupportLabel})
-FunctionalDiscreteMeasureData(::AbstractArray{GeneralVariableRef},::Function,::Int,::Type{<:AbstractSupportLabel})
+FunctionalDiscreteMeasureData(::Array{GeneralVariableRef},::Function,::Int,::Type{<:AbstractSupportLabel})
 FunctionalDiscreteMeasureData
 parameter_refs(::AbstractMeasureData)
 support_label(::AbstractMeasureData)
@@ -46,8 +46,8 @@ InfiniteOpt.MeasureToolbox.∫(::JuMP.AbstractJuMPScalar,::InfiniteOpt.GeneralVa
 InfiniteOpt.MeasureToolbox.uni_integral_defaults
 InfiniteOpt.MeasureToolbox.set_uni_integral_defaults
 InfiniteOpt.MeasureToolbox.clear_uni_integral_defaults
-InfiniteOpt.MeasureToolbox.integral(::JuMP.AbstractJuMPScalar,::AbstractArray{InfiniteOpt.GeneralVariableRef},::Union{Real, AbstractArray{<:Real}},::Union{Real, AbstractArray{<:Real}})
-InfiniteOpt.MeasureToolbox.∫(::JuMP.AbstractJuMPScalar,::AbstractArray{InfiniteOpt.GeneralVariableRef},::Union{Real, AbstractArray{<:Real}},::Union{Real, AbstractArray{<:Real}})
+InfiniteOpt.MeasureToolbox.integral(::JuMP.AbstractJuMPScalar,::Array{InfiniteOpt.GeneralVariableRef},::Union{Real, Array{<:Real}},::Union{Real, Array{<:Real}})
+InfiniteOpt.MeasureToolbox.∫(::JuMP.AbstractJuMPScalar,::Array{InfiniteOpt.GeneralVariableRef},::Union{Real, Array{<:Real}},::Union{Real, Array{<:Real}})
 InfiniteOpt.MeasureToolbox.multi_integral_defaults
 InfiniteOpt.MeasureToolbox.set_multi_integral_defaults
 InfiniteOpt.MeasureToolbox.clear_multi_integral_defaults

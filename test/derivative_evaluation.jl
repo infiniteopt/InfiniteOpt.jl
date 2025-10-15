@@ -3,8 +3,8 @@
     # Setup 
     m = InfiniteModel();
     @infinite_parameter(m, t in [0,1])
-    @infinite_parameter(m, x[1:2] in [0,5], num_supports = 2)
-    @variable(m, T, Infinite(t, x))
+    @infinite_parameter(m, x[1:2] in [0,5], num_supports = 2, independent = true)
+    @variable(m, T, Infinite(t, x...))
     @variable(m, q, Infinite(t))
     oc = OrthogonalCollocation(3, GaussLobatto())
     bad_oc = OrthogonalCollocation{GaussLegendre}(3, GaussLegendre())
@@ -32,21 +32,21 @@
     @testset "make_reduced_expr" begin 
         # test MeasureIndex based 
         meas = support_sum(T, x)
-        expected = T(0, [5, 5]) + T(0, [0, 0])
+        expected = T(0, 0, 0) + T(0, 5, 0) + T(0, 0, 5) + T(0, 5, 5)
         @test isequal_canonical(InfiniteOpt.make_reduced_expr(meas, t, 0.0, m), expected)
         # test InfiniteVariableIndex 
         @test isequal(InfiniteOpt.make_reduced_expr(q, t, 0.0, m), q(0))
-        @test isequal(InfiniteOpt.make_reduced_expr(T, t, 0.0, m), T(0, x))
+        @test isequal(InfiniteOpt.make_reduced_expr(T, t, 0.0, m), T(0, x...))
         # test DerivativeIndex 
         dT = deriv(T, x[1])
         dq = deriv(q, t)
         @test isequal(InfiniteOpt.make_reduced_expr(dq, t, 0.0, m), dq(0))
-        v = dT(t, [x[1], 0])
+        v = dT(t, x[1], 0)
         @test isequal(InfiniteOpt.make_reduced_expr(dT, x[2], 0.0, m), v)
         # test SemiInfiniteVariableIndex
-        v2 = dT(t, [0, 0])
+        v2 = dT(t, 0, 0)
         @test isequal(InfiniteOpt.make_reduced_expr(v, x[1], 0.0, m), v2)
-        @test isequal(InfiniteOpt.make_reduced_expr(v2, t, 0.0, m), dT(0, [0, 0]))
+        @test isequal(InfiniteOpt.make_reduced_expr(v2, t, 0.0, m), dT(0, 0, 0))
     end
      # test allows_high_order_derivatives
      @testset "allows_high_order_derivatives" begin 
@@ -61,9 +61,9 @@ end
     # setup 
     m = InfiniteModel()
     @infinite_parameter(m, t in [0, 10], num_supports = 5)
-    @infinite_parameter(m, x[1:2] in [0, 1], num_supports = 3)
+    @infinite_parameter(m, x[1:2] in [0, 1], num_supports = 3, independent = true)
     @variable(m, y, Infinite(t))
-    @variable(m, q, Infinite(t, x))
+    @variable(m, q, Infinite(t, x...))
     meas = support_sum(q, t)
     d1 = deriv(y, t)
     d2 = deriv(q, t)
@@ -94,7 +94,7 @@ end
         ts = supports(t, label = All)
         method = FiniteDifference(Central())
         # test 1st order
-        expected = 5d2(2.5, x) - q(5, x) + q(0, x)
+        expected = 5d2(2.5, x...) - q(5, x...) + q(0, x...)
         @test isequal_canonical(InfiniteOpt.make_indexed_derivative_expr(d2, q, t, 1, 2, ts, m, method, 5), expected)
         # test 2nd order
         expected = 6.25d5(2.5) - y(5) + 2y(2.5) - y(0)
@@ -105,7 +105,7 @@ end
         xs = sort(supports(x[2], label = All))
         method = FiniteDifference(Backward())
         # test 1st order
-        expected = 0.5d3(t, [x[1], 0.5]) - q(t, [x[1], 0.5]) + q(t, [x[1], 0])
+        expected = 0.5d3(t, x[1], 0.5) - q(t, x[1], 0.5) + q(t, x[1], 0)
         @test isequal_canonical(InfiniteOpt.make_indexed_derivative_expr(d3, q, x[2], 1, 2, xs, m, method, 0.5), expected)
         # test 2nd order
         ts = supports(t, label = All)
@@ -122,8 +122,8 @@ end
         @test isequal_canonical(InfiniteOpt.evaluate_derivative(d7, y, method, m), exprs)
         # test with dependent parameter 
         method = FiniteDifference(Forward()) 
-        exprs = [0.5d4([s, x[2]]) - sum(q(i, [s+0.5, x[2]]) for i in supports(t)) + 
-                 sum(q(i, [s, x[2]]) for i in supports(t)) for s in (0, 0.5)]  
+        exprs = [0.5d4(s, x[2]) - sum(q(i, s+0.5, x[2]) for i in supports(t)) + 
+                 sum(q(i, s, x[2]) for i in supports(t)) for s in (0, 0.5)]  
         @test isequal_canonical(InfiniteOpt.evaluate_derivative(d4, meas, method, m), exprs)
         # test using Backward without boundary constraint
         method = FiniteDifference(Backward(), false)
@@ -153,10 +153,10 @@ end
         set_derivative_method(t, method)
         Mt = [1. 5.; 1. 10]' \ [2.5 2.5^2; 5. 25.]'
         M = Mt'
-        exprs = [@expression(m, M[1, 1] * d2(2.5, x) + M[1, 2] * d2(5, x) - q(2.5, x) + q(0, x)),
-                 @expression(m, M[2, 1] * d2(2.5, x) + M[2, 2] * d2(2.5, x) - q(5, x) + q(0, x)),
-                 @expression(m, M[1, 1] * d2(7.5, x) + M[1, 2] * d2(10, x) - q(7.5, x) + q(5, x)),
-                 @expression(m, M[2, 1] * d2(7.5, x) + M[2, 2] * d2(7.5, x) - q(10, x) + q(5, x))]
+        exprs = [@expression(m, M[1, 1] * d2(2.5, x...) + M[1, 2] * d2(5, x...) - q(2.5, x...) + q(0, x...)),
+                 @expression(m, M[2, 1] * d2(2.5, x...) + M[2, 2] * d2(2.5, x...) - q(5, x...) + q(0, x...)),
+                 @expression(m, M[1, 1] * d2(7.5, x...) + M[1, 2] * d2(10, x...) - q(7.5, x...) + q(5, x...)),
+                 @expression(m, M[2, 1] * d2(7.5, x...) + M[2, 2] * d2(7.5, x...) - q(10, x...) + q(5, x...))]
         set_supports(t, [0, 5, 10], force = true)
         function rm_zeros(exs)
             for e in exs 

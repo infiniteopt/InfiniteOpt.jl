@@ -163,7 +163,7 @@ We can also query the expressions via
 [`transformation_expression`](@ref transformation_expression(::JuMP.AbstractJuMPScalar)):
 ```jldoctest optimize
 julia> transformation_expression(z - y^2 + 3) # infinite expression
-10-element Vector{AbstractJuMPScalar}:
+10-element Vector{Union{Real, AbstractJuMPScalar}}:
  -y(0.0)² + z + 3
  -y(1.11111111111)² + z + 3
  -y(2.22222222222)² + z + 3

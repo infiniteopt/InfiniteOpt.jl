@@ -516,8 +516,7 @@ struct FiniteParameter <: ScalarParameter
 end
 
 """
-    DependentParameters{T <: InfiniteArrayDomain, 
-                        M <: NonGenerativeDerivativeMethod} <: InfOptParameter
+    DependentParameters{T <: InfiniteArrayDomain} <: InfOptParameter
 
 A `DataType` for storing a collection of dependent infinite parameters.
 
@@ -526,15 +525,11 @@ A `DataType` for storing a collection of dependent infinite parameters.
 - `supports::DataStructures.OrderedDict{Vector{Float64}, Set{DataType}}`: Support dictionary where keys
               are supports and the values are the set of labels for each support.
 - `sig_digits::Int`: The number of significant digits used to round the support values.
-- `derivative_methods::Vector{M}`: The derivative evaluation methods associated with 
-  each parameter.
 """
-struct DependentParameters{T <: InfiniteArrayDomain, 
-                           M <: NonGenerativeDerivativeMethod} <: InfOptParameter
+struct DependentParameters{T <: InfiniteArrayDomain} <: InfOptParameter
     domain::T
     supports::DataStructures.OrderedDict{Vector{Float64}, Set{DataType}} # Support to label set
     sig_digits::Int
-    derivative_methods::Vector{M}
 end
 
 # Define convenient alias for infinite types
@@ -633,13 +628,11 @@ A mutable `DataType` for storing [`DependentParameters`](@ref) and their data.
    dependent infinite parameter functions.
 - `infinite_var_indices::Vector{InfiniteVariableIndex}`: Indices of
    dependent infinite variables.
-- `derivative_indices::Vector{Vector{DerivativeIndex}} `: Indices of dependent derivatives.
 - `measure_indices::Vector{Vector{MeasureIndex}}`: Indices of dependent measures.
 - `constraint_indices::Vector{Vector{InfOptConstraintIndex}}`: Indices of dependent
   constraints.
 - `has_internal_supports::Bool`: Does this parameter have internal supports?
-- `has_deriv_constrs::Bool`: Have any derivative evaluation constraints been added 
-                             to the infinite model associated with this parameter?
+    associated with this parameter?
 """
 mutable struct MultiParameterData{P <: DependentParameters} <: AbstractDataObject
     parameters::P
@@ -648,11 +641,9 @@ mutable struct MultiParameterData{P <: DependentParameters} <: AbstractDataObjec
     names::Vector{String}
     parameter_func_indices::Vector{ParameterFunctionIndex}
     infinite_var_indices::Vector{InfiniteVariableIndex}
-    derivative_indices::Vector{Vector{DerivativeIndex}} 
     measure_indices::Vector{Vector{MeasureIndex}}
     constraint_indices::Vector{Vector{InfOptConstraintIndex}}
     has_internal_supports::Bool
-    has_deriv_constrs::Vector{Bool}
 end
 
 # Convenient constructor 
@@ -668,11 +659,9 @@ function MultiParameterData(
         parameter_nums, names,
         ParameterFunctionIndex[], 
         InfiniteVariableIndex[],
-        [DerivativeIndex[] for i in eachindex(names)],
         [MeasureIndex[] for i in eachindex(names)],
         [InfOptConstraintIndex[] for i in eachindex(names)],
-        false,
-        zeros(Bool, length(names))
+        false
         )
 end
 
@@ -712,7 +701,7 @@ end
 #                        PARAMETER FUNCTION OBJECTS
 ################################################################################
 """
-    ParameterFunction{F <: Function, VT <: VectorTuple}
+    ParameterFunction{F <: Function, T <: JuMP.AbstractVariableRef}
 
 A `DataType` for storing known functions of infinite parameters. These equate to arbitrary 
 functions that take support instances of infinite parameters `parameter_refs` in 
@@ -722,15 +711,15 @@ incorporated in expressions via [`ParameterFunctionRef`](@ref)s.
 **Fields**
 - `func::F`: The function the takes infinite parameters as input and provide a 
             scalar number as output.
-- `parameter_refs::VT`: The infinite parameter references that serve as 
+- `parameter_refs::Collections.VectorTuple{T}`: The infinite parameter references that serve as 
                         inputs to `func`. Their formatting is analagous 
                         to those of infinite variables. 
 - `parameter_nums::Vector{Int}`: The parameter numbers of `parameter_refs`.
 - `group_int_idxs::Vector{Int}`: The parameter group integer indices associated with `parameter_refs`.
 """
-struct ParameterFunction{F <: Function, VT <: Collections.VectorTuple}
+struct ParameterFunction{F <: Function, T <: JuMP.AbstractVariableRef}
     func::F
-    parameter_refs::VT
+    parameter_refs::Collections.VectorTuple{T}
     group_int_idxs::Vector{Int}
     parameter_nums::Vector{Int}
 end
@@ -765,7 +754,7 @@ end
 #                               VARIABLE TYPES
 ################################################################################
 """
-    InfiniteVariable{F <: Function, VT <: VectorTuple} <: JuMP.AbstractVariable
+    InfiniteVariable{F <: Function, T <: JuMP.AbstractVariableRef} <: JuMP.AbstractVariable
 
 A `DataType` for storing core infinite variable information. Note that indices
 that refer to the same dependent parameter group must be in the same tuple element.
@@ -778,15 +767,15 @@ support vector as input.
 **Fields**
 - `info::JuMP.VariableInfo{Float64, Float64, Float64, F}`: JuMP variable information.
   Here the start value is a function that maps the parameter values to a start value.
-- `parameter_refs::VT`: The infinite parameter references that parameterize the 
+- `parameter_refs::Collections.VectorTuple{T}`: The infinite parameter references that parameterize the 
   variable.
 - `parameter_nums::Vector{Int}`: The parameter numbers of `parameter_refs`.
 - `group_int_idxs::Vector{Int}`: The parameter group integer indices associated with `parameter_refs`.
 - `is_vector_start::Bool`: Does the start function take support values formatted as vectors?
 """
-struct InfiniteVariable{F <: Function, VT <: Collections.VectorTuple} <: JuMP.AbstractVariable
+struct InfiniteVariable{F <: Function, T <: JuMP.AbstractVariableRef} <: JuMP.AbstractVariable
     info::JuMP.VariableInfo{Float64, Float64, Float64, F}
-    parameter_refs::VT
+    parameter_refs::Collections.VectorTuple{T}
     parameter_nums::Vector{Int}
     group_int_idxs::Vector{Int}
     is_vector_start::Bool
@@ -800,8 +789,9 @@ infinite variable.
 
 **Fields**
 - `infinite_variable_ref::I`: The original infinite/derivvative variable.
-- `eval_supports::Dict{Int, Float64}`: The original parameter tuple linear indices
-                                     to the evaluation supports.
+- `eval_support::Vector{Float64}`: The evaluated parameter values that corresponds 
+    to the vectorized infinite parameters of `infinite_variable_ref`. Any infinite 
+    parameter not replaced by a value is represented with a `NaN`.
 - `parameter_nums::Vector{Int}`: The parameter numbers associated with the evaluated
                                  `parameter_refs`.
 - `group_int_idxs::Vector{Int}`: The parameter group integer indices associated with the
@@ -809,7 +799,7 @@ infinite variable.
 """
 struct SemiInfiniteVariable{I <: JuMP.AbstractVariableRef} <: JuMP.AbstractVariable
     infinite_variable_ref::I
-    eval_supports::Dict{Int, Float64}
+    eval_support::Vector{Float64}
     parameter_nums::Vector{Int}
     group_int_idxs::Vector{Int}
 end
@@ -1460,7 +1450,7 @@ function InfiniteModel(backend::AbstractTransformationBackend = TranscriptionBac
         # Variables
         MOIUC.CleverDict{InfiniteVariableIndex, VariableData{<:InfiniteVariable}}(),
         MOIUC.CleverDict{SemiInfiniteVariableIndex, VariableData{SemiInfiniteVariable{GeneralVariableRef}}}(),
-        Dict{Tuple{GeneralVariableRef, Dict{Int, Float64}}, SemiInfiniteVariableIndex}(),
+        Dict{Tuple{GeneralVariableRef, Vector{Float64}}, SemiInfiniteVariableIndex}(),
         MOIUC.CleverDict{PointVariableIndex, VariableData{PointVariable{GeneralVariableRef}}}(),
         Dict{Tuple{GeneralVariableRef, Vector{Float64}}, PointVariableIndex}(),
         MOIUC.CleverDict{FiniteVariableIndex, VariableData{JuMP.ScalarVariable{Float64, Float64, Float64, Float64}}}(),

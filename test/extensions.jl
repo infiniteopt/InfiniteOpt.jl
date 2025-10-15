@@ -142,7 +142,7 @@ end
     @infinite_parameter(m, p[1:2] in [0, 1])
     @infinite_parameter(m, xi ~ Normal(0., 1.))
     @variable(m, y >= 0, Infinite(t))
-    @variable(m, f, Infinite(x))
+    @variable(m, f, Infinite(x...))
     mref = integral(y^2 + t, t, 0, 4, num_supports = 5, 
                     eval_method = NewUniEvalMethod())
     @test supports(measure_data(mref)) == Array([0., 1., 2., 3., 4.])

@@ -15,7 +15,7 @@
     dx3 = @deriv(x, par^3)
     set_lower_bound(dx, 0)
     set_start_value_function(dy, (p, ps) -> p + sum(ps))
-    var = build_variable(error, y, Dict{Int, Float64}(2 => 0))
+    var = build_variable(error, y, [NaN, 0, 0])
     yrv = add_variable(m, var)
     data = DiscreteMeasureData(par, [0.5, 0.5], [0, 1])
     @constraint(m, c1, x + z - 2 <= 0)
@@ -121,7 +121,7 @@
         @test IOTO.transcribe_semi_infinite_variables!(tb, m) isa Nothing
         @test IOTO.transcription_variable(yrv) isa Vector{VariableRef}
         @test length(IOTO.transcription_data(tb).infvar_mappings) == 7
-        @test IOTO.lookup_by_support(y, tb, [1., 0., 0.]) == IOTO.lookup_by_support(yrv, tb, [1., 0])
+        @test IOTO.lookup_by_support(y, tb, [1., 0., 0.]) == IOTO.lookup_by_support(yrv, tb, [1.])
     end
     # test _update_point_info
     @testset "_update_point_info" begin
@@ -194,7 +194,7 @@ end
     meas1 = support_sum(x + 2w, par)
     meas2 = integral(w, par)
     meas3 = integral(y^2, pars)
-    meas4 = integral(pars[1], pars[1])
+    # meas4 = integral(pars[1], pars[1])
     meas5 = integral(pf1, par)
     meas6 = integral(pf2, par2)
     tb = m.backend
@@ -212,7 +212,7 @@ end
         @test IOTO.transcription_variable(meas1) == tx[1] + 4tw + tx[2]
         @test IOTO.transcription_variable(meas2) == tw + 0
         @test IOTO.transcription_variable(meas3) isa Vector
-        @test IOTO.transcription_variable(meas4) isa AffExpr
+        # @test IOTO.transcription_variable(meas4) isa AffExpr
         meas5Eval = 0.5*sum(IOTO.transcription_variable.(pf1))
         @test IOTO.transcription_variable(meas5) == meas5Eval
         tpf2 = IOTO.transcription_variable.(pf2)

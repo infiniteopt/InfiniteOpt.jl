@@ -1,26 +1,3 @@
-## Extend convert to handle JuMP containers
-# Array -> SparseAxisArray
-function Base.convert(::Type{JuMPC.SparseAxisArray}, arr::Array)
-    data = Dict(Tuple(k) => arr[k] for k in CartesianIndices(arr))
-    return JuMPC.SparseAxisArray(data)
-end
-
-# DenseAxisArray -> SparseAxisArray
-function Base.convert(::Type{JuMPC.SparseAxisArray},
-                      arr::JuMPC.DenseAxisArray)
-    data = Dict(k.I => arr[k] for k in keys(arr))
-    return JuMPC.SparseAxisArray(data)
-end
-
-# Convert numbers to jump objects 
-function Base.convert(::Type{JuMP.AbstractJuMPScalar}, c::Number) 
-    return zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}) + c
-end
-
-# Make workaround for keys of containers
-_keys(a::JuMPC.SparseAxisArray) = keys(a.data)
-_keys(a::AbstractArray) = keys(a)
-
 ## Define efficient function to check if all elements in array are equal
 # method found at https://stackoverflow.com/questions/47564825/check-if-all-the-elements-of-a-julia-array-are-equal/47578613
 @inline function _allequal(x::AbstractArray)::Bool
@@ -33,7 +10,7 @@ _keys(a::AbstractArray) = keys(a)
 end
 
 # Extend comparison for JuMP.VariableInfo 
-function Base.:(==)(info1::JuMP.VariableInfo, info2::JuMP.VariableInfo)::Bool 
+function Base.:(==)(info1::JuMP.VariableInfo, info2::JuMP.VariableInfo)
     return info1.has_lb == info2.has_lb && 
            (!info1.has_lb || info1.lower_bound == info2.lower_bound) && 
            info1.has_ub == info2.has_ub && 
@@ -62,7 +39,7 @@ function _make_float_info(
 end
 
 # Make a string of NamedTuple arguments 
-function _kwargs2string(nt::NamedTuple)::String
+function _kwargs2string(nt::NamedTuple)
     if length(nt) == 1
         return string(nt)[2:end-2]
     else
