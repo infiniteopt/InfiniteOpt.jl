@@ -243,7 +243,7 @@ function JuMP.build_variable(
     prefs = parameter_list(dvref)
     if check
         for (pref, value) in zip(prefs, eval_support)
-            if JuMP.has_lower_bound(pref) && !supports_in_domain(value, infinite_domain(pref))
+            if !isnan(value) && JuMP.has_lower_bound(pref) && !supports_in_domain(value, infinite_domain(pref))
                 _error("Evaluation support violates infinite parameter domain(s).")
             end
         end
