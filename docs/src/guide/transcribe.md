@@ -455,7 +455,7 @@ julia> supports(meas)
 ()
 
 julia> transformation_expression(y^2 + z - 42)
-3-element Vector{AbstractJuMPScalar}:
+3-element Vector{Union{Real, AbstractJuMPScalar}}:
  y(0.0)² + z - 42
  y(5.0)² + z - 42
  y(10.0)² + z - 42

@@ -56,7 +56,7 @@ julia> d3 = @∂(q, t^2) # the macro version allows the `t^2` syntax
 d²/dt²[q(t)]
 
 julia> d_expr = deriv(y * q - 2t, t)
-∂/∂t[y(t, x, ξ)]*q(t) + d/dt[q(t)]*y(t, ξ) - 2
+∂/∂t[y(t, x, ξ)]*q(t) + d/dt[q(t)]*y(t, x, ξ) - 2
 ```
 Thus, we can define derivatives in a variety of forms according to the problem at 
 hand. The last example even shows how the product rule is correctly applied.
@@ -471,10 +471,10 @@ julia> evaluate(d1)
 
 julia> derivative_constraints(d1)
 4-element Vector{InfOptConstraintRef}:
- 2.5 ∂/∂t[y(t, x, ξ)](0, x, ξ) + y(0, x, ξ) - y(2.5, x, ξ) = 0, ∀ x ∈ [-1, 1], ξ ~ Uniform
- 2.5 ∂/∂t[y(t, x, ξ)](2.5, x, ξ) + y(2.5, x, ξ) - y(5, x, ξ) = 0, ∀ x ∈ [-1, 1], ξ ~ Uniform
- 2.5 ∂/∂t[y(t, x, ξ)](5, x, ξ) + y(5, x, ξ) - y(7.5, x, ξ) = 0, ∀ x ∈ [-1, 1], ξ ~ Uniform
- 2.5 ∂/∂t[y(t, x, ξ)](7.5, x, ξ) + y(7.5, x, ξ) - y(10, x, ξ) = 0, ∀ x ∈ [-1, 1], ξ ~ Uniform
+ 2.5 ∂/∂t[y(t, x, ξ)](0, x, ξ) + y(0, x, ξ) - y(2.5, x, ξ) = 0, ∀ ξ ~ Uniform, x ∈ [-1, 1]
+ 2.5 ∂/∂t[y(t, x, ξ)](2.5, x, ξ) + y(2.5, x, ξ) - y(5, x, ξ) = 0, ∀ ξ ~ Uniform, x ∈ [-1, 1]
+ 2.5 ∂/∂t[y(t, x, ξ)](5, x, ξ) + y(5, x, ξ) - y(7.5, x, ξ) = 0, ∀ ξ ~ Uniform, x ∈ [-1, 1]
+ 2.5 ∂/∂t[y(t, x, ξ)](7.5, x, ξ) + y(7.5, x, ξ) - y(10, x, ξ) = 0, ∀ ξ ~ Uniform, x ∈ [-1, 1]
 ```
 Note that we made sure `t` had supports first over which we could carry out the 
 evaluation, otherwise an error would have been thrown. Moreover, once the 
@@ -484,15 +484,15 @@ evaluation was completed we were able to access the auxiliary equations via
 We can also, add the necessary auxiliary equations for all the derivatives in the 
 model if we call [`evaluate_all_derivatives!`](@ref):
 ```jldoctest deriv_basic
-julia> fill_in_supports!(ξ, num_supports = 4) # add supports first
+julia> fill_in_supports!(x, num_supports = 4) # add supports first
 
 julia> evaluate_all_derivatives!(model)
 
 julia> derivative_constraints(dydt2)
 3-element Vector{InfOptConstraintRef}:
- 6.25 dydt2(0, x, ξ) - y(0, x, ξ) + 2 y(2.5, x, ξ) - y(5, x, ξ) = 0, ∀ x ∈ [-1, 1], ξ ~ Uniform
- 6.25 dydt2(2.5, x, ξ) - y(2.5, x, ξ) + 2 y(5, x, ξ) - y(7.5, x, ξ) = 0, ∀ x ∈ [-1, 1], ξ ~ Uniform
- 6.25 dydt2(5, x, ξ) - y(5, x, ξ) + 2 y(7.5, x, ξ) - y(10, x, ξ) = 0, ∀ x ∈ [-1, 1], ξ ~ Uniform
+ 6.25 dydt2(0, x, ξ) - y(0, x, ξ) + 2 y(2.5, x, ξ) - y(5, x, ξ) = 0, ∀ ξ ~ Uniform, x ∈ [-1, 1]
+ 6.25 dydt2(2.5, x, ξ) - y(2.5, x, ξ) + 2 y(5, x, ξ) - y(7.5, x, ξ) = 0, ∀ ξ ~ Uniform, x ∈ [-1, 1]
+ 6.25 dydt2(5, x, ξ) - y(5, x, ξ) + 2 y(7.5, x, ξ) - y(10, x, ξ) = 0, ∀ ξ ~ Uniform, x ∈ [-1, 1]
 ```
 
 Finally, we note that once derivative constraints have been added to the 
@@ -502,10 +502,10 @@ and a warning will be thrown to indicate such:
 ```jldoctest deriv_basic
 julia> derivative_constraints(d1)
 4-element Vector{InfOptConstraintRef}:
- 2.5 ∂/∂t[y(t, x, ξ)](0, x, ξ) + y(0, x, ξ) - y(2.5, x, ξ) = 0, ∀ x ∈ [-1, 1], ξ ~ Uniform
- 2.5 ∂/∂t[y(t, x, ξ)](2.5, x, ξ) + y(2.5, x, ξ) - y(5, x, ξ) = 0, ∀ x ∈ [-1, 1], ξ ~ Uniform
- 2.5 ∂/∂t[y(t, x, ξ)](5, x, ξ) + y(5, x, ξ) - y(7.5, x, ξ) = 0, ∀ x ∈ [-1, 1], ξ ~ Uniform
- 2.5 ∂/∂t[y(t, x, ξ)](7.5, x, ξ) + y(7.5, x, ξ) - y(10, x, ξ) = 0, ∀ x ∈ [-1, 1], ξ ~ Uniform
+ 2.5 ∂/∂t[y(t, x, ξ)](0, x, ξ) + y(0, x, ξ) - y(2.5, x, ξ) = 0, ∀ ξ ~ Uniform, x ∈ [-1, 1]
+ 2.5 ∂/∂t[y(t, x, ξ)](2.5, x, ξ) + y(2.5, x, ξ) - y(5, x, ξ) = 0, ∀ ξ ~ Uniform,  x ∈ [-1, 1]
+ 2.5 ∂/∂t[y(t, x, ξ)](5, x, ξ) + y(5, x, ξ) - y(7.5, x, ξ) = 0, ∀ ξ ~ Uniform x ∈ [-1, 1]
+ 2.5 ∂/∂t[y(t, x, ξ)](7.5, x, ξ) + y(7.5, x, ξ) - y(10, x, ξ) = 0, ∀ ξ ~ Uniform, x ∈ [-1, 1]
 
 julia> add_supports(t, 0.2)
 ┌ Warning: Support/method changes will invalidate existing derivative evaluation constraints that have been added to the InfiniteModel. Thus, these are being deleted.
@@ -525,7 +525,7 @@ First, let's overview the basic object inquiries: [`derivative_argument`](@ref),
 [`derivative_method`](@ref), and [`name`](@ref JuMP.name(::DecisionVariableRef)):
 ```jldoctest deriv_basic
 julia> derivative_argument(dydt2) # get the variable the derivative operates on
-y(t, ξ)
+y(t, x, ξ)
 
 julia> operator_parameter(dydt2) # get the parameter the operator is taken with respect to
 t
@@ -559,10 +559,10 @@ Also, since derivatives are analogous to infinite variables, they inherit many
 of the same queries including [`parameter_refs`](@ref):
 ```jldoctest deriv_basic
 julia> parameter_refs(d1)
-(t, ξ)
+(t, x, ξ)
 
 julia> parameter_refs(derivative_argument(d1))
-(t, ξ)
+(t, x, ξ)
 ```
 Since derivatives simply inherit their infinite parameter dependencies from the 
 argument variable, the above lines are equivalent.
@@ -579,7 +579,7 @@ julia> lower_bound(dydt2)
 1.0
 
 julia> LowerBoundRef(dydt2)
-dydt2(t, x, ξ) ≥ 1, ∀ t ∈ [0, 10], x ∈ [-1, 1], ξ ~ Uniform
+dydt2(t, x, ξ) ≥ 1, ∀ t ∈ [0, 10], ξ ~ Uniform, x ∈ [-1, 1]
 
 julia> has_upper_bound(dydt2)
 false 
@@ -601,8 +601,8 @@ julia> all_derivatives(model)
  d²/dt²[q(t)]
  d/dt[q(t)]
  ∂/∂x[y(t, x, ξ)]
- dydt2(t, x)
- d/dt[∫{ξ ∈ [-1, 1]}[y(t, x, ξ)]]
+ dydt2(t, x, x)
+ ∂/∂t[∫{ξ ∈ [-1, 1]}[y(t, x, ξ)]]
 ```
 
 ## Modification Methods 

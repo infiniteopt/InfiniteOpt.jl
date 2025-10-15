@@ -102,7 +102,7 @@ Thus, we create a Julia array variable `w0` whose elements `w0[i]` point to thei
 respective semi-infinite variables `w[i](0, x)` stored in `model`. Alternatively, 
 we can make a semi-infinite variable via our restriction syntax:
 ```jldoctest var_basic
-julia> [w[i](0, x) for i in 1:3]
+julia> [w[i](0, x...) for i in 1:3]
 3-element Vector{GeneralVariableRef}:
  w0[1]
  w0[2]
@@ -265,7 +265,7 @@ We specify the variable type by providing a subtype of [`InfOptVariableType`](@r
 as an extra positional argument:
 ```jldoctest var_macro
 julia> @variable(model, y, Infinite(t, x..., ξ)) # explicit infinite variable
-y(t, x, ξ)
+y(t, x[1], x[2], x[3], ξ)
 
 julia> @variable(model, ys, SemiInfinite(y, 0, x..., ξ)) # explicit semi-infinite variable
 ys
@@ -328,16 +328,16 @@ We can specify variable bounds in like manner to `JuMP` variables. Let's
 demonstrate this with infinite variables: 
 ```jldoctest var_macro
 julia> @variable(model, y_lb >= 0, Infinite(t, x...)) # add w/ lower bound
-y_lb(t, x[1], x[2])
+y_lb(t, x[1], x[2], x[3])
 
 julia> @variable(model, y_ub <= 10, Infinite(t, x...)) # add w/ upper bound
-y_ub(t, x[1], x[2])
+y_ub(t, x[1], x[2], x[3])
 
 julia> @variable(model, 0 <= y_bd <= 10, Infinite(t, x...)) # add w/ bounds
-y_bd(t, x[1], x[2])
+y_bd(t, x[1], x[2], x[3])
 
 julia> @variable(model, y_fix == 42, Infinite(t, x...)) # add w/ fixed value 
-y_fix(t, x[1], x[2])
+y_fix(t, x[1], x[2], x[3])
 ```
 
 !!! warning
@@ -398,25 +398,25 @@ We can constrain the integrality of decision variables in like manner to `JuMP`
 using the `Bin` and `Int` positional arguments for explicit macro definition:
 ```jldoctest var_macro
 julia> @variable(model, y_bin, Infinite(t, x...), Bin) # add as binary variable
-y_bin(t, x[1], x[2])
+y_bin(t, x[1], x[2], x[3])
 
 julia> @variable(model, y_int, Infinite(t, x...), Int) # add as integer variable
-y_int(t, x[1], x[2])
+y_int(t, x[1], x[2], x[3])
 ```
 
 For anonymous definition, we use the `binary` and `integer` keyword arguments:
 ```jldoctest var_macro
 julia> y_bin = @variable(model, variable_type = Infinite(t, x...), binary = true)
-noname(t, x[1], x[2])
+noname(t, x[1], x[2], x[3])
 
 julia> y_int = @variable(model, variable_type = Infinite(t, x...), integer = true)
-noname(t, x[1], x[2])
+noname(t, x[1], x[2], x[3])
 ```
 
 Moreover, we can add bounds as needed to constrain the domain of integer variables:
 ```jldoctest var_macro
 julia> @variable(model, 0 <= y_int2 <= 10, Infinite(t, x...), Int)
-y_int2(t, x[1], x[2])
+y_int2(t, x[1], x[2], x[3])
 ```
 
 See the Queries and Modification sections further below for more information on 
@@ -597,11 +597,11 @@ When using many `@variable` calls, we can instead use
 enhance the readability:
 ```jldoctest var_macro
 julia> @variables(model, begin
-           y1, Infinite(t, x)
+           y1, Infinite(t, x....)
            y2[i=1:2] >= i, Infinite(t), (start = i, base_name = "Y_$i")
            z2, Bin
        end)
-(y1(t, x), GeneralVariableRef[Y_1[1](t), Y_2[2](t)], z2)
+(y1(t, x[1], x[2], x[3]), GeneralVariableRef[Y_1[1](t), Y_2[2](t)], z2)
 ```
 
 ## Restricted Variables
@@ -682,7 +682,7 @@ found and errors if it is not unique. For example, we can request the reference
 associated with `"y_ub"`:
 ```jldoctest var_macro
 julia> variable_by_name(model, "y_ub")
-y_ub(t, x)
+y_ub(t, x[1], x[2], x[3])
 ```
 
 ### Variable Constraint Info
@@ -715,7 +715,7 @@ such constraint exists). For example, the upper bound constraint of `y_bd` can b
 obtained via [`UpperBoundRef`](@ref JuMP.UpperBoundRef(::UserDecisionVariableRef)):
 ```jldoctest var_macro
 julia> UpperBoundRef(y_bd)
-y_bd(t, x[1], x[2]) ≤ 10, ∀ t ∈ [0, 10], x[1] ∈ [-1, 1], x[2] ∈ [-1, 1], x[3] ∈ [-1, 1]
+y_bd(t, x[1], x[2], x[3]) ≤ 10, ∀ t ∈ [0, 10], x[1] ∈ [-1, 1], x[2] ∈ [-1, 1], x[3] ∈ [-1, 1]
 ```
 The other methods are [`LowerBoundRef`](@ref JuMP.LowerBoundRef(::UserDecisionVariableRef)),
 [`FixRef`](@ref JuMP.FixRef(::UserDecisionVariableRef)),
