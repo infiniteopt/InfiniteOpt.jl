@@ -217,7 +217,7 @@ end
 
 ## Define function to intelligently format supports properly
 # Vectors
-function _prepare_supports(supps::Vector{Vector{<:Real}})
+function _prepare_supports(supps::Vector{<:Vector{<:Real}})
     return reduce(hcat, supps)
 end
 

@@ -147,6 +147,7 @@ end
         @test_throws ErrorException DiscreteMeasureData([fpar, fpar], [1],
                                                         [[1, 1]])
         @test_throws ErrorException DiscreteMeasureData([par, pars[1]], [1], [[1, 1]])
+        @test_throws ErrorException DiscreteMeasureData(pars, [1], [[1,1]], lower_bounds = zeros(3))
     end
     # test _check_bounds_in_domain (IndependentParameter)
     @testset "_check_bounds_in_domain (independent parameters)" begin

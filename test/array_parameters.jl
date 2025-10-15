@@ -197,6 +197,7 @@ end
         @test_macro_throws ErrorException @infinite_parameter(m, p[i = 1:3] in domain1)
         @test_macro_throws ErrorException @infinite_parameter(m, p[1:2] in domain1, supports = 4)
         @test_macro_throws ErrorException @infinite_parameter(m, p[i = 1:2] in domain1, supports = [[1, 0], 1][i])
+        @test_macro_throws ErrorException @infinite_parameter(m, a[2:3] ~ dist1, num_supports = 10)
         # test simple explict build
         prefs = [GeneralVariableRef(m, 1, DependentParameterIndex, i) for i in 1:2]
         @test isequal(@infinite_parameter(m, a[1:2] ~ dist1, num_supports = 10), prefs)
@@ -601,6 +602,10 @@ end
         @test InfiniteOpt._set_has_internal_supports(gvrefs1[1], false) isa Nothing
         @test !has_internal_supports(prefs1[1])
     end
+    # test has_generative_supports 
+    @testset "has_generative_supports" begin
+        @test !has_generative_supports(prefs1[1])
+    end
     # test _parameter_supports
     @testset "_parameter_supports" begin
         @test sort(collect(keys(InfiniteOpt._parameter_supports(prefs1[1])))) == [[0., 0.], [1., 1.]]
@@ -779,6 +784,9 @@ end
         @test add_supports(gvrefs2, supps, check = false, label = MCSample) isa Nothing
         @test sort!(supports(prefs2), by = first) == [0.5 * ones(2, 2), ones(2, 2)]
         @test Set([MCSample]) in values(InfiniteOpt._parameter_supports(prefs2[1]))
+        # test error
+        supps = [ones(3, 3)]
+        @test_throws ErrorException add_supports(prefs2, supps)
     end
     # test delete_supports (Single)
     @testset "delete_supports (Single)" begin
@@ -915,5 +923,9 @@ end
     # test parameter_refs
     @testset "parameter_refs" begin
         @test parameter_refs(m) == (prefs1, vec(prefs2), pref)
+    end
+    # test has_derivative_constraints
+    @testset "has_derivative_constraints" begin
+        @test !has_derivative_constraints(prefs1[1])
     end
 end

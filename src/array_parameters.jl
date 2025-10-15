@@ -381,11 +381,6 @@ function _constraint_dependencies(pref::DependentParameterRef)
     return _data_object(pref).constraint_indices[_param_index(pref)]
 end
 
-# Extend _derivative_dependencies
-function _derivative_dependencies(pref::DependentParameterRef)
-    return _data_object(pref).derivative_indices[_param_index(pref)]
-end
-
 """
     used_by_infinite_variable(pref::DependentParameterRef)::Bool
 
@@ -538,12 +533,6 @@ end
 # Extend fallback for dependent parameters
 function has_generative_supports(pref::DependentParameterRef)
     return false
-end
-
-# Extend fallback for dependent parameters
-function _set_has_generative_supports(pref::DependentParameterRef, 
-                                      status::Bool)
-    return
 end
 
 # Extend add_generative_supports

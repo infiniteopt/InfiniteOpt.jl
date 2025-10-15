@@ -354,16 +354,8 @@ function _get_param_group_name(element_prefs)
     type = _index_type(first(element_prefs))
     if type == DependentParameterIndex
         return _remove_name_index(first(element_prefs))
-    elseif length(element_prefs) == 1
-        return JuMP.name(first(element_prefs))
     else
-        # TODO this isn't quite right with a subset of an independent container
-        names = map(p -> _remove_name_index(p), element_prefs)
-        if _allequal(names)
-            return first(names)
-        else
-            return string("[", join(element_prefs, ", "), "]")
-        end
+        return JuMP.name(first(element_prefs))
     end
 end
 
