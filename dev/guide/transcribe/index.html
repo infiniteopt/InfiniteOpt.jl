@@ -129,7 +129,7 @@ inf_model = InfiniteModel()
 
 # Define variables
 @variable(inf_model, y, Infinite(t))
-@variable(inf_model, g, Infinite(t, x))
+@variable(inf_model, g, Infinite(t, x...))
 
 # Set the objective (using support_sum for the integral given our simple example)
 # Note: In real problems integral should be used
@@ -137,7 +137,7 @@ inf_model = InfiniteModel()
 
 # Define the constraints
 @constraint(inf_model, y(0) == 1)
-@constraint(inf_model, g(0, x) == 0)
+@constraint(inf_model, g(0, x...) == 0)
 @constraint(inf_model, support_sum(deriv(g, t), x) == 42) # support_sum for simplicity
 @constraint(inf_model, 3g + y^2 &lt;= 2)
 
@@ -148,9 +148,9 @@ print(inf_model)
 Min support_sum{t}[y(t)²]
 Subject to
  y(0) = 1
- g(0, [x[1], x[2]]) = 0, ∀ x[1] ∈ [-1, 1], x[2] ∈ [-1, 1]
- support_sum{x}[∂/∂t[g(t, x)]] = 42, ∀ t ∈ [0, 10]
- y(t)² + 3 g(t, x) ≤ 2, ∀ t ∈ [0, 10], x[1] ∈ [-1, 1], x[2] ∈ [-1, 1]</code></pre><p>Thus, we obtain the infinite problem in <code>InfiniteOpt</code>. As previously noted,  transcription would be handled automatically behind the scenes when the model is  optimized. However, we can directly extract the transcribed version by building a  <code>TranscriptionBackend</code>:</p><pre><code class="language-julia-repl hljs">julia&gt; build_transformation_backend!(inf_model)
+ g(0, x[1], x[2]) = 0, ∀ x[1] ∈ [-1, 1], x[2] ∈ [-1, 1]
+ support_sum{x}[∂/∂t[g(t, x[1], x[2])]] = 42, ∀ t ∈ [0, 10]
+ y(t)² + 3 g(t, x[1], x[2]) ≤ 2, ∀ t ∈ [0, 10], x[1] ∈ [-1, 1], x[2] ∈ [-1, 1]</code></pre><p>Thus, we obtain the infinite problem in <code>InfiniteOpt</code>. As previously noted,  transcription would be handled automatically behind the scenes when the model is  optimized. However, we can directly extract the transcribed version by building a  <code>TranscriptionBackend</code>:</p><pre><code class="language-julia-repl hljs">julia&gt; build_transformation_backend!(inf_model)
 
 julia&gt; trans_model = transformation_model(inf_model);
 
@@ -158,33 +158,33 @@ julia&gt; print(trans_model)
 Min y(0.0)² + y(5.0)² + y(10.0)²
 Subject to
  y(0.0) = 1
- g(0.0, [-1.0, -1.0]) = 0
- g(0.0, [1.0, -1.0]) = 0
- g(0.0, [-1.0, 1.0]) = 0
- g(0.0, [1.0, 1.0]) = 0
- d/dt[g(t, x)](0.0, [-1.0, -1.0]) + d/dt[g(t, x)](0.0, [1.0, -1.0]) + d/dt[g(t, x)](0.0, [-1.0, 1.0]) + d/dt[g(t, x)](0.0, [1.0, 1.0]) = 42
- d/dt[g(t, x)](5.0, [-1.0, -1.0]) + d/dt[g(t, x)](5.0, [1.0, -1.0]) + d/dt[g(t, x)](5.0, [-1.0, 1.0]) + d/dt[g(t, x)](5.0, [1.0, 1.0]) = 42
- d/dt[g(t, x)](10.0, [-1.0, -1.0]) + d/dt[g(t, x)](10.0, [1.0, -1.0]) + d/dt[g(t, x)](10.0, [-1.0, 1.0]) + d/dt[g(t, x)](10.0, [1.0, 1.0]) = 42
- g(0.0, [-1.0, -1.0]) - g(5.0, [-1.0, -1.0]) + 5 d/dt[g(t, x)](5.0, [-1.0, -1.0]) = 0
- g(5.0, [-1.0, -1.0]) - g(10.0, [-1.0, -1.0]) + 5 d/dt[g(t, x)](10.0, [-1.0, -1.0]) = 0
- g(0.0, [1.0, -1.0]) - g(5.0, [1.0, -1.0]) + 5 d/dt[g(t, x)](5.0, [1.0, -1.0]) = 0
- g(5.0, [1.0, -1.0]) - g(10.0, [1.0, -1.0]) + 5 d/dt[g(t, x)](10.0, [1.0, -1.0]) = 0
- g(0.0, [-1.0, 1.0]) - g(5.0, [-1.0, 1.0]) + 5 d/dt[g(t, x)](5.0, [-1.0, 1.0]) = 0
- g(5.0, [-1.0, 1.0]) - g(10.0, [-1.0, 1.0]) + 5 d/dt[g(t, x)](10.0, [-1.0, 1.0]) = 0
- g(0.0, [1.0, 1.0]) - g(5.0, [1.0, 1.0]) + 5 d/dt[g(t, x)](5.0, [1.0, 1.0]) = 0
- g(5.0, [1.0, 1.0]) - g(10.0, [1.0, 1.0]) + 5 d/dt[g(t, x)](10.0, [1.0, 1.0]) = 0
- y(0.0)² + 3 g(0.0, [-1.0, -1.0]) ≤ 2
- y(5.0)² + 3 g(5.0, [-1.0, -1.0]) ≤ 2
- y(10.0)² + 3 g(10.0, [-1.0, -1.0]) ≤ 2
- y(0.0)² + 3 g(0.0, [1.0, -1.0]) ≤ 2
- y(5.0)² + 3 g(5.0, [1.0, -1.0]) ≤ 2
- y(10.0)² + 3 g(10.0, [1.0, -1.0]) ≤ 2
- y(0.0)² + 3 g(0.0, [-1.0, 1.0]) ≤ 2
- y(5.0)² + 3 g(5.0, [-1.0, 1.0]) ≤ 2
- y(10.0)² + 3 g(10.0, [-1.0, 1.0]) ≤ 2
- y(0.0)² + 3 g(0.0, [1.0, 1.0]) ≤ 2
- y(5.0)² + 3 g(5.0, [1.0, 1.0]) ≤ 2
- y(10.0)² + 3 g(10.0, [1.0, 1.0]) ≤ 2</code></pre><p>This precisely matches what we found analytically. Note that the unique support  combinations are determined automatically.</p><h2 id="TranscriptionOpt"><a class="docs-heading-anchor" href="#TranscriptionOpt">TranscriptionOpt</a><a id="TranscriptionOpt-1"></a><a class="docs-heading-anchor-permalink" href="#TranscriptionOpt" title="Permalink"></a></h2><p><code>InfiniteOpt.TranscriptionOpt</code> is a sub-module which principally implements  <a href="../../manual/transcribe/#InfiniteOpt.TranscriptionOpt.TranscriptionBackend"><code>TranscriptionBackend</code></a>s and its related access/modification methods. Thus,  this section will detail what these are and how they work.</p><h3 id="TranscriptionBackends"><a class="docs-heading-anchor" href="#TranscriptionBackends">TranscriptionBackends</a><a id="TranscriptionBackends-1"></a><a class="docs-heading-anchor-permalink" href="#TranscriptionBackends" title="Permalink"></a></h3><p>A <code>TranscriptionBackend</code> is simply a <a href="../../manual/backend/#InfiniteOpt.JuMPBackend"><code>JuMPBackend</code></a> that uses the  <a href="../../manual/transcribe/#InfiniteOpt.TranscriptionOpt.Transcription"><code>Transcription</code></a> <code>AbstractJuMPTag</code> and <a href="../../manual/transcribe/#InfiniteOpt.TranscriptionOpt.TranscriptionData"><code>TranscriptionData</code></a> which  acts to map the transcribed model back to the original infinite model (e.g., map the  variables and constraints). Such models are constructed via a default version of  <a href="../../manual/transcribe/#InfiniteOpt.build_transformation_backend!-Tuple{InfiniteModel, TranscriptionBackend}"><code>build_transformation_backend!</code></a>  which wraps <a href="../../manual/transcribe/#InfiniteOpt.TranscriptionOpt.build_transcription_backend!"><code>build_transcription_backend!</code></a>:</p><pre><code class="language-julia-repl hljs">julia&gt; backend1 = TranscriptionBackend() # make an empty backend
+ g(0.0, -1.0, -1.0) = 0
+ g(0.0, 1.0, -1.0) = 0
+ g(0.0, -1.0, 1.0) = 0
+ g(0.0, 1.0, 1.0) = 0
+ d/dt[g(t, x[1], x[2])](0.0, -1.0, -1.0) + d/dt[g(t, x[1], x[2])](0.0, 1.0, -1.0) + d/dt[g(t, x[1], x[2])](0.0, -1.0, 1.0) + d/dt[g(t, x[1], x[2])](0.0, 1.0, 1.0) = 42
+ d/dt[g(t, x[1], x[2])](5.0, -1.0, -1.0) + d/dt[g(t, x[1], x[2])](5.0, 1.0, -1.0) + d/dt[g(t, x[1], x[2])](5.0, -1.0, 1.0) + d/dt[g(t, x[1], x[2])](5.0, 1.0, 1.0) = 42
+ d/dt[g(t, x[1], x[2])](10.0, -1.0, -1.0) + d/dt[g(t, x[1], x[2])](10.0, 1.0, -1.0) + d/dt[g(t, x[1], x[2])](10.0, -1.0, 1.0) + d/dt[g(t, x[1], x[2])](10.0, 1.0, 1.0) = 42
+ g(0.0, -1.0, -1.0) - g(5.0, -1.0, -1.0) + 5 d/dt[g(t, x[1], x[2])](5.0, -1.0, -1.0) = 0
+ g(5.0, -1.0, -1.0) - g(10.0, -1.0, -1.0) + 5 d/dt[g(t, x[1], x[2])](10.0, -1.0, -1.0) = 0
+ g(0.0, 1.0, -1.0) - g(5.0, 1.0, -1.0) + 5 d/dt[g(t, x[1], x[2])](5.0, 1.0, -1.0) = 0
+ g(5.0, 1.0, -1.0) - g(10.0, 1.0, -1.0) + 5 d/dt[g(t, x[1], x[2])](10.0, 1.0, -1.0) = 0
+ g(0.0, -1.0, 1.0) - g(5.0, -1.0, 1.0) + 5 d/dt[g(t, x[1], x[2])](5.0, -1.0, 1.0) = 0
+ g(5.0, -1.0, 1.0) - g(10.0, -1.0, 1.0) + 5 d/dt[g(t, x[1], x[2])](10.0, -1.0, 1.0) = 0
+ g(0.0, 1.0, 1.0) - g(5.0, 1.0, 1.0) + 5 d/dt[g(t, x[1], x[2])](5.0, 1.0, 1.0) = 0
+ g(5.0, 1.0, 1.0) - g(10.0, 1.0, 1.0) + 5 d/dt[g(t, x[1], x[2])](10.0, 1.0, 1.0) = 0
+ y(0.0)² + 3 g(0.0, -1.0, -1.0) ≤ 2
+ y(5.0)² + 3 g(5.0, -1.0, -1.0) ≤ 2
+ y(10.0)² + 3 g(10.0, -1.0, -1.0) ≤ 2
+ y(0.0)² + 3 g(0.0, 1.0, -1.0) ≤ 2
+ y(5.0)² + 3 g(5.0, 1.0, -1.0) ≤ 2
+ y(10.0)² + 3 g(10.0, 1.0, -1.0) ≤ 2
+ y(0.0)² + 3 g(0.0, -1.0, 1.0) ≤ 2
+ y(5.0)² + 3 g(5.0, -1.0, 1.0) ≤ 2
+ y(10.0)² + 3 g(10.0, -1.0, 1.0) ≤ 2
+ y(0.0)² + 3 g(0.0, 1.0, 1.0) ≤ 2
+ y(5.0)² + 3 g(5.0, 1.0, 1.0) ≤ 2
+ y(10.0)² + 3 g(10.0, 1.0, 1.0) ≤ 2</code></pre><p>This precisely matches what we found analytically. Note that the unique support  combinations are determined automatically.</p><h2 id="TranscriptionOpt"><a class="docs-heading-anchor" href="#TranscriptionOpt">TranscriptionOpt</a><a id="TranscriptionOpt-1"></a><a class="docs-heading-anchor-permalink" href="#TranscriptionOpt" title="Permalink"></a></h2><p><code>InfiniteOpt.TranscriptionOpt</code> is a sub-module which principally implements  <a href="../../manual/transcribe/#InfiniteOpt.TranscriptionOpt.TranscriptionBackend"><code>TranscriptionBackend</code></a>s and its related access/modification methods. Thus,  this section will detail what these are and how they work.</p><h3 id="TranscriptionBackends"><a class="docs-heading-anchor" href="#TranscriptionBackends">TranscriptionBackends</a><a id="TranscriptionBackends-1"></a><a class="docs-heading-anchor-permalink" href="#TranscriptionBackends" title="Permalink"></a></h3><p>A <code>TranscriptionBackend</code> is simply a <a href="../../manual/backend/#InfiniteOpt.JuMPBackend"><code>JuMPBackend</code></a> that uses the  <a href="../../manual/transcribe/#InfiniteOpt.TranscriptionOpt.Transcription"><code>Transcription</code></a> <code>AbstractJuMPTag</code> and <a href="../../manual/transcribe/#InfiniteOpt.TranscriptionOpt.TranscriptionData"><code>TranscriptionData</code></a> which  acts to map the transcribed model back to the original infinite model (e.g., map the  variables and constraints). Such models are constructed via a default version of  <a href="../../manual/transcribe/#InfiniteOpt.build_transformation_backend!-Tuple{InfiniteModel, TranscriptionBackend}"><code>build_transformation_backend!</code></a>  which wraps <a href="../../manual/transcribe/#InfiniteOpt.TranscriptionOpt.build_transcription_backend!"><code>build_transcription_backend!</code></a>:</p><pre><code class="language-julia-repl hljs">julia&gt; backend1 = TranscriptionBackend() # make an empty backend
 A TranscriptionBackend that uses a
 A JuMP Model
 ├ solver: none
@@ -238,7 +238,7 @@ julia&gt; supports(meas)
 ()
 
 julia&gt; transformation_expression(y^2 + z - 42)
-3-element Vector{AbstractJuMPScalar}:
+3-element Vector{Union{Real, AbstractJuMPScalar}}:
  y(0.0)² + z - 42
  y(5.0)² + z - 42
  y(10.0)² + z - 42
@@ -256,4 +256,4 @@ p
 julia&gt; build_transformation_backend!(inf_model)
 
 julia&gt; transformation_variable(p)
-p</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../constraint/">« Constraints</a><a class="docs-footer-nextpage" href="../optimize/">Optimization »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.14.1 on <span class="colophon-date" title="Thursday 2 October 2025 18:59">Thursday 2 October 2025</span>. Using Julia version 1.10.10.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+p</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../constraint/">« Constraints</a><a class="docs-footer-nextpage" href="../optimize/">Optimization »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.14.1 on <span class="colophon-date" title="Wednesday 15 October 2025 03:13">Wednesday 15 October 2025</span>. Using Julia version 1.10.10.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
