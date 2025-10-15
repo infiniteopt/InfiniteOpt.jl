@@ -214,7 +214,7 @@ of 1 with an initial guess of 0 and assign it to an alias
 `GeneralVariableRef` called `dydt2`:
 ```jldoctest deriv_basic 
 julia> @variable(model, dydt2 >= 1, Deriv(y, t, 2), start = 0)
-dydt2(t, ξ)
+dydt2(t, x, ξ)
 ```
 This will also support anonymous definition and multi-dimensional definition. 
 Please see [Macro Variable Definition](@ref) for more information.
@@ -503,8 +503,8 @@ and a warning will be thrown to indicate such:
 julia> derivative_constraints(d1)
 4-element Vector{InfOptConstraintRef}:
  2.5 ∂/∂t[y(t, x, ξ)](0, x, ξ) + y(0, x, ξ) - y(2.5, x, ξ) = 0, ∀ ξ ~ Uniform, x ∈ [-1, 1]
- 2.5 ∂/∂t[y(t, x, ξ)](2.5, x, ξ) + y(2.5, x, ξ) - y(5, x, ξ) = 0, ∀ ξ ~ Uniform,  x ∈ [-1, 1]
- 2.5 ∂/∂t[y(t, x, ξ)](5, x, ξ) + y(5, x, ξ) - y(7.5, x, ξ) = 0, ∀ ξ ~ Uniform x ∈ [-1, 1]
+ 2.5 ∂/∂t[y(t, x, ξ)](2.5, x, ξ) + y(2.5, x, ξ) - y(5, x, ξ) = 0, ∀ ξ ~ Uniform, x ∈ [-1, 1]
+ 2.5 ∂/∂t[y(t, x, ξ)](5, x, ξ) + y(5, x, ξ) - y(7.5, x, ξ) = 0, ∀ ξ ~ Uniform, x ∈ [-1, 1]
  2.5 ∂/∂t[y(t, x, ξ)](7.5, x, ξ) + y(7.5, x, ξ) - y(10, x, ξ) = 0, ∀ ξ ~ Uniform, x ∈ [-1, 1]
 
 julia> add_supports(t, 0.2)
@@ -601,7 +601,7 @@ julia> all_derivatives(model)
  d²/dt²[q(t)]
  d/dt[q(t)]
  ∂/∂x[y(t, x, ξ)]
- dydt2(t, x, x)
+ dydt2(t, x, ξ)
  ∂/∂t[∫{ξ ∈ [-1, 1]}[y(t, x, ξ)]]
 ```
 

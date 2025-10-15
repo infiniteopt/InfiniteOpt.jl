@@ -172,6 +172,12 @@ end
     domain3 = MultiDistributionDomain(dist3)
     domain4 = CollectionDomain([sdomain1, sdomain2])
     domain5 = CollectionDomain([sdomain2, sdomain2])
+    # container checker
+    @testset "Container Checker" begin
+        @test InfiniteOpt._enforce_parameter_container_type(error, ones(3)) isa Nothing
+        @test InfiniteOpt._enforce_parameter_container_type(error, ones(3, 2)) isa Nothing
+        @test_throws ErrorException InfiniteOpt._enforce_parameter_container_type(error, Containers.@container([2:3], 42))
+    end
     # test @infinite_parameter
     @testset "@infinite_parameter" begin
         # test macro errors

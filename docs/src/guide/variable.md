@@ -279,7 +279,7 @@ z
 For anonymous definition, we use the `variable_type` keyword argument instead:
 ```jldoctest var_macro
 julia>  y = @variable(model, variable_type = Infinite(t, x..., ξ)) # anon infinite variable
-noname(t, x, ξ)
+noname(t, x[1], x[2], x[3], ξ)
 
 julia> ys = @variable(model, variable_type = SemiInfinite(y, 0, x..., ξ)) # anon semi-infinite variable
 noname(0, x[1], x[2], x[3], ξ)
@@ -597,7 +597,7 @@ When using many `@variable` calls, we can instead use
 enhance the readability:
 ```jldoctest var_macro
 julia> @variables(model, begin
-           y1, Infinite(t, x....)
+           y1, Infinite(t, x...)
            y2[i=1:2] >= i, Infinite(t), (start = i, base_name = "Y_$i")
            z2, Bin
        end)
