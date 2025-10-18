@@ -213,8 +213,7 @@
     @testset "Other Objects" begin
         f = parameter_function((a,b) -> 2, (t, x))
         # test making semi_infinite variable
-        d = Dict{Int, Float64}(1 => 0)
-        @test add_variable(m, build_variable(error, f, d)) isa GeneralVariableRef
+        @test add_variable(m, build_variable(error, f, [0.0, NaN, NaN])) isa GeneralVariableRef
         # test making derivative 
         @test deriv(f, t) isa GeneralVariableRef
     end
@@ -226,7 +225,7 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, t in [0, 1])
     @infinite_parameter(m, x[1:2] in [0, 1], independent = true)
-    f5(t, x, a...; b...) = 42
+    f5(t, x1, x2, a...; b...) = 42
     # test _expr_replace!
     @testset "_expr_replace!" begin
         @test InfiniteOpt._expr_replace!(:(t -> f(t, x)), :t, :y) == :(y -> f(y, x))
@@ -275,21 +274,21 @@ end
         # test anonymous singular 
         idx = 1
         ref = GeneralVariableRef(m, idx, ParameterFunctionIndex)
-        @test isequal(@parameter_function(m, f5(t, x); base_name = "a"), ref)
+        @test isequal(@parameter_function(m, f5(t, x...); base_name = "a"), ref)
         @test name(ref) == "a"
         @test raw_function(ref) == f5 
-        @test isequal(parameter_refs(ref), (t, x))
+        @test isequal(parameter_refs(ref), (t, x...))
         idx += 1
         ref = GeneralVariableRef(m, idx, ParameterFunctionIndex)
-        @test isequal(@parameter_function(m, f5(t, x)), ref)
+        @test isequal(@parameter_function(m, f5(t, x...)), ref)
         @test name(ref) == "f5"
         @test raw_function(ref) == f5
-        @test isequal(parameter_refs(ref), (t, x))
+        @test isequal(parameter_refs(ref), (t, x...))
         idx += 1
         # test anonymous single argument multi-dim 
         refs = [GeneralVariableRef(m, idx + i, ParameterFunctionIndex) for i in 0:1]
-        @test isequal(@parameter_function(m, [1:2] == f5(t, x)), refs)
-        @test isequal(parameter_refs(refs[1]), (t, x))
+        @test isequal(@parameter_function(m, [1:2] == f5(t, x...)), refs)
+        @test isequal(parameter_refs(refs[1]), (t, x...))
         @test raw_function(refs[2]) == f5 
         @test name.(refs) == ["f5", "f5"]
         idx += 2
@@ -303,28 +302,28 @@ end
         idx += 2
         # test explicit single 
         ref = GeneralVariableRef(m, idx, ParameterFunctionIndex)
-        @test isequal(@parameter_function(m, a == f5(t, x), base_name = "bob"), ref)
+        @test isequal(@parameter_function(m, a == f5(t, x...), base_name = "bob"), ref)
         @test name(ref) == "bob"
         @test raw_function(ref) == f5 
-        @test isequal(parameter_refs(ref), (t, x))
+        @test isequal(parameter_refs(ref), (t, x...))
         idx += 1
         ref = GeneralVariableRef(m, idx, ParameterFunctionIndex)
-        @test isequal(@parameter_function(m, c == (t, x) -> f5(t, x, 2, d = 1)), ref)
+        @test isequal(@parameter_function(m, c == (t, x...) -> f5(t, x..., 2, d = 1)), ref)
         @test name(ref) == "c"
         @test raw_function(ref) != f5 
         @test raw_function(ref)(1, [1, 1]) == 42
-        @test isequal(parameter_refs(ref), (t, x))
+        @test isequal(parameter_refs(ref), (t, x...))
         idx += 1
         # test explicit multi-dim 
         refs = [GeneralVariableRef(m, idx + i, ParameterFunctionIndex) for i in 0:1]
-        @test isequal(@parameter_function(m, d[1:2] == f5(t, x)), refs)
-        @test isequal(parameter_refs(refs[1]), (t, x))
+        @test isequal(@parameter_function(m, d[1:2] == f5(t, x...)), refs)
+        @test isequal(parameter_refs(refs[1]), (t, x...))
         @test raw_function(refs[2]) == f5 
         @test name.(refs) == ["d[1]", "d[2]"]
         idx += 2
         refs = [GeneralVariableRef(m, idx + i, ParameterFunctionIndex) for i in 0:1]
-        @test isequal(@parameter_function(m, e[1:2] == (t, x) -> f5(t, x, 2; s = 1)), refs)
-        @test isequal(parameter_refs(refs[1]), (t, x))
+        @test isequal(@parameter_function(m, e[1:2] == (t, x...) -> f5(t, x..., 2; s = 1)), refs)
+        @test isequal(parameter_refs(refs[1]), (t, x...))
         @test raw_function(refs[2]) != f5 
         @test name.(refs) == ["e[1]", "e[2]"]
         idx += 2
@@ -464,7 +463,7 @@ end
     @variable(m, inf2, Infinite(par, pars))
     @variable(m, pt, Point(inf, 0))
     @variable(m, finite)
-    var = build_variable(error, inf2, Dict{Int, Float64}(1 => 0.5), check = false)
+    var = build_variable(error, inf2, [0.5, NaN, NaN], check = false)
     red = add_variable(m, var)
     # test for finite variable reference
     @testset "FiniteVariable" begin
@@ -521,7 +520,7 @@ end
     @variable(m, inf2, Infinite(par, pars))
     @variable(m, pt, Point(inf, 0))
     @variable(m, finite)
-    var = build_variable(error, inf2, Dict{Int, Float64}(1 => 0.5), check = false)
+    var = build_variable(error, inf2, [0.5, NaN, NaN], check = false)
     red = add_variable(m, var)
     # test for finite variable reference
     @testset "FiniteVariable" begin

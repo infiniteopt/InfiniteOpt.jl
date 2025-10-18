@@ -105,8 +105,7 @@ end
     f1 = parameter_function(sin, par)
     f2 = parameter_function((a, b) -> 1, (par, pars))
     add_supports(par, 0.5, label = InternalLabel)
-    supps = Dict{Int, Float64}(2 => 1)
-    xrv = add_variable(m, build_variable(error, x, supps))
+    xrv = x(par, [1, 1])
     tb = m.backend
     data = IOTO.transcription_data(tb)
     data.has_internal_supports = true
@@ -158,10 +157,9 @@ end
         @test IOTO.transcription_variable(x, tb, label = All) == [a b; c d; e f]
         @test isempty(IOTO.transcription_variable(x, tb, label = InternalLabel))
         data.infvar_mappings[xrv] = [b, d, f]
-        data.valid_indices[xrv] = [false true; false true; false true]
         @test IOTO.transcription_variable(xrv, tb) == [b, f]
         @test IOTO.transcription_variable(xrv, tb, label = All) == [b, d, f]
-        @test IOTO.transcription_variable(xrv, tb, label = InternalLabel) == []
+        @test IOTO.transcription_variable(xrv, tb, label = InternalLabel) == [d]
     end
     # test IOTO.transcription_variable (Parameter Function)
     @testset "IOTO.transcription_variable (Parameter Function)" begin
@@ -221,10 +219,14 @@ end
     end
     # test variable_supports for infinite parameter functions with 2 inputs
     @testset "variable_supports (Backend, Parameter Function)" begin
+        data.infvar_supports[f1] = [(0.0,), (0.5,), (1.0,)]
         df1 = dispatch_variable_ref(f1)
         @test InfiniteOpt.variable_supports(df1, tb) == [(0.,), (1.,)]
         @test InfiniteOpt.variable_supports(df1, tb, label = All) == [(0.,), (0.5,), (1.,)]
         df2 = dispatch_variable_ref(f2)
+        data.infvar_supports[f2] = [(0.0, [0.0, 0.0]) (0.0, [1., 1.]);
+                 (0.5, [0.0, 0.0]) (0.5, [1., 1.]);
+                 (1.0, [0.0, 0.0]) (1.0, [1., 1.])]
         @test InfiniteOpt.variable_supports(df2, tb) == data.infvar_supports[x][[1, 3], :]
         @test InfiniteOpt.variable_supports(df2, tb, label = All) == data.infvar_supports[x]
     end
@@ -282,7 +284,7 @@ end
             )
         data.infvar_lookup[f2] = lookups
         # test errors
-                @test_throws ErrorException IOTO.lookup_by_support(f1, tb, [0.75])
+        @test_throws ErrorException IOTO.lookup_by_support(f1, tb, [0.75])
         @test_throws ErrorException IOTO.lookup_by_support(f2, tb, [0., 0., 1.])
         # test normal
         @test IOTO.lookup_by_support(f1, tb, [0.]) == p1a
@@ -306,10 +308,10 @@ end
         # test errors
         @test_throws ErrorException InfiniteOpt.internal_semi_infinite_variable(rv, tb)
         # test normal
-        var = build_variable(error, x, supps)
+        var = build_variable(error, x, [NaN, 1, 1])
         push!(IOTO.transcription_data(tb).semi_infinite_vars, var)
         @test InfiniteOpt.internal_semi_infinite_variable(rv, tb) == var
-        eval_supports(rv) == supps
+        eval_support(rv)[2:3] == [1, 1]
     end
 end
 
@@ -475,13 +477,13 @@ end
     # test transcription expression for semi_infinite variables with 3 args
     @testset "IOTO.transcription_expression (Semi-Infinite Variable)" begin
         # semi_infinite of parameter function
-        rv = add_variable(m, build_variable(error, f, Dict(1=>1.)),
+        rv = add_variable(m, build_variable(error, f, [1, NaN, NaN]),
                           add_support = false)
         data.infvar_mappings[rv] = [pf2]
         data.infvar_lookup[rv] = Dict([0, 0] => pf2)
         @test IOTO.transcription_expression(rv, tb, [0., 0., 1.]) == pf2
         # semi_infinite of infinite variable
-        rv = add_variable(m, build_variable(error, x, Dict(1=>1.)),
+        rv = add_variable(m, build_variable(error, x, [1, NaN, NaN]),
                           add_support = false)
         data.infvar_mappings[rv] = [b]
         data.infvar_lookup[rv] = Dict([0, 0] => b)

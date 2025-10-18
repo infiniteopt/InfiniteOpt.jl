@@ -304,13 +304,14 @@ function generate_integral_data(prefs, lb, ub, method; kwargs...)
 end
 
 # Single pref with Automatic
-function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
+function generate_integral_data(
+    pref::InfiniteOpt.GeneralVariableRef,
     lower_bound::Real,
     upper_bound::Real,
     method::Automatic;
     num_supports::Int = InfiniteOpt.DefaultNumSupports,
     weight_func::Function = InfiniteOpt.default_weight
-    )::InfiniteOpt.AbstractMeasureData
+    )
     is_depend = InfiniteOpt._index_type(pref) == InfiniteOpt.DependentParameterIndex
     inf_bound_num = (lower_bound == -Inf) + (upper_bound == Inf)
     if inf_bound_num == 0 # finite interval
@@ -332,7 +333,7 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
 end
 
 # Univariate trapezoid coefficient function
-function _trapezoid_coeff(supps::Vector{<:Real})::Vector{Float64}
+function _trapezoid_coeff(supps::Vector{<:Real})
     len = length(supps)
     len >= 2 || error("Cannot invoke `UniTrapezoid` on integral if there are ",
                       "less than 2 supports added to its infinite parameter. Ensure ",
@@ -347,13 +348,14 @@ function _trapezoid_coeff(supps::Vector{<:Real})::Vector{Float64}
 end
 
 # Single pref trapezoid rule
-function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
-                                lower_bound::Real,
-                                upper_bound::Real,
-                                method::UniTrapezoid;
-                                num_supports::Int = InfiniteOpt.DefaultNumSupports,
-                                weight_func::Function = InfiniteOpt.default_weight
-                                )
+function generate_integral_data(
+    pref::InfiniteOpt.GeneralVariableRef,
+    lower_bound::Real,
+    upper_bound::Real,
+    method::UniTrapezoid;
+    num_supports::Int = InfiniteOpt.DefaultNumSupports,
+    weight_func::Function = InfiniteOpt.default_weight
+    )
     return InfiniteOpt.FunctionalDiscreteMeasureData(pref, _trapezoid_coeff, 0,
                                                      InfiniteOpt.All, 
                                                      InfiniteOpt.NoGenerativeSupports(), 
@@ -362,7 +364,7 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
 end
 
 # Function for generating coefficients for FE Gauss Lobatto Quadrature
-function _lobatto_coeff(supps::Vector{<:Real}, num_nodes::Int)::Vector{Float64}
+function _lobatto_coeff(supps::Vector{<:Real}, num_nodes::Int)
     len = length(supps)
     len >= 2 || error("Cannot invoke `FEGaussLobatto` on integral if there are ",
                       "less than 2 supports added to its infinite parameter. Ensure ",
@@ -379,7 +381,8 @@ function _lobatto_coeff(supps::Vector{<:Real}, num_nodes::Int)::Vector{Float64}
 end
 
 # Single Pref Finite Gauss Lobatto Quadrature
-function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
+function generate_integral_data(
+    pref::InfiniteOpt.GeneralVariableRef,
     lower_bound::Real,
     upper_bound::Real,
     method::FEGaussLobatto;
@@ -407,25 +410,15 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
                                                      upper_bound, false)
 end
 
-# Useful error function for dependent parameters
-function _ensure_independent_param(pref::InfiniteOpt.GeneralVariableRef,
-                                   method)::Nothing
-    if InfiniteOpt._index_type(pref) == InfiniteOpt.DependentParameterIndex
-        error("Cannot generate measure data for individual dependent parameters ",
-              "via `$(method)`. Try using `UniTrapezoid` for finite domains.")
-    end
-    return
-end
-
 # Single pref general quadrature dispatch
-function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
-                                lower_bound::Real,
-                                upper_bound::Real,
-                                method::Quadrature;
-                                num_nodes::Int = 3,
-                                weight_func::Function = InfiniteOpt.default_weight
-                                )
-    _ensure_independent_param(pref, method)
+function generate_integral_data(
+    pref::InfiniteOpt.GeneralVariableRef,
+    lower_bound::Real,
+    upper_bound::Real,
+    method::Quadrature;
+    num_nodes::Int = 3,
+    weight_func::Function = InfiniteOpt.default_weight
+    )
     inf_bound_num = (lower_bound == -Inf) + (upper_bound == Inf)
     if inf_bound_num == 0 # finite interval
         method = FEGaussLobatto()
@@ -473,14 +466,14 @@ function _make_nodes_weights(method::GaussJacobi, num_nodes::Int)
 end
 
 # Single pref Finite Gauss Quadrature
-function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
-                                lower_bound::Real,
-                                upper_bound::Real,
-                                method::FiniteGaussQuad;
-                                num_nodes::Int = 3,
-                                weight_func::Function = InfiniteOpt.default_weight
-                                )
-    _ensure_independent_param(pref, method)
+function generate_integral_data(
+    pref::InfiniteOpt.GeneralVariableRef,
+    lower_bound::Real,
+    upper_bound::Real,
+    method::FiniteGaussQuad;
+    num_nodes::Int = 3,
+    weight_func::Function = InfiniteOpt.default_weight
+    )
     if lower_bound == -Inf || upper_bound == Inf
         @warn("The `$(typeof(method))` method can only be applied on finite intervals, " *
               "switching to an appropriate method.")
@@ -498,14 +491,14 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
 end
 
 # Single pref Gauss-Laguerre
-function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
-                                lower_bound::Real,
-                                upper_bound::Real,
-                                method::GaussLaguerre;
-                                num_nodes::Int = 3,
-                                weight_func::Function = InfiniteOpt.default_weight
-                                )
-    _ensure_independent_param(pref, method)
+function generate_integral_data(
+    pref::InfiniteOpt.GeneralVariableRef,
+    lower_bound::Real,
+    upper_bound::Real,
+    method::GaussLaguerre;
+    num_nodes::Int = 3,
+    weight_func::Function = InfiniteOpt.default_weight
+    )
     if upper_bound == Inf
         if lower_bound == -Inf
             @warn("`GaussLaguerre` quadrature can only be applied on semi-infinite intervals, " *
@@ -534,14 +527,14 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
 end
 
 # Single pref Gauss-Hermite
-function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
-                                lower_bound::Real,
-                                upper_bound::Real,
-                                method::GaussHermite;
-                                num_nodes::Int = 3,
-                                weight_func::Function = InfiniteOpt.default_weight
-                                )
-    _ensure_independent_param(pref, method)
+function generate_integral_data(
+    pref::InfiniteOpt.GeneralVariableRef,
+    lower_bound::Real,
+    upper_bound::Real,
+    method::GaussHermite;
+    num_nodes::Int = 3,
+    weight_func::Function = InfiniteOpt.default_weight
+    )
     if lower_bound != -Inf || upper_bound != Inf
         @warn("`GaussHermite` quadrature can only be applied on infinite intervals, " *
               "switching to an appropriate method.")
@@ -557,13 +550,14 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
 end
 
 # Single pref uniform Monte Carlo sampling
-function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
-                                lower_bound::Real,
-                                upper_bound::Real,
-                                method::UniMCSampling;
-                                num_supports::Int = InfiniteOpt.DefaultNumSupports,
-                                weight_func::Function = InfiniteOpt.default_weight
-                                )
+function generate_integral_data(
+    pref::InfiniteOpt.GeneralVariableRef,
+    lower_bound::Real,
+    upper_bound::Real,
+    method::UniMCSampling;
+    num_supports::Int = InfiniteOpt.DefaultNumSupports,
+    weight_func::Function = InfiniteOpt.default_weight
+    )
     # check and process the arguments
     if lower_bound == -Inf || upper_bound == Inf
         error("`UniMCSampling` is not supported for (semi-)infinite intervals.")
@@ -590,14 +584,14 @@ function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
 end
 
 # Single pref independent Monte Carlo sampling
-function generate_integral_data(pref::InfiniteOpt.GeneralVariableRef,
-                                lower_bound::Real,
-                                upper_bound::Real,
-                                method::UniIndepMCSampling;
-                                num_supports::Int = InfiniteOpt.DefaultNumSupports,
-                                weight_func::Function = InfiniteOpt.default_weight
-                                )
-    _ensure_independent_param(pref, method)
+function generate_integral_data(
+    pref::InfiniteOpt.GeneralVariableRef,
+    lower_bound::Real,
+    upper_bound::Real,
+    method::UniIndepMCSampling;
+    num_supports::Int = InfiniteOpt.DefaultNumSupports,
+    weight_func::Function = InfiniteOpt.default_weight
+    )
     if lower_bound == -Inf || upper_bound == Inf
         error("`UniMCSampling` is not applicable to (semi-)infinite intervals.")
     end
@@ -620,7 +614,7 @@ function generate_integral_data(prefs::Vector{InfiniteOpt.GeneralVariableRef},
     method::Automatic;
     num_supports::Int = InfiniteOpt.DefaultNumSupports,
     weight_func::Function = InfiniteOpt.default_weight
-    )::InfiniteOpt.AbstractMeasureData
+    )
     return generate_integral_data(prefs, lower_bounds, upper_bounds,
                                   MultiMCSampling(), num_supports = num_supports,
                                   weight_func = weight_func)
@@ -633,7 +627,7 @@ function generate_integral_data(prefs::Vector{InfiniteOpt.GeneralVariableRef},
     method::MultiMCSampling;
     num_supports::Int = InfiniteOpt.DefaultNumSupports,
     weight_func::Function = InfiniteOpt.default_weight
-    )::InfiniteOpt.AbstractMeasureData
+    )
     # check bounds
     if any(lb == -Inf for lb in lower_bounds) || any(ub == Inf for ub in upper_bounds)
         error("`MultiMCSampling` is not applicable to (semi-)infinite intervals.")
@@ -660,7 +654,7 @@ function generate_integral_data(prefs::Vector{InfiniteOpt.GeneralVariableRef},
     method::MultiIndepMCSampling;
     num_supports::Int = InfiniteOpt.DefaultNumSupports,
     weight_func::Function = InfiniteOpt.default_weight
-    )::InfiniteOpt.AbstractMeasureData
+    )
     # check bounds
     if any(lb == -Inf for lb in lower_bounds) || any(ub == Inf for ub in upper_bounds)
         error("`MultiIndepMCSampling` is not applicable to (semi-)infinite intervals.")
@@ -816,7 +810,7 @@ function integral(
     lower_bound::Real = NaN,
     upper_bound::Real = NaN;
     kwargs...
-    )::InfiniteOpt.GeneralVariableRef
+    )
     # check parameter formatting
     InfiniteOpt._check_params(pref)
     # fill in bounds if needed
@@ -858,7 +852,7 @@ function ∫(
     lower_bound::Real = NaN,
     upper_bound::Real = NaN;
     kwargs...
-    )::InfiniteOpt.GeneralVariableRef
+    )
     return integral(expr, pref, lower_bound, upper_bound; kwargs...)
 end
 
@@ -879,7 +873,7 @@ Dict{Symbol,Any} with 1 entry:
   :eval_method => Automatic()
 ```
 """
-multi_integral_defaults()::Dict{Symbol, Any} = MultiIntegralDefaults
+multi_integral_defaults() = MultiIntegralDefaults
 
 """
     set_multi_integral_defaults(; kwargs...)::Nothing
@@ -887,7 +881,7 @@ multi_integral_defaults()::Dict{Symbol, Any} = MultiIntegralDefaults
 Set the default keyword argument settings for multi-dimesnional integrals.
 The keyword arguments of this function will be recorded in the default keyword
 argument dictionary. These will determine the default keyword argument values
-when calling [`integral`](@ref MeasureToolbox.integral(::JuMP.AbstractJuMPScalar,::AbstractArray{GeneralVariableRef},::Union{Real, AbstractArray{<:Real}}, ::Union{Real, AbstractArray{<:Real}}))
+when calling [`integral`](@ref MeasureToolbox.integral(::JuMP.AbstractJuMPScalar,::Array{GeneralVariableRef},::Union{Real, Array{<:Real}}, ::Union{Real, Array{<:Real}}))
 with an array of infinite parameters.
 
 **Example**
@@ -905,7 +899,7 @@ Dict{Symbol,Any} with 3 entries:
   :eval_method           => Automatic()
 ```
 """
-function set_multi_integral_defaults(; kwargs...)::Nothing
+function set_multi_integral_defaults(; kwargs...)
     merge!(MultiIntegralDefaults, kwargs)
     return
 end
@@ -931,18 +925,17 @@ Dict{Symbol,Any} with 1 entry:
   :eval_method => Automatic()
 ```
 """
-function clear_multi_integral_defaults(; kwargs...)::Nothing
+function clear_multi_integral_defaults(; kwargs...)
     empty!(MultiIntegralDefaults)
     MultiIntegralDefaults[:eval_method] = Automatic()
     return
 end
 
-Base.isnan(arr::AbstractArray{<:Real})::Bool = all(Base.isnan.(arr))
 """
     integral(expr::JuMP.AbstractJuMPScalar,
-             prefs::AbstractArray{GeneralVariableRef},
-             [lower_bounds::Union{Real, AbstractArray{<:Real}} = [lower_bound(pref)...],
-             upper_bounds::Union{Real, AbstractArray{<:Real}} = [upper_bound(pref)...];
+             prefs::Array{GeneralVariableRef},
+             [lower_bounds::Union{Real, Array{<:Real}} = [lower_bound(pref)...],
+             upper_bounds::Union{Real, Array{<:Real}} = [upper_bound(pref)...];
              kwargs...])::GeneralVariableRef
 
 Returns a measure reference that evaluates the integral of `expr` with respect
@@ -981,39 +974,37 @@ julia> int = integral(f, x)
 """
 function integral(
     expr::JuMP.AbstractJuMPScalar,
-    prefs::AbstractArray{InfiniteOpt.GeneralVariableRef},
-    lower_bounds::Union{Real, AbstractArray{<:Real}} = NaN,
-    upper_bounds::Union{Real, AbstractArray{<:Real}} = NaN;
+    prefs::Array{InfiniteOpt.GeneralVariableRef},
+    lower_bounds::Union{Real, Array{<:Real}} = NaN,
+    upper_bounds::Union{Real, Array{<:Real}} = NaN;
     kwargs...
-    )::InfiniteOpt.GeneralVariableRef
+    )
     # check parameter formatting
     InfiniteOpt._check_params(prefs)
     # fill in the lower bounds if needed
-    if isnan(lower_bounds) && JuMP.has_lower_bound(first(prefs))
+    if all(isnan.(lower_bounds)) && JuMP.has_lower_bound(first(prefs))
         lbs = map(p -> JuMP.lower_bound(p), prefs)
-    elseif !isnan(lower_bounds) && lower_bounds isa Real
+    elseif !all(isnan.(lower_bounds)) && lower_bounds isa Real
         lbs = map(p -> lower_bounds, prefs)
     else
         lbs = lower_bounds
     end
     # fill in the upper bounds if needed
-    if isnan(upper_bounds) && JuMP.has_upper_bound(first(prefs))
+    if all(isnan.(upper_bounds)) && JuMP.has_upper_bound(first(prefs))
         ubs = map(p -> JuMP.upper_bound(p), prefs)
-    elseif !isnan(upper_bounds) && upper_bounds isa Real
+    elseif !all(isnan.(upper_bounds)) && upper_bounds isa Real
         ubs = map(p -> upper_bounds, prefs)
     else
         ubs = upper_bounds
     end
     # do initial bound checks
-    if InfiniteOpt._keys(prefs) != InfiniteOpt._keys(lbs) ||
-       InfiniteOpt._keys(prefs) != InfiniteOpt._keys(ubs)
+    if size(prefs) != size(lbs) || size(prefs) != size(ubs)
         error("Array keys of infinite parameters and bounds do not match.")
     end
     # process the arrays
-    inds = InfiniteOpt.Collections.indices(prefs)
-    vect_prefs = InfiniteOpt.Collections.vectorize(prefs, inds)
-    vect_lbs = InfiniteOpt.Collections.vectorize(lbs, inds)
-    vect_ubs = InfiniteOpt.Collections.vectorize(ubs, inds)
+    vect_prefs, _ = InfiniteOpt.Collections.vectorize(prefs)
+    vect_lbs, _ = InfiniteOpt.Collections.vectorize(lbs)
+    vect_ubs, _ = InfiniteOpt.Collections.vectorize(ubs)
     # ensure valid bounds
     if any(vect_lbs[i] >= vect_ubs[i] for i in eachindex(vect_lbs))
         error("Invalid integral bounds, ensure that lower_bounds < upper_bounds.")
@@ -1031,31 +1022,33 @@ end
 
 """
     ∫(expr::JuMP.AbstractJuMPScalar,
-      prefs::AbstractArray{GeneralVariableRef},
-      [lower_bounds::Union{Real, AbstractArray{<:Real}} = NaN,
-      upper_bounds::Union{Real, AbstractArray{<:Real}} = NaN;
+      prefs::Array{GeneralVariableRef},
+      [lower_bounds::Union{Real, Array{<:Real}} = NaN,
+      upper_bounds::Union{Real, Array{<:Real}} = NaN;
       kwargs...])::GeneralVariableRef
 
 A convenient wrapper for [`integral`](@ref). The unicode symbol `∫` is produced 
 via `\\int`.
 """
-function ∫(expr::JuMP.AbstractJuMPScalar,
-           prefs::AbstractArray{InfiniteOpt.GeneralVariableRef},
-           lower_bounds::Union{Real, AbstractArray{<:Real}} = NaN,
-           upper_bounds::Union{Real, AbstractArray{<:Real}} = NaN;
-           kwargs...)::InfiniteOpt.GeneralVariableRef
+function ∫(
+    expr::JuMP.AbstractJuMPScalar,
+    prefs::Array{InfiniteOpt.GeneralVariableRef},
+    lower_bounds::Union{Real, Array{<:Real}} = NaN,
+    upper_bounds::Union{Real, Array{<:Real}} = NaN;
+    kwargs...
+    )
     return integral(expr, prefs, lower_bounds, upper_bounds; kwargs...)
 end
 
 """
     @integral(expr::JuMP.AbstractJuMPScalar,
-              prefs::Union{GeneralVariableRef, AbstractArray{GeneralVariableRef}},
-              [lower_bounds::Union{Real, AbstractArray{<:Real}} = default_bounds,
-              upper_bounds::Union{Real, AbstractArray{<:Real}} = default_bounds;
+              prefs::Union{GeneralVariableRef, Array{GeneralVariableRef}},
+              [lower_bounds::Union{Real, Array{<:Real}} = default_bounds,
+              upper_bounds::Union{Real, Array{<:Real}} = default_bounds;
               kwargs...])::GeneralVariableRef
 
 An efficient wrapper for [`integral`](@ref integral(::JuMP.AbstractJuMPScalar, ::InfiniteOpt.GeneralVariableRef, ::Real, ::Real))
-and [`integral`](@ref integral(::JuMP.AbstractJuMPScalar, ::AbstractArray{InfiniteOpt.GeneralVariableRef}, ::Union{Real, AbstractArray{<:Real}}, ::Union{Real, AbstractArray{<:Real}})).
+and [`integral`](@ref integral(::JuMP.AbstractJuMPScalar, ::Array{InfiniteOpt.GeneralVariableRef}, ::Union{Real, Array{<:Real}}, ::Union{Real, Array{<:Real}})).
 Please see the above doc strings for more information.
 """
 macro integral(args...)
@@ -1076,9 +1069,9 @@ end
 
 """
     @∫(expr::JuMP.AbstractJuMPScalar,
-       prefs::Union{GeneralVariableRef, AbstractArray{GeneralVariableRef}},
-       [lower_bounds::Union{Real, AbstractArray{<:Real}} = default_bounds,
-       upper_bounds::Union{Real, AbstractArray{<:Real}} = default_bounds;
+       prefs::Union{GeneralVariableRef, Array{GeneralVariableRef}},
+       [lower_bounds::Union{Real, Array{<:Real}} = default_bounds,
+       upper_bounds::Union{Real, Array{<:Real}} = default_bounds;
        kwargs...])::GeneralVariableRef
 
 A convenient wrapper for [`@integral`](@ref). The unicode symbol `∫` is produced 

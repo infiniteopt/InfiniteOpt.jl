@@ -5,7 +5,7 @@
     @infinite_parameter(m, a in [0, 1])
     @infinite_parameter(m, b[1:2] in [0, 1], independent = true)
     @infinite_parameter(m, c[1:2] in [0, 1])
-    @variable(m, ivref, Infinite(a, b, c))
+    @variable(m, ivref, Infinite(a, b..., c))
     num = Float64(0)
     info = VariableInfo(false, num, false, num, false, num, false, num, false, false)
     new_info = VariableInfo(true, 0., true, 0., true, 0., true, 0., true, false)
@@ -93,8 +93,8 @@
     end
     # parameter_values
     @testset "parameter_values" begin
-        @test parameter_values(vref) == (Float64(0), Float64[0, 1], Float64[1, 0])
-        @test parameter_values(gvref) == (Float64(0), Float64[0, 1], Float64[1, 0])
+        @test parameter_values(vref) == (Float64(0), 0.0, 1.0, Float64[1, 0])
+        @test parameter_values(gvref) == (Float64(0), 0.0, 1.0, Float64[1, 0])
     end
     # _update_variable_param_values
     @testset "_update_variable_param_values" begin
@@ -175,7 +175,7 @@ end
     divref = dispatch_variable_ref(ivref)
     divref2 = dispatch_variable_ref(ivref2)
     # test Point
-    @testset "Point{V, T}" begin 
+    @testset "Point" begin 
         @test isequal(Point(ivref, [0, 0]).infinite_variable_ref, ivref)
         @test Point(ivref, [0, 0]).parameter_values.values == [0, 0]
     end
@@ -203,21 +203,21 @@ end
     @testset "_check_element_support (IndependentParameterRef)" begin
         # test normal
         ps = [dispatch_variable_ref(pref)]
-        vals = Float64[0, 2]
-        @test InfiniteOpt._check_element_support(error, ps, vals, 1) == 2
+        vals = Float64[0]
+        @test InfiniteOpt._check_element_support(error, ps, vals) isa Nothing
         # test error
-        ps = [dispatch_variable_ref(pref), dispatch_variable_ref(pref2)]
-        @test_throws ErrorException InfiniteOpt._check_element_support(error, ps, vals, 1)
+        ps = [dispatch_variable_ref(pref)]
+        @test_throws ErrorException InfiniteOpt._check_element_support(error, ps, [2.])
     end
     # _check_element_support
     @testset "_check_element_support (DependentParameterRef)" begin
         # test normal
         ps = dispatch_variable_ref.(prefs)
-        vals = Float64[0, 1, 0, 1]
-        @test InfiniteOpt._check_element_support(error, ps, vals, 3) == 5
+        vals = Float64[0, 1]
+        @test InfiniteOpt._check_element_support(error, ps, vals) isa Nothing
         # test error
-        vals = Float64[0, 0, 2, 1]
-        @test_throws ErrorException InfiniteOpt._check_element_support(error, ps, vals, 3)
+        vals = Float64[2, 1]
+        @test_throws ErrorException InfiniteOpt._check_element_support(error, ps, vals)
     end
     # _check_tuple_values
     @testset "_check_tuple_values" begin
@@ -270,7 +270,6 @@ end
     # build_variable
     @testset "JuMP.build_variable" begin
         # test for all errors
-        @test_throws ErrorException build_variable(error, info, Point(2))
         @test_throws ErrorException build_variable(error, info, Point(pref, 0))
         @test_throws ErrorException build_variable(error, info, Point(ivref))
         @test_throws ErrorException build_variable(error, info, Point(ivref, "d"))
@@ -289,25 +288,17 @@ end
     @testset "_add_point_support (IndependentParameterRef)" begin
         # test normal
         ps = [dispatch_variable_ref(pref)]
-        vals = Float64[0, 2]
-        @test InfiniteOpt._add_point_support(ps, vals, 1) == 2
+        vals = Float64[0]
+        @test InfiniteOpt._add_point_support(ps, vals) isa Nothing
         @test supports(pref, label = UserDefined) == [0]
         @test delete_supports(pref) isa Nothing
-        # test other
-        ps = [dispatch_variable_ref(pref), dispatch_variable_ref(pref2)]
-        vals = Float64[0, 1]
-        @test InfiniteOpt._add_point_support(ps, vals, 1) == 3
-        @test supports(pref, label = UserDefined) == [0]
-        @test supports(pref2, label = UserDefined) == [1]
-        @test delete_supports(pref) isa Nothing
-        @test delete_supports(pref2) isa Nothing
     end
     # _add_point_support
     @testset "_add_point_support (DependentParameterRef)" begin
         # test normal
         ps = dispatch_variable_ref.(prefs)
         vals = Float64[0, 0]
-        @test InfiniteOpt._add_point_support(ps, vals, 1) == 3
+        @test InfiniteOpt._add_point_support(ps, vals) isa Nothing
         @test supports(prefs, label = UserDefined) == zeros(2, 1)
         @test delete_supports(prefs) isa Nothing
     end

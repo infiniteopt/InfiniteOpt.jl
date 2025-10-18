@@ -22,7 +22,7 @@ mutable struct TranscriptionData
 
     # Internal variables (created via internal measure expansions)
     semi_infinite_vars::Vector{InfiniteOpt.SemiInfiniteVariable{InfiniteOpt.GeneralVariableRef}}
-    semi_lookup::Dict{Tuple{InfiniteOpt.GeneralVariableRef, Dict{Int, Float64}}, InfiniteOpt.GeneralVariableRef}
+    semi_lookup::Dict{Tuple{InfiniteOpt.GeneralVariableRef, Vector{Float64}}, InfiniteOpt.GeneralVariableRef}
     last_point_index::Int
     point_lookup::Dict{Tuple{InfiniteOpt.GeneralVariableRef, Vector{Float64}}, InfiniteOpt.GeneralVariableRef}
 
@@ -54,7 +54,7 @@ mutable struct TranscriptionData
             Dict{Any, Array{Bool}}(),
             # internal variables
             Vector{InfiniteOpt.SemiInfiniteVariable{InfiniteOpt.GeneralVariableRef}}(),
-            Dict{Tuple{InfiniteOpt.GeneralVariableRef, Dict{Int, Float64}}, InfiniteOpt.GeneralVariableRef}(),
+            Dict{Tuple{InfiniteOpt.GeneralVariableRef, Vector{Float64}}, InfiniteOpt.GeneralVariableRef}(),
             0,
             Dict{Tuple{InfiniteOpt.GeneralVariableRef, Vector{Float64}}, InfiniteOpt.GeneralVariableRef}(),
             # measure info
@@ -425,7 +425,8 @@ function InfiniteOpt.variable_supports(
     dvref::Union{
         InfiniteOpt.InfiniteVariableRef,
         InfiniteOpt.SemiInfiniteVariableRef, 
-        InfiniteOpt.DerivativeRef
+        InfiniteOpt.DerivativeRef,
+        InfiniteOpt.ParameterFunctionRef
         },
     backend::TranscriptionBackend;
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel
@@ -444,29 +445,29 @@ function InfiniteOpt.variable_supports(
 end
 
 # ParameterFunctionRef 
-function InfiniteOpt.variable_supports(
-    fref::InfiniteOpt.ParameterFunctionRef,
-    backend::TranscriptionBackend;
-    label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel
-    )
-    # get the parameter group integer indices of the expression and form the support iterator
-    group_idxs = InfiniteOpt.parameter_group_int_indices(fref)
-    support_indices = support_index_iterator(backend, group_idxs)
-    dims = size(support_indices)[group_idxs]
-    supps = Array{Tuple, length(dims)}(undef, dims...)
-    param_supps = parameter_supports(backend)
-    # iterate over the indices and compute the values
-    for idx in support_indices
-        val_idx = idx.I[group_idxs]
-        @inbounds supps[val_idx...] = Tuple(param_supps[j][idx[j]] for j in group_idxs)
-    end
-    # return the values
-    if _ignore_label(backend, label)
-        return supps
-    else
-        return _truncate_by_label(supps, fref, label, group_idxs, backend)
-    end
-end
+# function InfiniteOpt.variable_supports(
+#     fref::InfiniteOpt.ParameterFunctionRef,
+#     backend::TranscriptionBackend;
+#     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel
+#     )
+#     # get the parameter group integer indices of the expression and form the support iterator
+#     group_idxs = InfiniteOpt.parameter_group_int_indices(fref)
+#     support_indices = support_index_iterator(backend, group_idxs)
+#     dims = size(support_indices)[group_idxs]
+#     supps = Array{Tuple, length(dims)}(undef, dims...)
+#     param_supps = parameter_supports(backend)
+#     # iterate over the indices and compute the values
+#     for idx in support_indices
+#         val_idx = idx.I[group_idxs]
+#         @inbounds supps[val_idx...] = Tuple(param_supps[j][idx[j]] for j in group_idxs)
+#     end
+#     # return the values
+#     if _ignore_label(backend, label)
+#         return supps
+#     else
+#         return _truncate_by_label(supps, fref, label, group_idxs, backend)
+#     end
+# end
 
 """
     lookup_by_support(
@@ -487,13 +488,12 @@ function lookup_by_support(
 end
 
 # define error function for not being able to find a variable by its support
-_supp_error() = error("""
+_supp_error() = error(
+    """
     Unable to locate transcription variable by support, consider rebuilding the 
-    infinite model with less significant digits. Note this might be due to partially
-    evaluating dependent parameters which is not supported by TranscriptionOpt. Such 
-    is the case with derivatives/measures that dependent on single dependent 
-    parameters.
-    """)
+    infinite model with less significant digits.
+    """
+)
 
 # InfiniteIndex & ParameterFunctionIndex
 function lookup_by_support(
@@ -649,7 +649,7 @@ function transcription_expression(
     group_idxs = InfiniteOpt.parameter_group_int_indices(expr)
     support_indices = support_index_iterator(backend, group_idxs)
     dims = size(support_indices)[group_idxs]
-    exprs = Array{JuMP.AbstractJuMPScalar, length(dims)}(undef, dims...)
+    exprs = Array{Union{JuMP.AbstractJuMPScalar, Real}, length(dims)}(undef, dims...)
     # iterate over the indices and compute the values
     for idx in support_indices
         supp = index_to_support(backend, idx)

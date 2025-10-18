@@ -80,7 +80,7 @@ model = InfiniteModel(Ipopt.Optimizer)
 set_optimizer_attribute(model, "print_level", 0);
 
 # Now let's define the infinite parameters using [`@infinite_parameter`](@ref):
-@infinite_parameter(model, ξ[c in C] ~ Ξ[c], num_supports = num_scenarios)
+@infinite_parameter(model, ξ[c in C] ~ Ξ[c], num_supports = num_scenarios, container = Array)
 
 # !!! note
 #     Behind the scenes, an amount of random samples equal to `num_scenarios` will 

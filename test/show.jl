@@ -8,11 +8,11 @@
     @infinite_parameter(m, pars3[1:2] in [0, 1], independent = true)
     @variable(m, x, Infinite(par1))
     @variable(m, z, Infinite(pars))
-    @variable(m, inf, Infinite(pars, par1, pars3))
+    @variable(m, inf, Infinite(pars, par1, pars3...))
     @variable(m, y)
     d1 = @deriv(x, par1)
-    d2 = @deriv(inf, pars[1], par1)
-    d3 = @deriv(z, pars[2])
+    d2 = @deriv(inf, pars3[1], par1)
+    d3 = @deriv(inf, pars3[2])
     set_name(d3, "d3")
     d4 = @deriv(x, par1^2)
     d5 = @deriv(x, par1^3)
@@ -364,13 +364,13 @@
         @test InfiniteOpt.variable_string(MIME("text/latex"), bad_ref) == "noname"
         # test complex normal one
         dvref = dispatch_variable_ref(inf)
-        @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "inf(pars, par1, pars3)"
-        @test InfiniteOpt.variable_string(MIME("text/latex"), dvref) == "inf(pars, par1, pars3)"
+        @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "inf(pars, par1, pars3[1], pars3[2])"
+        @test InfiniteOpt.variable_string(MIME("text/latex"), dvref) == "inf(pars, par1, pars3[1], pars3[2])"
         # test mixed types
-        @variable(m, inf2, Infinite([par1, pars3[2]]))
+        @variable(m, inf2, Infinite(par1, pars3[2]))
         dvref = dispatch_variable_ref(inf2)
-        @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "inf2([par1, pars3[2]])"
-        @test InfiniteOpt.variable_string(MIME("text/latex"), dvref) == "inf2([par1, pars3[2]])"
+        @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "inf2(par1, pars3[2])"
+        @test InfiniteOpt.variable_string(MIME("text/latex"), dvref) == "inf2(par1, pars3[2])"
     end
     # test variable_string (ParameterFunctionRef)
     @testset "variable_string (ParameterFunctionRef)" begin
@@ -396,14 +396,14 @@
         # test nested one
         dref = dispatch_variable_ref(d2)
         d_re = InfiniteOpt._math_symbol(MIME("text/plain"), :partial)
-        expected = "$d_re/$(d_re)par1[$d_re/$(d_re)pars[1][inf(pars, par1, pars3)]]"
+        expected = "$d_re/$(d_re)par1[$d_re/$(d_re)pars3[1][inf(pars, par1, pars3[1], pars3[2])]]"
         @test InfiniteOpt.variable_string(MIME("text/plain"), dref) == expected
-        expected = "\\frac{\\partial}{\\partial par1}\\left[\\frac{\\partial}{\\partial pars_{1}}\\left[inf(pars, par1, pars3)\\right]\\right]"
+        expected = "\\frac{\\partial}{\\partial par1}\\left[\\frac{\\partial}{\\partial pars3_{1}}\\left[inf(pars, par1, pars3[1], pars3[2])\\right]\\right]"
         @test InfiniteOpt.variable_string(MIME("text/latex"), dref) == expected
         # test has explicit name
         dref = dispatch_variable_ref(d3)
-        @test InfiniteOpt.variable_string(MIME("text/plain"), dref) == "d3(pars)"
-        @test InfiniteOpt.variable_string(MIME("text/latex"), dref) == "d3(pars)"
+        @test InfiniteOpt.variable_string(MIME("text/plain"), dref) == "d3(pars, par1, pars3[1], pars3[2])"
+        @test InfiniteOpt.variable_string(MIME("text/latex"), dref) == "d3(pars, par1, pars3[1], pars3[2])"
         # test 2nd derivative
         dref = dispatch_variable_ref(d4)
         @test InfiniteOpt.variable_string(MIME("text/plain"), dref) == "d²/dpar1²[x(par1)]"
@@ -439,9 +439,9 @@
         @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "x(0)"
         @test InfiniteOpt.variable_string(MIME("text/latex"), dvref) == "x(0)"
         # test complex one
-        dvref = dispatch_variable_ref(@variable(m, variable_type = Point(inf, [0, 0], 0, [0, 0])))
-        @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "inf([0, 0], 0, [0, 0])"
-        @test InfiniteOpt.variable_string(MIME("text/latex"), dvref) == "inf([0, 0], 0, [0, 0])"
+        dvref = dispatch_variable_ref(@variable(m, variable_type = Point(inf, [0, 0], 0, 0, 0)))
+        @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "inf([0, 0], 0, 0, 0)"
+        @test InfiniteOpt.variable_string(MIME("text/latex"), dvref) == "inf([0, 0], 0, 0, 0)"
         # test with alias name
         dvref = dispatch_variable_ref(@variable(m, z0, Point(z, [0, 0])))
         @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "z0"
@@ -450,8 +450,8 @@
         dvref = dispatch_variable_ref(@variable(m, variable_type = Point(d1, 0)))
         @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "d/dpar1[x(par1)](0)"
         # test named derivative
-        dvref = dispatch_variable_ref(@variable(m, variable_type = Point(d3, [0, 0])))
-        @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "d3([0, 0])"
+        dvref = dispatch_variable_ref(@variable(m, variable_type = Point(d3, [0, 0], 0, 0, 0)))
+        @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "d3([0, 0], 0, 0, 0)"
     end
     # test variable_string (SemiInfiniteVariableRef)
     @testset "variable_string (SemiInfiniteVariableRef)" begin
@@ -460,17 +460,15 @@
         @test InfiniteOpt.variable_string(MIME("text/plain"), bad_ref) == "noname"
         @test InfiniteOpt.variable_string(MIME("text/latex"), bad_ref) == "noname"
         # test short one
-        rv = @variable(m, variable_type = SemiInfinite(inf, [0, 0], par1, [0, pars3[2]]))
+        rv = @variable(m, variable_type = SemiInfinite(inf, [0, 0], par1, 0, pars3[2]))
         dvref = dispatch_variable_ref(rv)
-        @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "inf([0, 0], par1, [0, pars3[2]])"
-        @test InfiniteOpt.variable_string(MIME("text/latex"), dvref) == "inf([0, 0], par1, [0, pars3[2]])"
+        @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "inf([0, 0], par1, 0, pars3[2])"
+        @test InfiniteOpt.variable_string(MIME("text/latex"), dvref) == "inf([0, 0], par1, 0, pars3[2])"
         # test named derivative
-        rv = @variable(m, variable_type = SemiInfinite(d3, [0, pars[2]]))
+        rv = @variable(m, variable_type = SemiInfinite(d3, [0, 0], par1, 0, pars3[2]))
         dvref = dispatch_variable_ref(rv)
-        @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "d3([0, pars[2]])"
+        @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "d3([0, 0], par1, 0, pars3[2])"
         # unnamed derivative
-        eval_supps = Dict{Int, Float64}(1 => 0)
-        var = build_variable(error, d1, eval_supps, check = false)
         rv = @variable(m, variable_type = SemiInfinite(d1, 0))
         dvref = dispatch_variable_ref(rv)
         @test InfiniteOpt.variable_string(MIME("text/plain"), dvref) == "d/dpar1[x(par1)](0)"
@@ -483,9 +481,9 @@
     # test the function_string extensions
     @testset "JuMP.function_string" begin
         @test JuMP.function_string(MIME("text/plain"), dispatch_variable_ref(y)) == "y"
-        @test JuMP.function_string(MIME("text/latex"), dispatch_variable_ref(inf)) == "inf(pars, par1, pars3)"
+        @test JuMP.function_string(MIME("text/latex"), dispatch_variable_ref(inf)) == "inf(pars, par1, pars3[1], pars3[2])"
         @test JuMP.function_string(MIME("text/plain"), y) == "y"
-        @test JuMP.function_string(MIME("text/latex"), inf) == "inf(pars, par1, pars3)"
+        @test JuMP.function_string(MIME("text/latex"), inf) == "inf(pars, par1, pars3[1], pars3[2])"
         @test JuMP.function_string(MIME("text/plain"), d1) == "d/dpar1[x(par1)]"
     end
     # test restrict_string

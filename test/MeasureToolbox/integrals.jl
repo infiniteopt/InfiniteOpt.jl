@@ -13,11 +13,6 @@
                     FunctionalDiscreteMeasureData(t, IOMT._trapezoid_coeff, 0, All, 
                                NoGenerativeSupports(),default_weight, 0, 1, false)
     end
-    # test _ensure_independent_param
-    @testset "_ensure_independent_param" begin
-        @test IOMT._ensure_independent_param(t, Automatic()) isa Nothing
-        @test_throws ErrorException IOMT._ensure_independent_param(x[1], Automatic())
-    end
     # test generate_integral_data (Gauss-Legendre)
     @testset "generate_integral_data (Gauss-Legendre)" begin
         @test generate_integral_data(t, 0, 1, GaussLegendre()) isa DiscreteMeasureData
@@ -213,7 +208,7 @@ end
     m = InfiniteModel();
     @infinite_parameter(m, x[1:2] in [0, 10])
     @infinite_parameter(m, xi[1:2] in [0, 5])
-    @infinite_parameter(m, y[2:3] in [0, 1])
+    @infinite_parameter(m, y[1:2] in [0, 1])
     @variable(m, inf1, Infinite(x))
     @variable(m, inf2, Infinite(xi))
     @variable(m, inf3, Infinite(y))
@@ -233,7 +228,6 @@ end
         @test InfiniteOpt._index_type(integral(inf2, xi)) == MeasureIndex
         @test InfiniteOpt._index_type(integral(inf1, x, 1, 2)) == MeasureIndex
         @test InfiniteOpt._index_type(integral(inf2, xi, 1, 2)) == MeasureIndex
-        @test_throws ErrorException integral(inf3, y, [0, 0], [1, 1])
         @test_throws ErrorException integral(inf1, x, 3, 1)
         @test_throws ErrorException integral(inf1, x, -1, 1)
         @test_throws ErrorException integral(inf1, x, 9, 11)
@@ -244,7 +238,7 @@ end
         @test InfiniteOpt._index_type(∫(inf2, xi)) == MeasureIndex
         @test InfiniteOpt._index_type(∫(inf1, x, 1, 2)) == MeasureIndex
         @test InfiniteOpt._index_type(∫(inf2, xi, 1, 2)) == MeasureIndex
-        @test_throws ErrorException ∫(inf3, y, [0, 0], [1, 1])
+        @test_throws ErrorException ∫(inf3, y, zeros(2, 1), ones(2, 1))
         @test_throws ErrorException ∫(inf1, x, 3, 1)
         @test_throws ErrorException ∫(inf1, x, -1, 1)
         @test_throws ErrorException ∫(inf1, x, 9, 11)

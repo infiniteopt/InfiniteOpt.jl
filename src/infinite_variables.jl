@@ -123,7 +123,7 @@ end
 #                          DEFINTION HELPER METHODS
 ################################################################################
 """
-    Infinite{VT <: VectorTuple} <: InfOptVariableType
+    Infinite <: InfOptVariableType
 
 A `DataType` to assist in making infinite variables. This can be passed as an 
 extra argument to `@variable` to make an infinite variable: 
@@ -135,16 +135,21 @@ array with parameters defined in the same macro call, or multiple arguments wher
 each argument is either of the first two options listed.
 
 **Fields**
-- `parameter_refs::VT`: The infinite parameters the variable will depend on.
+- `parameter_refs::VectorTuple{GeneralVariableRef}`: The infinite parameters the variable will depend on.
 """
-struct Infinite{VT <: Collections.VectorTuple} <: InfOptVariableType
-    parameter_refs::VT
-    function Infinite(vt::VT) where {VT <: Collections.VectorTuple}
-        return new{VT}(vt)
+struct Infinite <: InfOptVariableType
+    parameter_refs::Collections.VectorTuple{GeneralVariableRef}
+    function Infinite(vt::Collections.VectorTuple{GeneralVariableRef})
+        new(vt)
     end
 end
 function Infinite(args...)
     return Infinite(Collections.VectorTuple(args))
+end
+function Infinite(vt::Collections.VectorTuple{T}) where {T}
+    error("Expected infinite parameter reference arguments, but got arguments ",
+          "of type $T. This may be because `Infinite()` was given (i.e., no ",
+          "infinite parameter references were specified as arguments).")
 end
 
 ## Check that each parameter tuple element is formatted correctly
@@ -153,6 +158,10 @@ function _check_tuple_element(
     _error::Function,
     prefs::Vector{IndependentParameterRef}
     )
+    if length(prefs) > 1
+        _error("Each element of the infinite variable tuple can only contain " *
+               "1 independent infinite parameter, but have an element with `$(prefs)`.")
+    end
     return
 end
 
@@ -186,14 +195,6 @@ function _check_parameter_tuple(
         _check_tuple_element(_error, prefs)
     end
     return
-end
-function _check_parameter_tuple(
-    _error::Function, 
-    raw_prefs::Collections.VectorTuple{T}
-    ) where {T}
-    _error("Expected infinite parameter reference arguments, but got arguments ",
-           "of type $T. This may be because `Infinite()` was given (i.e., no ",
-           "infinite parameter references were specified as arguments).")
 end
 
 # Helper methods to process raw VariableInfo arguments
@@ -378,7 +379,7 @@ end
 # Infinite variable
 function _restrict_infinite_variable(
     ivref::GeneralVariableRef, 
-    vt::Collections.VectorTuple{<:GeneralVariableRef}
+    vt::Collections.VectorTuple{GeneralVariableRef}
     )
     if parameter_list(ivref) != vt.values
         error("Unrecognized syntax for infinite variable restriction.")
@@ -562,7 +563,7 @@ end
 #                           PARAMETER REFERENCES
 ################################################################################
 """
-    raw_parameter_refs(vref::InfiniteVariableRef)::VectorTuple
+    raw_parameter_refs(vref::InfiniteVariableRef)::VectorTuple{GeneralVariableRef}
 
 Return the raw [`VectorTuple`](@ref InfiniteOpt.Collections.VectorTuple) of the 
 parameter references that `vref` depends on. This is primarily an internal method 

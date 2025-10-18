@@ -354,16 +354,8 @@ function _get_param_group_name(element_prefs)
     type = _index_type(first(element_prefs))
     if type == DependentParameterIndex
         return _remove_name_index(first(element_prefs))
-    elseif length(element_prefs) == 1
-        return JuMP.name(first(element_prefs))
     else
-        # TODO this isn't quite right with a subset of an independent container
-        names = map(p -> _remove_name_index(p), element_prefs)
-        if _allequal(names)
-            return first(names)
-        else
-            return string("[", join(element_prefs, ", "), "]")
-        end
+        return JuMP.name(first(element_prefs))
     end
 end
 
@@ -524,8 +516,8 @@ function variable_string(print_mode, vref::SemiInfiniteVariableRef)
             base_name = variable_string(print_mode, ivref) # we have a derivative
         end
         prefs = raw_parameter_refs(ivref)
-        eval_supps = eval_supports(vref)
-        raw_list = [i in keys(eval_supps) ? eval_supps[i] : prefs[i]
+        eval_supp = eval_support(vref)
+        raw_list = [isnan(eval_supp[i]) ? prefs[i] : eval_supp[i]
                     for i in eachindex(prefs)]
         param_name_tuple = "("
         for i in 1:size(prefs, 1)

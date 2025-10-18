@@ -405,9 +405,8 @@ end
         @test core_object(prefs[2]).domain == IntervalDomain(-1, 2)
 
         prefs = [GeneralVariableRef(m, i, IndependentParameterIndex) for i in 17:18]
-        prefs = convert(JuMP.Containers.SparseAxisArray, prefs)
-        @test all(isequal.(@infinite_parameter(m, i[1:2] ~ Normal(); independent = true,
-                                  container = SparseAxisArray), prefs))
+        @test all(isequal.([@infinite_parameter(m, i[1:2] ~ Normal(); independent = true,
+                                  container = SparseAxisArray)...], prefs))
         @test core_object(prefs[1]).domain == UniDistributionDomain(Normal())
         @test core_object(prefs[2]).domain == UniDistributionDomain(Normal())
         @test InfiniteOpt.parameter_group_indices(m)[InfiniteOpt.parameter_group_int_index(prefs[2])] == index(prefs[2])
@@ -737,6 +736,10 @@ end
         @test set_derivative_method(pref, OrthogonalCollocation(4)) isa Nothing
         @test derivative_method(dpref) isa OrthogonalCollocation
     end
+    @testset "set_all_derivative_methods" begin
+        @test set_all_derivative_methods(m, TestMethod()) isa Nothing
+        @test derivative_method(dpref) isa TestMethod
+    end
 end
 
 # Test parameter domain methods
@@ -1028,9 +1031,8 @@ end
         @test m[:b] == pref
         # test named vector definition
         prefs = [GeneralVariableRef(m, i, FiniteParameterIndex) for i in 5:6]
-        prefs = convert(JuMPC.SparseAxisArray, prefs)
         @test @finite_parameter(m, c[i = 1:2] == [3, 7][i],
-                                container = SparseAxisArray) == prefs
+                                container = SparseAxisArray)[2] == prefs[2]
         @test core_object(prefs[2]).value == 7
         @test name(prefs[2]) == "c[2]"
     end

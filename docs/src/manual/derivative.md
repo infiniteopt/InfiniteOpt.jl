@@ -49,8 +49,7 @@ Forward
 Central
 Backward
 derivative_method(::DerivativeRef)
-set_derivative_method(::IndependentParameterRef, ::NonGenerativeDerivativeMethod)
-set_derivative_method(::DependentParameterRef, ::AbstractDerivativeMethod)
+set_derivative_method
 set_all_derivative_methods
 evaluate(::DerivativeRef)
 evaluate_all_derivatives!

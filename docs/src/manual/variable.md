@@ -26,7 +26,7 @@ InfiniteOpt.Collections.VectorTuple
 ```@docs
 SemiInfinite
 JuMP.build_variable(::Function, ::JuMP.VariableInfo, ::SemiInfinite)
-JuMP.build_variable(::Function, ::GeneralVariableRef, ::Dict{Int, Float64})
+JuMP.build_variable(::Function, ::GeneralVariableRef, ::Vector{Float64})
 JuMP.add_variable(::InfiniteModel, ::SemiInfiniteVariable, ::String)
 SemiInfiniteVariable
 SemiInfiniteVariableIndex
@@ -115,7 +115,7 @@ infinite_variable_ref(::SemiInfiniteVariableRef)
 parameter_refs(::SemiInfiniteVariableRef)
 parameter_list(::SemiInfiniteVariableRef)
 raw_parameter_refs(::SemiInfiniteVariableRef)
-eval_supports(::SemiInfiniteVariableRef)
+eval_support(::SemiInfiniteVariableRef)
 is_used(::SemiInfiniteVariableRef)
 used_by_derivative(::SemiInfiniteVariableRef)
 parameter_group_int_indices(::SemiInfiniteVariableRef)

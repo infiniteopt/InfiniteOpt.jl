@@ -49,7 +49,7 @@ end
 #                          DEFINTION HELPER METHODS
 ################################################################################
 """
-    Point{V, VT <: VectorTuple} <: InfOptVariableType 
+    Point{T <: Real} <: InfOptVariableType 
 
 A `DataType` to assist in making point variables. This can be passed as an 
 extra argument to `@variable` to make such a variable: 
@@ -62,19 +62,27 @@ references associated with the infinite variable `inf_var` and can be comprised
 of both real valued supports.
 
 **Fields**
-- `infinite_variable_ref::V`
-- `parameter_values::VT`: The infinite parameter support values the 
+- `infinite_variable_ref::GeneralVariableRef`
+- `parameter_values::VectorTuple{T}`: The infinite parameter support values the 
    variable will depend on.
 """
-struct Point{V, VT <: Collections.VectorTuple} <: InfOptVariableType 
-    infinite_variable_ref::V 
-    parameter_values::VT
-    function Point(vref::V, vt::VT) where {V, VT <: Collections.VectorTuple}
-        return new{V, VT}(vref, vt)
+struct Point{T} <: InfOptVariableType 
+    infinite_variable_ref::GeneralVariableRef
+    parameter_values::Collections.VectorTuple{T}
+    function Point(
+        vref::GeneralVariableRef,
+        vt::Collections.VectorTuple{T}
+        ) where {T}
+        return new{T}(vref, vt)
     end
 end
-function Point(ivref, vals...)
-    return Point(ivref, Collections.VectorTuple(vals))
+function Point(ivref::GeneralVariableRef, vals...)
+    if isempty(vals)
+        error("No point values given for point variable.")
+    end
+    vt = Collections.VectorTuple(vals)
+
+    return Point(ivref, vt)
 end
 
 # Ensure parameter values match shape of parameter reference tuple stored in the
@@ -98,31 +106,25 @@ end
 function _check_element_support(
     _error::Function, 
     prefs::Vector{IndependentParameterRef},
-    param_values::Vector{Float64},
-    counter::Int
+    param_values::Vector{Float64}
     )
-    for pref in prefs
-        if !supports_in_domain(param_values[counter], infinite_domain(pref))
-            _error("Parameter values violate parameter bounds.")
-        end
-        counter += 1
+    if !supports_in_domain(only(param_values), infinite_domain(only(prefs)))
+        _error("Parameter values violate parameter bounds.")
     end
-    return counter
+    return
 end
 
 # DependentParameterRefs
 function _check_element_support(
     _error::Function, 
     prefs::Vector{DependentParameterRef},
-    param_values::Vector{Float64},
-    counter::Int
+    param_values::Vector{Float64}
     )
-    len = length(prefs)
-    supp = reshape(param_values[counter:counter+len-1], len, 1)
+    supp = reshape(param_values, length(prefs), 1)
     if !supports_in_domain(supp, infinite_domain(prefs))
         _error("Parameter values violate parameter bounds.")
     end
-    return counter += len
+    return
 end
 
 # Used to ensure values don't violate parameter bounds
@@ -132,10 +134,10 @@ function _check_tuple_values(
     param_values::Vector{Float64}
     )
     raw_prefs = raw_parameter_refs(ivref)
-    counter = 1
     for i in 1:size(raw_prefs, 1)
         prefs = map(e -> dispatch_variable_ref(e), raw_prefs[i, :])
-        counter = _check_element_support(_error, prefs, param_values, counter)
+        supp = param_values[raw_prefs.ranges[i]]
+        _check_element_support(_error, prefs, supp)
     end
     return
 end
@@ -188,11 +190,6 @@ function JuMP.build_variable(
     end
     # check the infinite variable reference
     ivref = var_type.infinite_variable_ref
-    if !(ivref isa GeneralVariableRef)
-        _error("Expected an infinite variable/derivative reference dependency ",
-               "of type `GeneralVariableRef`, but got an argument of type ",
-               "$(typeof(ivref)).")
-    end
     dispatch_ivref = dispatch_variable_ref(ivref)
     if !(dispatch_ivref isa Union{InfiniteVariableRef, DerivativeRef})
         _error("Expected an infinite variable/derivative reference dependency,", 
@@ -220,27 +217,24 @@ end
 # IndependentParameterRefs
 function _add_point_support(
     prefs::Vector{IndependentParameterRef},
-    param_values::Vector{Float64},
-    counter::Int
+    param_values::Vector{Float64}
     )
-    for pref in prefs
-        add_supports(pref, param_values[counter], check = false,
-                     label = UserDefined)
-        counter += 1
-    end
-    return counter
+    return add_supports(
+        only(prefs),
+        only(param_values), 
+        check = false, 
+        label = UserDefined
+    )
 end
 
 # DependentParameterRefs
 function _add_point_support(
     prefs::Vector{DependentParameterRef},
-    param_values::Vector{Float64},
-    counter::Int
+    param_values::Vector{Float64}
     )
-    len = length(prefs)
-    supp = reshape(param_values[counter:counter+len-1], len, 1)
+    supp = reshape(param_values, length(prefs), 1)
     add_supports(prefs, supp, check = false, label = UserDefined)
-    return counter += len
+    return
 end
 
 # Used to add point variable support to parameter supports if necessary
@@ -249,10 +243,10 @@ function _update_param_supports(
     param_values::Vector{Float64}
     )
     raw_prefs = raw_parameter_refs(ivref)
-    counter = 1
     for i in 1:size(raw_prefs, 1)
         prefs = dispatch_variable_ref.(raw_prefs[i, :])
-        counter = _add_point_support(prefs, param_values, counter)
+        supp = param_values[raw_prefs.ranges[i]]
+        _add_point_support(prefs, supp)
     end
     return
 end
@@ -269,7 +263,7 @@ end
 # TODO CONTINUE FROM HERE
 
 # Update the information constraints for a variable that was already created
-function _update_info_constraints(info::JuMP.VariableInfo, gvref, vref)::Nothing
+function _update_info_constraints(info::JuMP.VariableInfo, gvref, vref)
     # extract the preliminaries
     old_info = _variable_info(vref)
     old_info == info && return
@@ -500,7 +494,9 @@ end
 #                                 DELETION
 ################################################################################
 # Extend _delete_variable_dependencies (for use with JuMP.delete)
-function _delete_variable_dependencies(vref::PointVariableRef)::Nothing
+function _delete_variable_dependencies(vref::PointVariableRef)
+    # remove variable info constraints associated with vref
+    _delete_info_constraints(vref)
     # remove the infinite variable dependency
     ivref = infinite_variable_ref(vref)
     filter!(e -> e != JuMP.index(vref), _point_variable_dependencies(ivref))

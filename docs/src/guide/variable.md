@@ -63,17 +63,26 @@ that is stored in `model` which is added to include a lower bound of 0. Another
 useful case is that of defining an array of variables `w` that depend on both
 position and time:
 ```jldoctest var_basic
-julia> @variable(model, w[i = 1:3], Infinite(t, x), start = [0, 2, 1][i])
+julia> @variable(model, w[i = 1:3], Infinite(t, x...), start = [0, 2, 1][i])
 3-element Vector{GeneralVariableRef}:
- w[1](t, x)
- w[2](t, x)
- w[3](t, x)
+ w[1](t, x[1], x[2])
+ w[2](t, x[1], x[2])
+ w[3](t, x[1], x[2])
 ```
 Thus, we create a Julia array variable `w` whose elements `w[i]` point to their
 respective infinite variables `w[i](t, x)` stored in `model`. Note that the `i`
 used in the array definition can be used to index attributes assigned to each
 variable in the array. In this case, we used `i` to assign different initial
-guess values for each variable via the `start` keyword argument.
+guess values for each variable via the `start` keyword argument. Also note that
+we use `Infinite(t, x...)` instead of `Infinite(t, x)` since each scalar independent
+infinite parameter must be in its own argument.
+
+!!! note
+    Previous versions of InfiniteOpt supported arrays of independent infinite
+    parameters for infinite variables (e.g., `Infinite(x)` where `x` is an array
+    of independent infinite parameters). Now each independent infinite parameter
+    must be an individual argument. This can be readily accomplished by splatting
+    the infinite parameters (e.g., `Infinite(x...)`).
 
 Moreover, for infinite variables a function can be given to determine the start
 values over a range of support points (e.g., a guess trajectory). This is
@@ -83,7 +92,7 @@ discussed further below in the Macro Definition section.
 Now let's restrict the above infinite variables `w[i](t, x)` to a particular 
 time via semi-infinite variables:
 ```jldoctest var_basic
-julia> @variable(model, w0[i = 1:3], SemiInfinite(w[i], 0, x))
+julia> @variable(model, w0[i = 1:3], SemiInfinite(w[i], 0, x...))
 3-element Vector{GeneralVariableRef}:
  w0[1]
  w0[2]
@@ -93,7 +102,7 @@ Thus, we create a Julia array variable `w0` whose elements `w0[i]` point to thei
 respective semi-infinite variables `w[i](0, x)` stored in `model`. Alternatively, 
 we can make a semi-infinite variable via our restriction syntax:
 ```jldoctest var_basic
-julia> [w[i](0, x) for i in 1:3]
+julia> [w[i](0, x...) for i in 1:3]
 3-element Vector{GeneralVariableRef}:
  w0[1]
  w0[2]
@@ -255,13 +264,13 @@ julia> @infinite_parameter(model, ξ ~ Normal());
 We specify the variable type by providing a subtype of [`InfOptVariableType`](@ref) 
 as an extra positional argument:
 ```jldoctest var_macro
-julia> @variable(model, y, Infinite(t, x, ξ)) # explicit infinite variable
-y(t, x, ξ)
+julia> @variable(model, y, Infinite(t, x..., ξ)) # explicit infinite variable
+y(t, x[1], x[2], x[3], ξ)
 
-julia> @variable(model, ys, SemiInfinite(y, 0, x, ξ)) # explicit semi-infinite variable
+julia> @variable(model, ys, SemiInfinite(y, 0, x..., ξ)) # explicit semi-infinite variable
 ys
 
-julia> @variable(model, yp, Point(y, 0, [1, 1, 1], 0)) # explicit point variable
+julia> @variable(model, yp, Point(y, 0, [1, 1, 1]..., 0)) # explicit point variable
 yp
 
 julia> @variable(model, z) # explicit finite variable
@@ -269,14 +278,14 @@ z
 ```
 For anonymous definition, we use the `variable_type` keyword argument instead:
 ```jldoctest var_macro
-julia>  y = @variable(model, variable_type = Infinite(t, x, ξ)) # anon infinite variable
-noname(t, x, ξ)
+julia>  y = @variable(model, variable_type = Infinite(t, x..., ξ)) # anon infinite variable
+noname(t, x[1], x[2], x[3], ξ)
 
-julia> ys = @variable(model, variable_type = SemiInfinite(y, 0, x, ξ)) # anon semi-infinite variable
-noname(0, [x[1], x[2], x[3]], ξ)
+julia> ys = @variable(model, variable_type = SemiInfinite(y, 0, x..., ξ)) # anon semi-infinite variable
+noname(0, x[1], x[2], x[3], ξ)
 
-julia> yp = @variable(model, variable_type = Point(y, 0, [1, 1, 1], 0)) # anon point variable
-noname(0, [1, 1, 1], 0)
+julia> yp = @variable(model, variable_type = Point(y, 0, [1, 1, 1]..., 0)) # anon point variable
+noname(0, 1, 1, 1, 0)
 
 julia> z = @variable(model) # anon finite variable
 noname
@@ -318,17 +327,17 @@ how to query/modify variable names.
 We can specify variable bounds in like manner to `JuMP` variables. Let's 
 demonstrate this with infinite variables: 
 ```jldoctest var_macro
-julia> @variable(model, y_lb >= 0, Infinite(t, x)) # add w/ lower bound
-y_lb(t, x)
+julia> @variable(model, y_lb >= 0, Infinite(t, x...)) # add w/ lower bound
+y_lb(t, x[1], x[2], x[3])
 
-julia> @variable(model, y_ub <= 10, Infinite(t, x)) # add w/ upper bound
-y_ub(t, x)
+julia> @variable(model, y_ub <= 10, Infinite(t, x...)) # add w/ upper bound
+y_ub(t, x[1], x[2], x[3])
 
-julia> @variable(model, 0 <= y_bd <= 10, Infinite(t, x)) # add w/ bounds
-y_bd(t, x)
+julia> @variable(model, 0 <= y_bd <= 10, Infinite(t, x...)) # add w/ bounds
+y_bd(t, x[1], x[2], x[3])
 
-julia> @variable(model, y_fix == 42, Infinite(t, x)) # add w/ fixed value 
-y_fix(t, x)
+julia> @variable(model, y_fix == 42, Infinite(t, x...)) # add w/ fixed value 
+y_fix(t, x[1], x[2], x[3])
 ```
 
 !!! warning
@@ -370,8 +379,8 @@ how to query/modify variable bounds.
     Point variables inherit all the bounds of their respective infinite variables 
     by default. This can be overwritten by specifying different ones at creation.
     ```julia
-    @variable(model, y >= 0, Infinite(t, x)) # has lower bound
-    @variable(model, yp == 0, Point(w, 0, [0, 0, 0])) # forces the point to be fixed
+    @variable(model, y >= 0, Infinite(t, x...)) # has lower bound
+    @variable(model, yp == 0, Point(w, 0, 0, 0, 0)) # forces the point to be fixed
     ```
 
 !!! note 
@@ -379,8 +388,8 @@ how to query/modify variable bounds.
     they will inherit these from the infinite variable they depend on. Additional 
     bound be created by directly adding constraints. For example:
     ```julia
-    @variable(model, y >= 0, Infinite(t, x)) # has lower bound
-    @variable(model, ys, SemiInfinite(w, 0, x)) # inherits the lower bound
+    @variable(model, y >= 0, Infinite(t, x...)) # has lower bound
+    @variable(model, ys, SemiInfinite(w, 0, x...)) # inherits the lower bound
     @constraint(model, ys <= 10) # add upper bound to ys
     ```
 
@@ -388,26 +397,26 @@ how to query/modify variable bounds.
 We can constrain the integrality of decision variables in like manner to `JuMP` 
 using the `Bin` and `Int` positional arguments for explicit macro definition:
 ```jldoctest var_macro
-julia> @variable(model, y_bin, Infinite(t, x), Bin) # add as binary variable
-y_bin(t, x)
+julia> @variable(model, y_bin, Infinite(t, x...), Bin) # add as binary variable
+y_bin(t, x[1], x[2], x[3])
 
-julia> @variable(model, y_int, Infinite(t, x), Int) # add as integer variable
-y_int(t, x)
+julia> @variable(model, y_int, Infinite(t, x...), Int) # add as integer variable
+y_int(t, x[1], x[2], x[3])
 ```
 
 For anonymous definition, we use the `binary` and `integer` keyword arguments:
 ```jldoctest var_macro
-julia> y_bin = @variable(model, variable_type = Infinite(t, x), binary = true)
-noname(t, x)
+julia> y_bin = @variable(model, variable_type = Infinite(t, x...), binary = true)
+noname(t, x[1], x[2], x[3])
 
-julia> y_int = @variable(model, variable_type = Infinite(t, x), integer = true)
-noname(t, x)
+julia> y_int = @variable(model, variable_type = Infinite(t, x...), integer = true)
+noname(t, x[1], x[2], x[3])
 ```
 
 Moreover, we can add bounds as needed to constrain the domain of integer variables:
 ```jldoctest var_macro
-julia> @variable(model, 0 <= y_int2 <= 10, Infinite(t, x), Int)
-y_int2(t, x)
+julia> @variable(model, 0 <= y_int2 <= 10, Infinite(t, x...), Int)
+y_int2(t, x[1], x[2], x[3])
 ```
 
 See the Queries and Modification sections further below for more information on 
@@ -417,8 +426,8 @@ how to query/modify variable integralities.
     Point variables inherit the integrality of their respective infinite variables 
     by default. This can be overwritten by specifying different ones at creation.
     ```julia
-    @variable(model, y, Infinite(t, x), Bin) # is binary
-    @variable(model, yp, Point(w, 0, [0, 0, 0]), Int) # is integer
+    @variable(model, y, Infinite(t, x...), Bin) # is binary
+    @variable(model, yp, Point(w, 0, 0, 0, 0), Int) # is integer
     ```
 
 !!! note 
@@ -588,11 +597,11 @@ When using many `@variable` calls, we can instead use
 enhance the readability:
 ```jldoctest var_macro
 julia> @variables(model, begin
-           y1, Infinite(t, x)
+           y1, Infinite(t, x...)
            y2[i=1:2] >= i, Infinite(t), (start = i, base_name = "Y_$i")
            z2, Bin
        end)
-(y1(t, x), GeneralVariableRef[Y_1[1](t), Y_2[2](t)], z2)
+(y1(t, x[1], x[2], x[3]), GeneralVariableRef[Y_1[1](t), Y_2[2](t)], z2)
 ```
 
 ## Restricted Variables
@@ -673,7 +682,7 @@ found and errors if it is not unique. For example, we can request the reference
 associated with `"y_ub"`:
 ```jldoctest var_macro
 julia> variable_by_name(model, "y_ub")
-y_ub(t, x)
+y_ub(t, x[1], x[2], x[3])
 ```
 
 ### Variable Constraint Info
@@ -706,7 +715,7 @@ such constraint exists). For example, the upper bound constraint of `y_bd` can b
 obtained via [`UpperBoundRef`](@ref JuMP.UpperBoundRef(::UserDecisionVariableRef)):
 ```jldoctest var_macro
 julia> UpperBoundRef(y_bd)
-y_bd(t, x) ≤ 10, ∀ t ∈ [0, 10], x[1] ∈ [-1, 1], x[2] ∈ [-1, 1], x[3] ∈ [-1, 1]
+y_bd(t, x[1], x[2], x[3]) ≤ 10, ∀ t ∈ [0, 10], x[1] ∈ [-1, 1], x[2] ∈ [-1, 1], x[3] ∈ [-1, 1]
 ```
 The other methods are [`LowerBoundRef`](@ref JuMP.LowerBoundRef(::UserDecisionVariableRef)),
 [`FixRef`](@ref JuMP.FixRef(::UserDecisionVariableRef)),
@@ -773,7 +782,7 @@ of infinite parameters that the variable depends on. For example, consider
 `y(t, x)`:
 ```jldoctest var_macro
 julia> parameter_refs(y)
-(t, GeneralVariableRef[x[1], x[2], x[3]], ξ)
+(t, x[1], x[2], x[3], ξ)
 ```
 
 For point variables,
@@ -783,10 +792,10 @@ return the infinite variable it depends on and the infinite parameter point
 values, respectively. For example, consider the point variable `yp`:
 ```jldoctest var_macro
 julia> infinite_variable_ref(yp)
-y(t, x, ξ)
+y(t, x[1], x[2], x[3], ξ)
 
 julia> parameter_values(yp)
-(0.0, [1.0, 1.0, 1.0], 0.0)
+(0.0, 1.0, 1.0, 1.0, 0.0)
 ```
 
 ## Modification
