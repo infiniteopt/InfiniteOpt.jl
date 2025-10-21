@@ -143,7 +143,10 @@ function _check_tuple_values(
 end
 
 # Convert JuMP.VariableInfo to RestrictedDomainInfo
-function _process_restricted_info(_error::Function, info::JuMP.VariableInfo)
+function _process_restricted_info(
+    _error::Function,
+    info::JuMP.VariableInfo{<:Real, <:Real, <:Real, <:Real}
+    )
     if info.is_binary || info.is_integer
         _error("Cannot set the integrality of a point or semi-infinite " *
                "variable. They only inherit the integrality of the infinite " *
@@ -155,6 +158,10 @@ function _process_restricted_info(_error::Function, info::JuMP.VariableInfo)
         info.has_fix, info.fixed_value,
         info.has_start, info.start
         )
+end
+function _process_restricted_info(_error::Function, info::JuMP.VariableInfo)
+    _error("Bounds and start value for point and semi-infinite variables must " *
+           "be of type `Real`.")
 end
 
 """
@@ -261,87 +268,6 @@ function _update_infinite_point_mapping(
 end
 
 # TODO CONTINUE FROM HERE
-
-# Update the information constraints for a variable that was already created
-function _update_info_constraints(info::JuMP.VariableInfo, gvref, vref)
-    # extract the preliminaries
-    old_info = _variable_info(vref)
-    old_info == info && return
-    model = JuMP.owner_model(vref)
-
-    # update the lower bound constraint as needed
-    if info.has_lb && (!old_info.has_lb || info.lower_bound != old_info.lower_bound)
-        constr = JuMP.ScalarConstraint(gvref, MOI.GreaterThan(info.lower_bound))
-        if old_info.has_lb
-            cindex = _lower_bound_index(vref)
-            cref = InfOptConstraintRef(model, cindex)
-            _set_core_object(cref, constr)
-        else
-            cref = JuMP.add_constraint(model, constr, is_info_constr = true)
-            _set_lower_bound_index(vref, JuMP.index(cref))
-        end
-    elseif old_info.has_lb && !info.has_lb
-        JuMP.delete(model, JuMP.LowerBoundRef(vref))
-        _set_lower_bound_index(vref, nothing)
-    end
-
-    # update the upper bound constraint as needed
-    if info.has_ub && (!old_info.has_ub || info.upper_bound != old_info.upper_bound)
-        constr = JuMP.ScalarConstraint(gvref, MOI.LessThan(info.upper_bound))
-        if old_info.has_ub
-            cindex = _upper_bound_index(vref)
-            cref = InfOptConstraintRef(model, cindex)
-            _set_core_object(cref, constr)
-        else
-            cref = JuMP.add_constraint(model, constr, is_info_constr = true)
-            _set_upper_bound_index(vref, JuMP.index(cref))
-        end
-    elseif old_info.has_ub && !info.has_ub
-        JuMP.delete(model, JuMP.UpperBoundRef(vref))
-        _set_upper_bound_index(vref, nothing)
-    end
-    
-    # update the fix constraint as needed
-    if info.has_fix && (!old_info.has_fix || info.fixed_value != old_info.fixed_value)
-        constr = JuMP.ScalarConstraint(gvref, MOI.EqualTo(info.fixed_value))
-        if old_info.has_fix
-            cindex = _fix_index(vref)
-            cref = InfOptConstraintRef(model, cindex)
-            _set_core_object(cref, constr)
-        else
-            cref = JuMP.add_constraint(model, constr, is_info_constr = true)
-            _set_fix_index(vref, JuMP.index(cref))
-        end
-    elseif old_info.has_fix && !info.has_fix
-        JuMP.delete(model, JuMP.FixRef(vref))
-        _set_fix_index(vref, nothing)
-    end
-    
-    # update the binary constraint as needed
-    if info.binary && !old_info.binary
-        constr = JuMP.ScalarConstraint(gvref, MOI.ZeroOne())
-        cref = JuMP.add_constraint(model, constr, is_info_constr = true)
-        _set_binary_index(vref, JuMP.index(cref))
-    elseif old_info.binary && !info.binary
-        JuMP.delete(model, JuMP.BinaryRef(vref))
-        _set_binary_index(vref, nothing)
-    end
-
-    # update the integer constraint as needed
-    if info.integer && !old_info.integer
-        constr = JuMP.ScalarConstraint(gvref, MOI.Integer())
-        cref = JuMP.add_constraint(model, constr, is_info_constr = true)
-        _set_integer_index(vref, JuMP.index(cref))
-    elseif old_info.integer && !info.integer
-        JuMP.delete(model, JuMP.IntegerRef(vref))
-        _set_integer_index(vref, nothing)
-    end
-
-    # finalize the update
-    _update_variable_info(vref, info)
-    set_transformation_backend_ready(model, false)
-    return
-end
 
 """
     JuMP.add_variable(model::InfiniteModel, var::PointVariable,

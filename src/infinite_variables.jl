@@ -233,10 +233,14 @@ function _check_and_format_infinite_info(
     group_int_idxs::Vector{Int},
     )
     return JuMP.VariableInfo(
-        info.has_lb, _process_info_arg(_error, info.lower_bound, prefs, param_nums, group_int_idxs), 
-        info.has_ub, _process_info_arg(_error, info.upper_bound, prefs, param_nums, group_int_idxs),
-        info.has_fix, _process_info_arg(_error, info.fixed_value, prefs, param_nums, group_int_idxs),
-        info.has_start, _process_info_arg(_error, info.start, prefs, param_nums, group_int_idxs),
+        info.has_lb,
+        _process_info_arg(_error, info.lower_bound, prefs, param_nums, group_int_idxs), 
+        info.has_ub,
+        _process_info_arg(_error, info.upper_bound, prefs, param_nums, group_int_idxs),
+        info.has_fix,
+        _process_info_arg(_error, info.fixed_value, prefs, param_nums, group_int_idxs),
+        info.has_start,
+        _process_info_arg(_error, info.start, prefs, param_nums, group_int_idxs),
         info.binary, 
         info.integer
     )

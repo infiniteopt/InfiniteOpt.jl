@@ -45,11 +45,6 @@ function core_object(dref::DerivativeRef)
     return _data_object(dref).variable
 end
 
-# Define getter function for deriv.is_vector_start
-function _is_vector_start(dref::DerivativeRef)
-    return core_object(dref).is_vector_start
-end
-
 """
     derivative_argument(dref::DerivativeRef)::GeneralVariableRef
 
@@ -250,10 +245,12 @@ function build_derivative(
     end
     # check and format the info correctly
     prefs = raw_parameter_refs(argument_ref)
-    new_info, is_vect_func = _check_and_format_infinite_info(_error, info, prefs)
+    param_nums = _parameter_numbers(argument_ref)
+    group_int_idxs = parameter_group_int_indices(argument_ref)
+    new_info = _check_and_format_infinite_info(_error, info, prefs, param_nums, group_int_idxs)
     # make the derivative and return it 
     vref, order = _unnest_derivative(argument_ref, parameter_ref, order)
-    return Derivative(new_info, is_vect_func, vref, parameter_ref, order)
+    return Derivative(new_info, vref, parameter_ref, order)
 end
 
 """
@@ -394,7 +391,7 @@ function _build_add_derivative(vref, pref, order)
     model = JuMP.owner_model(vref)
     if isnothing(dindex)
         info = VariableInfo(false, NaN, false, NaN, false, NaN, false, 
-                            s -> NaN, false, false)
+                            NaN, false, false)
         d = Derivative(info, true, vref, pref, order)
         return add_derivative(model, d)
     else 
@@ -647,7 +644,13 @@ function _update_variable_info(
     return
 end
 
-# TODO maybe throw errors for binary and integer?
+# Throw errors for binary and integer
+function JuMP.set_integer(dref::DerivativeRef)
+    error("Cannot set derivative to be integer valued.")
+end
+function JuMP.set_binary(dref::DerivativeRef)
+    error("Cannot set derivative to be a binary variable.")
+end
 
 ################################################################################
 #                              MODEL QUERIES

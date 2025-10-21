@@ -24,7 +24,7 @@ end
 _info_set_value(c::Real) = c
 _info_set_value(pf::ParameterFunction) = ParameterFunctionRealWrapper(pf)
 
-# helper function for setting the info constraints (TODO add test)
+# helper function for setting the info constraint
 function _set_info_constraints(
     info::JuMP.VariableInfo, 
     gvref::GeneralVariableRef, 

@@ -269,7 +269,7 @@ struct MultiDistributionDomain{T <: NonUnivariateDistribution} <: InfiniteArrayD
 end
 
 # Extend Base.:(==) for relevant cases
-function Base.:(==)(d1::D, d2::D)::Bool where {D <: MultiDistributionDomain}
+function Base.:(==)(d1::D, d2::D) where {D <: MultiDistributionDomain}
     return d1.distribution == d2.distribution
 end
 
@@ -777,6 +777,9 @@ struct RestrictedDomainInfo
     active_start_info::Bool
     start_value::Float64
 end
+function RestrictedDomainInfo()
+    return RestrictedDomainInfo(false, NaN, false, NaN, false, NaN, false, NaN)
+end
 
 """
     SemiInfiniteVariable{
@@ -1187,7 +1190,7 @@ end
 """
     DomainRestrictedConstraint{C <: JuMP.AbstractConstraint, 
                                F <: Function,
-                               VT <: Collections.VectorTuple
+                               T <: JuMP.AbstractVariableRef
                                } <: JuMP.AbstractConstraint
 
 A `DataType` for creating a constraint with enforced restrictions on its domain. 
@@ -1201,10 +1204,10 @@ should be added at particular point in the infinite parameter domain.
 struct DomainRestrictedConstraint{
     C <: JuMP.AbstractConstraint, 
     F <: Function,
-    VT <: Collections.VectorTuple
+    T <: JuMP.AbstractVariableRef
     } <: JuMP.AbstractConstraint
     constraint::C
-    restrictions::ParameterFunction{F, VT}
+    restrictions::ParameterFunction{F, T}
 end
 
 """

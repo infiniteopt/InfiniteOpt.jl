@@ -5,7 +5,7 @@
 function dispatch_variable_ref(
     model::InfiniteModel,
     index::SemiInfiniteVariableIndex
-    )::SemiInfiniteVariableRef
+    )
     return SemiInfiniteVariableRef(model, index)
 end
 
@@ -13,7 +13,7 @@ end
 function _add_data_object(
     model::InfiniteModel,
     object::VariableData{<:SemiInfiniteVariable}
-    )::SemiInfiniteVariableIndex
+    )
     return MOIUC.add_item(model.semi_infinite_vars, object)
 end
 
@@ -21,21 +21,17 @@ end
 function _data_dictionary(
     model::InfiniteModel, 
     ::Type{SemiInfiniteVariable}
-    )::MOIUC.CleverDict{SemiInfiniteVariableIndex, VariableData{SemiInfiniteVariable{GeneralVariableRef}}}
+    )
     return model.semi_infinite_vars
 end
 
 # Extend _data_dictionary (reference based)
-function _data_dictionary(
-    vref::SemiInfiniteVariableRef
-    )::MOIUC.CleverDict{SemiInfiniteVariableIndex, VariableData{SemiInfiniteVariable{GeneralVariableRef}}}
+function _data_dictionary(vref::SemiInfiniteVariableRef)
     return JuMP.owner_model(vref).semi_infinite_vars
 end
 
 # Extend _data_object
-function _data_object(
-    vref::SemiInfiniteVariableRef
-    )::VariableData{SemiInfiniteVariable{GeneralVariableRef}}
+function _data_object(vref::SemiInfiniteVariableRef)
     object = get(_data_dictionary(vref), JuMP.index(vref), nothing)
     if isnothing(object) 
         error("Invalid point variable reference, cannot find ",
@@ -175,14 +171,8 @@ function JuMP.build_variable(
         _error("Keyword argument $kwarg is not for use with semi-infinite ",
                "variables.")
     end
-    # ensure that all the info was left alone (TODO relax this)
-    if info.has_lb || info.has_ub || info.has_fix || info.has_start || 
-       info.integer || info.binary
-        _error("Semi-infinite variables do not currently support the ",
-               "specification of variable information fields (e.g., lower ",
-               "bounds, upper bounds, start values, etc). These are simply ",
-               "inherited from the corresponding infinite variable.")
-    end
+    # process the domain information
+    restricted_info = _process_restricted_info(_error, info)
     # get the infinite variable reference
     ivref = var_type.infinite_variable_ref
     # check that the values are the same format as the infinite variable 
@@ -206,7 +196,7 @@ function JuMP.build_variable(
         end
     end
     # dispatch to the main builder 
-    return JuMP.build_variable(_error, ivref, eval_support)
+    return JuMP.build_variable(_error, ivref, eval_support, restricted_info)
 end
 
 """
@@ -214,7 +204,7 @@ end
         _error::Function, 
         ivref::GeneralVariableRef,
         eval_support::Vector{Float64},
-        group_int_idxs_to_supports::Dict{Int, UnitRange{Int}}; 
+        [restricted_info::RestrictedDomainInfo]; 
         [check::Bool = true]
         )::SemiInfiniteVariable{GeneralVariableRef}
 
@@ -229,7 +219,8 @@ use in evaluating measures.
 function JuMP.build_variable(
     _error::Function, 
     ivref::GeneralVariableRef,
-    eval_support::Vector{Float64};
+    eval_support::Vector{Float64},
+    restricted_info::RestrictedDomainInfo;
     check::Bool = true
     )
     # check the inputs
@@ -268,10 +259,25 @@ function JuMP.build_variable(
     end
     # build the variable
     return SemiInfiniteVariable(
+        restricted_info,
         ivref,
         eval_support,
         param_nums, 
         group_int_idxs
+    )
+end
+function JuMP.build_variable(
+    _error::Function, 
+    ivref::GeneralVariableRef,
+    eval_support::Vector{Float64};
+    check::Bool = true
+    )
+    return JuMP.build_variable(
+        _error,
+        ivref,
+        eval_support,
+        RestrictedDomainInfo(),
+        check = check
     )
 end
 
@@ -299,6 +305,8 @@ function _add_semi_infinite_support(
     add_supports(prefs, supp, check = false, label = UserDefined)
     return
 end
+
+# TODO continue from here
 
 """
     JuMP.add_variable(model::InfiniteModel, var::SemiInfiniteVariable,

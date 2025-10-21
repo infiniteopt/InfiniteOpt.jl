@@ -67,7 +67,7 @@ function _check_param_func_method(_error::Function, func::Function, prefs)
                "numeric support (each parameter is a `Float64`) of the same format. ",
                "If you get this message specifying a function for the ",
                "bounds/fix-value/start of a variable, then the function arguments ",
-               "Do not properly accomodate the format of the variable's infinite ",
+               "do not properly accomodate the format of the variable's infinite ",
                "parameters.")
     end
     return
@@ -77,8 +77,8 @@ end
     build_parameter_function(
         _error::Function, 
         func::Function, 
-        parameter_refs::Union{GeneralVariableRef, AbstractArray{<:GeneralVariableRef}, Tuple}
-        )::ParameterFunction
+        parameter_refs::Union{GeneralVariableRef, Array{<:GeneralVariableRef}, Tuple}
+    )::ParameterFunction
 
 Build an [`ParameterFunction`](@ref) object that employs a parameter function 
 `func` that takes instances of the infinite parameter(s) as input. This can 
@@ -87,7 +87,7 @@ behavior and/or incorporate data over infinite domains.
 
 Here `func` should be of the form:
 ```
-func(paramvals...)::Float64
+func(paramvals...)::Union{Real, Bool}
 ```
 where the formatting of `paramvals` is analagous to point variables (and will be 
 based on the tuple of infinite parameter references given in `parameter_refs`). 
@@ -104,7 +104,7 @@ julia> f = build_parameter_function(error, sin, t);
 function build_parameter_function(
     _error::Function, 
     func::Function, 
-    parameter_refs::Union{GeneralVariableRef, AbstractArray{<:GeneralVariableRef}, Tuple};
+    parameter_refs::Union{GeneralVariableRef, Array{<:GeneralVariableRef}, Tuple};
     extra_kwargs...
     )
     # check for unneeded keywords
@@ -116,10 +116,10 @@ function build_parameter_function(
     _check_parameter_tuple(_error, prefs)
     _check_param_func_method(_error, func, prefs)
     # get the parameter group integer indices
-    group_int_idxs = Int[]
-    for pref in prefs 
-        union!(group_int_idxs, parameter_group_int_index(pref))
-    end
+    group_int_idxs = [
+        parameter_group_int_index(prefs[i, 1])
+        for i in 1:size(prefs, 1)
+    ]
     # get the parameter numbers 
     param_nums = [_parameter_number(pref) for pref in prefs]
     # make the variable and return
@@ -147,8 +147,11 @@ function _update_param_var_mapping(
 end
 
 """
-    add_parameter_function(model::InfiniteModel, pfunc::ParameterFunction, 
-                           [name::String])::GeneralVariableRef
+    add_parameter_function(
+        model::InfiniteModel,
+        pfunc::ParameterFunction, 
+        [name::String]
+    )::GeneralVariableRef
 
 Add an [`ParameterFunction`](@ref) `pfunc` to the `model` using `name` for 
 printing and return a `GeneralVariableRef` such that it can be embedded in 
@@ -177,10 +180,11 @@ function add_parameter_function(
 end
 
 """
-    parameter_function(func::Function, 
-                       pref_inputs::Union{GeneralVariableRef, AbstractArray{GeneralVariableRef}, Tuple}; 
-                       [name::String = [the name of `func`]]
-                       )::GeneralVariableRef
+    parameter_function(
+        func::Function, 
+        pref_inputs::Union{GeneralVariableRef, Array{GeneralVariableRef}, Tuple}; 
+        [name::String = [the name of `func`]]
+    )::GeneralVariableRef
 
 Make a parameter function and return a `GeneralVariableRef` that can be 
 embedded in InfiniteOpt expressions. This serves as a convenient wrapper for 
@@ -191,7 +195,7 @@ Here `func` denotes the function that will take a support of infinite parameters
 input (formatted like `pref_inputs`) and will return a scalar value. Specifically, 
 `func` should be of the form:
 ```
-func(paramvals...)::Float64
+func(paramvals...)::Union{Real, Bool}
 ```
 where the formatting of `paramvals` is analagous to point variables (and will be 
 based on the tuple of infinite parameter references given in `parameter_refs`).
