@@ -74,10 +74,10 @@ function transcribe_finite_parameters!(
 
         # Prepare arguments for building JuMP parameter
         name = object.name
-        pValue = object.parameter.value
+        p_value = object.parameter.value
         
         # Build the JuMP variable and add it to the backend
-        pref = JuMP.@variable(backend.model, base_name = name, set = MOI.Parameter(pValue))
+        pref = JuMP.@variable(backend.model, base_name = name, set = MOI.Parameter(p_value))
         transcription_data(backend).finvar_mappings[fpref] = pref
     end
     return
@@ -383,12 +383,19 @@ function transcribe_semi_infinite_variables!(
         group_idxs = var.group_int_idxs
         prefs = InfiniteOpt.raw_parameter_refs(var)
         # prepare for iterating over its supports
+        data = transcription_data(backend)
         supp_indices = support_index_iterator(backend, group_idxs)
-        dims = size(supp_indices)[group_idxs]
-        vrefs = Array{JuMP.VariableRef, length(dims)}(undef, dims...)
         supp_type = typeof(Tuple(ones(length(prefs)), prefs))
         supps = Array{supp_type, length(dims)}(undef, dims...)
-        lookup_dict = sizehint!(Dict{Vector{Float64}, JuMP.VariableRef}(), length(vrefs))
+        dims = size(supp_indices)[group_idxs]
+        if ivref.index_type == InfiniteOpt.ParameterFunctionIndex && 
+           !data.update_parameter_functions
+            val_type = Float64
+        else
+            val_type = JuMP.VariableRef
+        end
+        vrefs = Array{val_type, length(dims)}(undef, dims...)
+        lookup_dict = sizehint!(Dict{Vector{Float64}, val_type}(), length(vrefs))
         # map a variable for each support
         for i in supp_indices
             raw_supp = index_to_support(backend, i)
@@ -402,11 +409,14 @@ function transcribe_semi_infinite_variables!(
             lookup_dict[supp] = jump_vref
             @inbounds supps[var_idx...] = Tuple(supp, prefs)
         end
-        # truncate vrefs if any supports were skipped because of dependent parameter supps and save
-        data = transcription_data(backend)
+        # save the mappings
         data.infvar_mappings[rvref] = vrefs
         data.infvar_supports[rvref] = supps
-        data.infvar_lookup[rvref] = lookup_dict
+        if val_type == JuMP.VariableRef
+            data.infvar_lookup[rvref] = lookup_dict
+        else
+            data.pfunc_lookup[rvref] = lookup_dict
+        end
     end
     return
 end
