@@ -1457,7 +1457,7 @@ function delete_supports(
 end
 
 """
-    parameter_value(pref::FiniteParameterRef)::Float64
+    JuMP.parameter_value(pref::FiniteParameterRef)::Float64
 
 Return the value of a finite parameter reference `pref`. Errors if it is
 an infinite parameter.
@@ -1468,28 +1468,38 @@ julia> value(cost)
 42.0
 ```
 """
-function parameter_value(pref::FiniteParameterRef)
+function JuMP.parameter_value(pref::FiniteParameterRef)
     return core_object(pref).value
 end
 
 """
-    JuMP.set_value(pref::FiniteParameterRef, value::Real)::Nothing
+    JuMP.set_parameter_value(pref::FiniteParameterRef, value::Real)::Nothing
 
 Set the value of `pref` so long as it is a finite parameter. Errors if it is
-an infinite parameter.
+an infinite parameter. This attempts to update the transformation backend if
+it is in sync with the current `InfiniteModel` associated with `pref`.
 
 **Example**
 ```julia-repl
-julia> set_value(cost, 27)
+julia> set_parameter_value(cost, 27)
 
-julia> value(cost)
+julia> parameter_value(cost)
 27.0
 ```
 """
-function JuMP.set_value(pref::FiniteParameterRef, value::Real)
-    _data_object(pref).parameter = FiniteParameter(value)
-    if is_used(pref)
-        set_transformation_backend_ready(JuMP.owner_model(pref), false)
+function JuMP.set_parameter_value(pref::FiniteParameterRef, value::Real)
+    param = FiniteParameter(value)
+    _data_object(pref).parameter = param
+    model = JuMP.owner_model(pref)
+    if is_used(pref) && transformation_backend_ready(model)
+        successful_backend_update = update_parameter_value(
+            transformation_backend(model),
+            pref,
+            param.value
+        )
+        if !successful_backend_update
+            set_transformation_backend_ready(JuMP.owner_model(pref), false)
+        end
     end
     return
 end
@@ -1719,7 +1729,7 @@ julia> delete(model, x)
 """
 function JuMP.delete(model::InfiniteModel, pref::IndependentParameterRef)
     @assert JuMP.is_valid(model, pref) "Parameter reference is invalid."
-    gvref = GeneralVariableRef(JuMP.owner_model(pref), JuMP.index(pref))
+    gvref = GeneralVariableRef(pref)
     # ensure deletion is okay (pref isn't used by measure data)
     for mindex in _measure_dependencies(pref)
         data = measure_data(dispatch_variable_ref(model, mindex))
@@ -1763,7 +1773,7 @@ function JuMP.delete(model::InfiniteModel, pref::FiniteParameterRef)
     if is_used(pref)
         set_transformation_backend_ready(model, false)
     end
-    gvref = GeneralVariableRef(model, JuMP.index(pref))
+    gvref = GeneralVariableRef(pref)
     # delete dependence of measures on pref
     _update_measures(model, gvref)
     # update constraints in mapping to remove the parameter

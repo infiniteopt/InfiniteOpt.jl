@@ -51,11 +51,63 @@ function JuMP.add_variable(
     model::InfiniteModel, 
     variable::JuMP.VariableConstrainedOnCreation,
     name::String
-    )::GeneralVariableRef
+    )
     vref = JuMP.add_variable(model, variable.scalar_variable, name)
     con = JuMP.ScalarConstraint(vref, variable.set)
     JuMP.add_constraint(model, con)
     return vref
+end
+
+# Handle the case when the user uses MOI.Parameter (does not accept functions)
+function JuMP.add_variable(
+    model::InfiniteModel, 
+    variable::JuMP.VariableConstrainedOnCreation{S, V},
+    name::String
+    ) where {S <: MOI.Parameter, V <: JuMP.ScalarVariable}
+    param = FiniteParameter(variable.set.value)
+    return add_parameter(model, param, name)
+end
+function JuMP.add_variable(
+    model::InfiniteModel, 
+    variable::JuMP.VariableConstrainedOnCreation{S, V},
+    name::String
+    ) where {S <: MOI.Parameter, V <: InfiniteVariable}
+    val = variable.set.value
+    var = variable.scalar_variable
+    pfunc = ParameterFunction(
+        (s...) -> val,
+        var.parameter_refs,
+        var.group_int_idxs,
+        var.parameter_nums
+    )
+    return add_parameter_function(model, pfunc, name)
+end
+
+# Wrapper type to allow function in MOI.Parameter
+struct _RealFunctionWrapper{F <: Function} <: Real
+    func::F
+end
+# Extend the Parameter sets to handle functions (technically type piracy...)
+MOI.Parameter(f::Function) = MOI.Parameter(_RealFunctionWrapper(f))
+JuMP.Parameter(f::Function) = MOI.Parameter(f)
+JuMP.model_convert(::InfiniteModel, s::MOI.Parameter{<:_RealFunctionWrapper}) = s
+
+# Create parameter functions via MOI.Parameter on infinite variables
+function JuMP.add_variable(
+    model::InfiniteModel, 
+    variable::JuMP.VariableConstrainedOnCreation{S, V},
+    name::String
+    ) where {S <: MOI.Parameter{<:_RealFunctionWrapper}, V <: InfiniteVariable}
+    func = variable.set.value.func
+    var = variable.scalar_variable
+    _check_param_func_method(error, func, var.parameter_refs)
+    pfunc = ParameterFunction(
+        func,
+        var.parameter_refs,
+        var.group_int_idxs,
+        var.parameter_nums
+    )
+    return add_parameter_function(model, pfunc, name)
 end
 
 # Add VariablesConstrainedOnCreation (TODO change paradigm to leverage MOI.add_constrained_variables)
@@ -342,7 +394,7 @@ julia> lower_bound(vref)
 function JuMP.set_lower_bound(vref::UserDecisionVariableRef, lower::Real)
     newset = MOI.GreaterThan(convert(Float64, lower))
     model = JuMP.owner_model(vref)
-    gvref = GeneralVariableRef(model, JuMP.index(vref))
+    gvref = GeneralVariableRef(vref)
     new_constr = JuMP.ScalarConstraint(gvref, newset)
     if JuMP.has_lower_bound(vref)
         cindex = _lower_bound_index(vref)
@@ -475,7 +527,7 @@ julia> upper_bound(vref)
 function JuMP.set_upper_bound(vref::UserDecisionVariableRef, upper::Real)
     newset = MOI.LessThan(convert(Float64, upper))
     model = JuMP.owner_model(vref)
-    gvref = GeneralVariableRef(model, JuMP.index(vref))
+    gvref = GeneralVariableRef(vref)
     new_constr = JuMP.ScalarConstraint(gvref, newset)
     if JuMP.has_upper_bound(vref)
         cindex = _upper_bound_index(vref)
@@ -617,7 +669,7 @@ function JuMP.fix(
     )
     new_set = MOI.EqualTo(convert(Float64, value))
     model = JuMP.owner_model(vref)
-    gvref = GeneralVariableRef(model, JuMP.index(vref))
+    gvref = GeneralVariableRef(vref)
     new_constr = JuMP.ScalarConstraint(gvref, new_set)
     if JuMP.is_fixed(vref)  # Update existing fixing constraint.
         cindex = _fix_index(vref)
@@ -791,7 +843,7 @@ function JuMP.set_binary(vref::UserDecisionVariableRef)
         error("Cannot set the variable_ref $(vref) to binary as it " *
               "is already integer.")
     end
-    gvref = GeneralVariableRef(JuMP.owner_model(vref), JuMP.index(vref))
+    gvref = GeneralVariableRef(vref)
     cref = JuMP.add_constraint(JuMP.owner_model(vref),
                                JuMP.ScalarConstraint(gvref, MOI.ZeroOne()),
                                is_info_constr = true)
@@ -902,7 +954,7 @@ function JuMP.set_integer(vref::UserDecisionVariableRef)
         error("Cannot set the variable_ref $(vref) to integer as it " *
               "is already binary.")
     end
-    gvref = GeneralVariableRef(JuMP.owner_model(vref), JuMP.index(vref))
+    gvref = GeneralVariableRef(vref)
     cref = JuMP.add_constraint(JuMP.owner_model(vref),
                                JuMP.ScalarConstraint(gvref, MOI.Integer()),
                                is_info_constr = true)
@@ -1099,7 +1151,7 @@ function JuMP.delete(model::InfiniteModel, vref::DecisionVariableRef)
     end
     # delete attributes specific to the variable type
     _delete_variable_dependencies(vref)
-    gvref = GeneralVariableRef(model, JuMP.index(vref))
+    gvref = GeneralVariableRef(vref)
     # remove from measures if used
     for mindex in copy(_measure_dependencies(vref))
         mref = dispatch_variable_ref(model, mindex)

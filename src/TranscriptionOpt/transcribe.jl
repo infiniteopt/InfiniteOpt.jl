@@ -163,29 +163,42 @@ function transcribe_parameter_functions!(
         param_nums = pf.parameter_nums
         group_idxs = pf.group_int_idxs
         prefs = pf.parameter_refs
+        data = transcription_data(backend)
         # prepare for iterating over its supports
         supp_indices = support_index_iterator(backend, group_idxs)
         dims = size(supp_indices)[group_idxs]
-        vrefs = Array{JuMP.VariableRef, length(dims)}(undef, dims...)
         supp_type = typeof(Tuple(ones(length(prefs)), prefs))
         supps = Array{supp_type, length(dims)}(undef, dims...)
-        lookup_dict = sizehint!(Dict{Vector{Float64}, JuMP.VariableRef}(), length(vrefs))
+        val_type = data.update_parameter_functions ? JuMP.VariableRef : Float64
+        vrefs = Array{val_type, length(dims)}(undef, dims...)
+        lookup_dict = sizehint!(Dict{Vector{Float64}, val_type}(), length(vrefs))
         # Create a parameter for each support
         for i in supp_indices
             supp = index_to_support(backend, i)[param_nums]
             var_idx = i.I[group_idxs]
             tuple_supp = Tuple(supp, prefs)
-            p_name = _make_var_name(base_name, param_nums, tuple_supp, var_idx)
-            pValue = func(tuple_supp...)
-            jump_pref = JuMP.@variable(backend.model, base_name = p_name, set = MOI.Parameter(pValue))
+            p_value = func(tuple_supp...)
+            if data.update_parameter_functions
+                p_name = _make_var_name(base_name, param_nums, tuple_supp, var_idx)
+                jump_pref = JuMP.@variable(
+                    backend.model,
+                    base_name = p_name,
+                    set = MOI.Parameter(p_value)
+                )
+            else
+                jump_pref = p_value
+            end
             vrefs[var_idx...] = jump_pref
             lookup_dict[supp] = jump_pref
             supps[var_idx...] = tuple_supp
         end
         # save the transcription information
         pfref = InfiniteOpt.GeneralVariableRef(model, idx)
-        data = transcription_data(backend)
-        data.infvar_lookup[pfref] = lookup_dict
+        if data.update_parameter_functions
+            data.infvar_lookup[pfref] = lookup_dict
+        else
+            data.pfunc_lookup[pfref] = lookup_dict
+        end
         data.infvar_mappings[pfref] = vrefs
         data.infvar_supports[pfref] = supps
     end

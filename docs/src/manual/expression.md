@@ -19,6 +19,7 @@ ParameterFunctionRef
 ```@docs
 JuMP.name(::ParameterFunctionRef)
 raw_function(::ParameterFunctionRef)
+JuMP.parameter_value(::ParameterFunctionRef)
 call_function
 parameter_refs(::ParameterFunctionRef)
 parameter_list(::ParameterFunctionRef)
@@ -34,6 +35,7 @@ parameter_group_int_indices(::ParameterFunctionRef)
 ### Modification
 ```@docs
 JuMP.set_name(::ParameterFunctionRef, ::String)
+JuMP.set_parameter_value(::ParameterFunctionRef, ::Function)
 JuMP.delete(::InfiniteModel, ::ParameterFunctionRef)
 ```
 
@@ -87,8 +89,8 @@ used_by_objective(::GeneralVariableRef)
 used_by_constraint(::GeneralVariableRef)
 is_used(::GeneralVariableRef)
 has_derivative_constraints(::GeneralVariableRef)
-parameter_value(::GeneralVariableRef)
-JuMP.set_value(::GeneralVariableRef, ::Real)
+JuMP.parameter_value(::GeneralVariableRef)
+JuMP.set_parameter_value(::GeneralVariableRef, ::Any)
 infinite_domain(::GeneralVariableRef)
 infinite_domain(::Array{<:GeneralVariableRef})
 set_infinite_domain(::GeneralVariableRef, ::InfiniteScalarDomain)

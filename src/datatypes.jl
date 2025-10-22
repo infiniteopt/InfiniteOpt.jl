@@ -1609,6 +1609,15 @@ end
 #                             OBJECT REFERENCES
 ################################################################################
 """
+    DispatchVariableRef <: JuMP.AbstractVariableRef
+
+An abstract type for variable references that are created from
+[`GeneralVariableRef`](@ref)s and are used to dispatch to the appropriate
+methods for that particular variable/parameter/measure type.
+"""
+abstract type DispatchVariableRef <: JuMP.AbstractVariableRef end
+
+"""
     GeneralVariableRef <: JuMP.AbstractVariableRef
 
 A `DataType` that serves as the principal variable reference in `InfiniteOpt`
@@ -1646,16 +1655,10 @@ struct GeneralVariableRef <: JuMP.AbstractVariableRef
     function GeneralVariableRef(model::InfiniteModel, index::DependentParameterIndex)
         return new(model, index.object_index.value, typeof(index), index.param_index)
     end
+    function GeneralVariableRef(dvref::DispatchVariableRef)
+        return GeneralVariableRef(dvref.model, dvref.index)
+    end
 end
-
-"""
-    DispatchVariableRef <: JuMP.AbstractVariableRef
-
-An abstract type for variable references that are created from
-[`GeneralVariableRef`](@ref)s and are used to dispatch to the appropriate
-methods for that particular variable/parameter/measure type.
-"""
-abstract type DispatchVariableRef <: JuMP.AbstractVariableRef end
 
 """
     IndependentParameterRef <: DispatchVariableRef

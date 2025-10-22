@@ -462,7 +462,7 @@ end
 
 # Define 1 argument user method wrappers and their fallbacks
 for op = (:infinite_domain, :num_supports, :significant_digits, :has_supports,
-          :supports, :delete_supports, :fill_in_supports!, :parameter_value,
+          :supports, :delete_supports, :fill_in_supports!,
           :derivative_method, :has_generative_supports, :has_internal_supports,
           :add_generative_supports, :raw_function, :generative_support_info)
     @eval begin
@@ -633,21 +633,38 @@ function add_supports(
 end
 
 # Fallback
-function JuMP.set_value(vref::DispatchVariableRef, value::Real)
-    throw(ArgumentError("`JuMP.set_value` not defined for variable reference type " *
+function JuMP.parameter_value(vref::DispatchVariableRef)
+    throw(ArgumentError("`JuMP.parameter_value` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
 end
 
 """
-    JuMP.set_value(vref::DispatchVariableRef, value::Real)::Nothing
+    JuMP.parameter_value(vref::DispatchVariableRef)::Union{Real, Function}
 
-Extend `JuMP.set_value` to
-set the value of `vref`. It relies on `JuMP.set_value`
+Extend `JuMP.parameter_value` to query the value of `vref`. It relies
+on `JuMP.parameter_value` being defined for the underlying 
+`DispatchVariableRef`, otherwise an `ArgumentError` is thrown.
+"""
+function JuMP.parameter_value(vref::GeneralVariableRef)
+    return JuMP.parameter_value(dispatch_variable_ref(vref))
+end
+
+# Fallback
+function JuMP.set_parameter_value(vref::DispatchVariableRef, value)
+    throw(ArgumentError("`JuMP.set_parameter_value` not defined for variable reference type " *
+                        "`$(typeof(vref))`."))
+end
+
+"""
+    JuMP.set_parameter_value(vref::DispatchVariableRef, value::Union{Real, Function})::Nothing
+
+Extend `JuMP.set_parameter_value` to
+set the value of `vref`. It relies on `JuMP.set_parameter_value`
 being defined for the underlying `DispatchVariableRef`, otherwise an
 `ArgumentError` is thrown.
 """
-function JuMP.set_value(vref::GeneralVariableRef, value::Real)
-    return JuMP.set_value(dispatch_variable_ref(vref), value)
+function JuMP.set_parameter_value(vref::GeneralVariableRef, value)
+    return JuMP.set_parameter_value(dispatch_variable_ref(vref), value)
 end
 
 # Dispatch fallback

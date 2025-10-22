@@ -13,9 +13,13 @@ via the [`TranscriptionBackend`](@ref) constructor.
 mutable struct TranscriptionData
     # Variable information
     infvar_lookup::Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, JuMP.VariableRef}}
-    infvar_mappings::Dict{InfiniteOpt.GeneralVariableRef, Array{JuMP.VariableRef}}
+    infvar_mappings::Dict{InfiniteOpt.GeneralVariableRef, Array}
     infvar_supports::Dict{InfiniteOpt.GeneralVariableRef, Array{Tuple}}
     finvar_mappings::Dict{InfiniteOpt.GeneralVariableRef, JuMP.VariableRef}
+
+    # Parameter function information (additional dicts are needed if update_parameter_functions is false)
+    update_parameter_functions::Bool
+    pfunc_lookup::Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Float64}}
 
     # Metadata
     valid_indices::Dict{Any, Array{Bool}}
@@ -50,6 +54,9 @@ mutable struct TranscriptionData
             Dict{InfiniteOpt.GeneralVariableRef, Array{JuMP.VariableRef}}(),
             Dict{InfiniteOpt.GeneralVariableRef, Array{Tuple}}(),
             Dict{InfiniteOpt.GeneralVariableRef, JuMP.VariableRef}(),
+            # pfunc info
+            false,
+            Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Float64}}(),
             # meta data
             Dict{Any, Array{Bool}}(),
             # internal variables
@@ -78,6 +85,7 @@ function Base.empty!(data::TranscriptionData)
     empty!(data.infvar_mappings)
     empty!(data.infvar_supports)
     empty!(data.finvar_mappings)
+    empty!(data.pfunc_lookup)
     empty!(data.valid_indices)
     empty!(data.semi_infinite_vars)
     empty!(data.semi_lookup)
@@ -105,13 +113,15 @@ struct Transcription <: InfiniteOpt.AbstractJuMPTag end
 """
     TranscriptionBackend(
         [optimizer_constructor];
-        [add_bridges::Bool = true]
-        )::InfiniteOpt.JuMPBackend{Transcription}
+        [add_bridges::Bool = true],
+        [update_parameter_functions::Bool = false]
+    )::InfiniteOpt.JuMPBackend{Transcription}
 
 Return an `InfiniteOpt.JuMPBackend` that uses [`TranscriptionData`](@ref) 
 and the [`Transcription`](@ref) tag. Accepts the same arguments as a typical 
-`JuMP.Model`. More detailed variable and constraint naming can be enabled 
-via `verbose_naming`.
+`JuMP.Model`. Optionally, transcribe parameter functions using `JuMP.Parameter`
+such that they can be updated for more efficient resolves by setting 
+`update_parameter_functions = true`.
 
 **Example**
 ```julia-repl
@@ -121,13 +131,18 @@ julia> backend = TranscriptionBackend();
 const TranscriptionBackend = InfiniteOpt.JuMPBackend{Transcription, Float64, TranscriptionData}
 
 # Constructors
-function TranscriptionBackend(; kwargs...)
+function TranscriptionBackend(; update_parameter_functions::Bool = false, kwargs...)
     model = JuMP.Model(; kwargs...)
-    return InfiniteOpt.JuMPBackend{Transcription}(model, TranscriptionData())
+    data = TranscriptionData()
+    if update_parameter_functions
+        data.update_parameter_functions = true
+    end
+    return InfiniteOpt.JuMPBackend{Transcription}(model, data)
 end
 function TranscriptionBackend(optimizer_constructor; kwargs...)
-    model = JuMP.Model(optimizer_constructor; kwargs...)
-    return InfiniteOpt.JuMPBackend{Transcription}(model, TranscriptionData())
+    backend = TranscriptionBackend(; kwargs...)
+    JuMP.set_optimizer(backend.model, optimizer_constructor)
+    return backend
 end
 
 # Get the solver name from MOI
@@ -431,7 +446,7 @@ function InfiniteOpt.variable_supports(
     backend::TranscriptionBackend;
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel
     )
-    vref = InfiniteOpt.GeneralVariableRef(JuMP.owner_model(dvref), JuMP.index(dvref))
+    vref = InfiniteOpt.GeneralVariableRef(dvref)
     if !haskey(transcription_data(backend).infvar_mappings, vref)
         error("Variable reference $vref not used in transcription backend.")
     end
@@ -443,31 +458,6 @@ function InfiniteOpt.variable_supports(
         return _truncate_by_label(supps, vref, label, group_idxs, backend)
     end
 end
-
-# ParameterFunctionRef 
-# function InfiniteOpt.variable_supports(
-#     fref::InfiniteOpt.ParameterFunctionRef,
-#     backend::TranscriptionBackend;
-#     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel
-#     )
-#     # get the parameter group integer indices of the expression and form the support iterator
-#     group_idxs = InfiniteOpt.parameter_group_int_indices(fref)
-#     support_indices = support_index_iterator(backend, group_idxs)
-#     dims = size(support_indices)[group_idxs]
-#     supps = Array{Tuple, length(dims)}(undef, dims...)
-#     param_supps = parameter_supports(backend)
-#     # iterate over the indices and compute the values
-#     for idx in support_indices
-#         val_idx = idx.I[group_idxs]
-#         @inbounds supps[val_idx...] = Tuple(param_supps[j][idx[j]] for j in group_idxs)
-#     end
-#     # return the values
-#     if _ignore_label(backend, label)
-#         return supps
-#     else
-#         return _truncate_by_label(supps, fref, label, group_idxs, backend)
-#     end
-# end
 
 """
     lookup_by_support(
@@ -498,14 +488,20 @@ _supp_error() = error(
 # InfiniteIndex & ParameterFunctionIndex
 function lookup_by_support(
     vref::InfiniteOpt.GeneralVariableRef,
-    ::Type{V},
+    idx_type::Type{V},
     backend::TranscriptionBackend,
     support::Vector
     ) where {V <: Union{InfVarIndex, InfiniteOpt.ParameterFunctionIndex}}
-    if !haskey(transcription_data(backend).infvar_lookup, vref)
+    data = transcription_data(backend)
+    if idx_type == InfiniteOpt.ParameterFunctionIndex && data.update_parameter_functions
+        lookup_dict = data.infvar_lookup
+    else
+        lookup_dict = data.pfunc_lookup
+    end
+    if !haskey(lookup_dict, vref)
         error("Variable reference $vref not used in transcription backend.")
     end
-    return get(_supp_error, transcription_data(backend).infvar_lookup[vref], support)
+    return get(_supp_error, lookup_dict[vref], support)
 end
 
 # FiniteIndex
@@ -590,7 +586,7 @@ function InfiniteOpt.variable_supports(
     backend::TranscriptionBackend;
     label::Type{<:InfiniteOpt.AbstractSupportLabel} = InfiniteOpt.PublicLabel
     )
-    mref = InfiniteOpt.GeneralVariableRef(JuMP.owner_model(dmref), JuMP.index(dmref))
+    mref = InfiniteOpt.GeneralVariableRef(dmref)
     if !haskey(transcription_data(backend).measure_mappings, mref)
         error("Measure reference $mref not used in transcription backend.")
     end
@@ -846,6 +842,61 @@ function InfiniteOpt.constraint_supports(
     else 
         return first(supps)
     end
+end
+
+################################################################################
+#                                UPDATES
+################################################################################
+"""
+    InfiniteOpt.update_parameter_value(
+        backend::TranscriptionBackend,
+        fref::InfiniteOpt.FiniteParameterRef,
+        value::Real
+    )::Bool
+
+Update the value of the finite parameter referenced by `fref` in `backend` to `value`.
+Returns `true` if the parameter was found and updated, `false` otherwise.
+"""
+function InfiniteOpt.update_parameter_value(
+    backend::TranscriptionBackend,
+    fref::InfiniteOpt.FiniteParameterRef,
+    value::Real
+    )
+    data = transcription_data(backend)
+    gvref = InfiniteOpt.GeneralVariableRef(fref)
+    haskey(data.finvar_mappings, gvref) || return false
+    JuMP.set_parameter_value(
+        data.finvar_mappings[gvref],
+        value
+    )
+    return true
+end
+
+"""
+    InfiniteOpt.update_parameter_value(
+        backend::TranscriptionBackend,
+        pfref::InfiniteOpt.ParameterFunctionRef,
+        value::Function
+    )::Bool
+
+Update the values of the parameter function referenced by `pfref` in `backend`
+to be evaluated via `value`. Returns `true` if the parameter function was found
+and updated, `false` otherwise.
+"""
+function InfiniteOpt.update_parameter_value(
+    backend::TranscriptionBackend,
+    pfref::InfiniteOpt.ParameterFunctionRef,
+    value::Function
+    )
+    data = transcription_data(backend)
+    gvref = InfiniteOpt.GeneralVariableRef(pfref)
+    haskey(data.infvar_lookup, gvref) || return false
+    vrefs = data.infvar_mappings[gvref]
+    supps = data.infvar_supports[gvref]
+    for (i, supp) in enumerate(supps)
+        JuMP.set_parameter_value(vrefs[i], value(supp...))
+    end
+    return true
 end
 
 ################################################################################

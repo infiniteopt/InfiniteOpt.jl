@@ -33,6 +33,7 @@ include("point_variables.jl")
 include("finite_variables.jl")
 include("nlp.jl")
 include("macros.jl")
+include("parameter_function.jl")
 include("expressions.jl")
 include("measures.jl")
 
