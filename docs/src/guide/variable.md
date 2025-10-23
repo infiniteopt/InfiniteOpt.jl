@@ -890,6 +890,18 @@ julia> start_value(z)
 0.0
 ```
 
+!!! note
+    For effective resolves, 
+    [`warmstart_backend_start_values`](@ref warmstart_backend_start_values(::InfiniteModel))
+    provides a convenient and efficient way to update the start values used by
+    the backend using a previous solution stored in the backend.
+    ```julia
+    optimize!(model)
+    warmstart_backend_start_values(model)
+    set_parameter_value(p, 42)
+    optimize!(model)
+    ```
+
 For infinite variables, this should be done using 
 [`set_start_value_function`](@ref). FOr example:
 ```jldoctest var_macro
@@ -903,4 +915,4 @@ arguments that exactly match the format of the infinite parameters given in
 `Infinite(params...)`.
 
 A number of other techniques exist for the various variable types can be found in 
-the manual below.
+the manual.

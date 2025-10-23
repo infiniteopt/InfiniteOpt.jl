@@ -262,6 +262,10 @@ end
 
     # prepare for result queries
     mockoptimizer = JuMP.backend(m).optimizer.model
+    for v in all_variables(m.backend.model)
+        MOI.set(mockoptimizer, MOI.VariablePrimal(),
+                JuMP.optimizer_index(v), 1.0)
+    end
     MOI.set(mockoptimizer, MOI.TerminationStatus(), MOI.OPTIMAL)
     MOI.set(mockoptimizer, MOI.RawStatusString(), "solver specific string")
     MOI.set(mockoptimizer, MOI.ResultCount(), 2)
@@ -315,6 +319,8 @@ end
     @test dual(c2) == [0., -1.]
     @test dual(c3) == [0., -1.]
     @test is_solved_and_feasible(m)
+    @test warmstart_backend_start_values(m) isa Nothing
+    @test start_value(transformation_variable(y)) == 1
 #     @test optimizer_index(x) == optimizer_index.(transformation_variable(x))
 #     @test optimizer_index(x0) == optimizer_index(transformation_variable(x0))
 #     @test optimizer_index(y) == optimizer_index(transformation_variable(y))

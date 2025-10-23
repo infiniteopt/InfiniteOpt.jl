@@ -405,3 +405,17 @@ function InfiniteOpt.update_parameter_value(
     end
     return true
 end
+
+# Extend `warmstart_backend_start_values` to support warmstarting
+function InfiniteOpt.warmstart_backend_start_values(
+    backend::NewReformBackend;
+    my_kwarg = true # EXTRA CAN BE PASSED ON TO THE MAPPING
+    )
+    # REPLACE BELOW WITH ACTUAL WARMSTARTING OPERATION
+    if my_kwarg
+        JuMP.set_start_values(transformation_model(backend))
+    else
+        @warn("Unable to warmstart backend.")
+    end
+    return
+end

@@ -340,6 +340,48 @@ function build_transformation_backend!(model::InfiniteModel; kwargs...)
 end
 
 """
+    warmstart_backend_start_values(
+        backend::AbstractTransformationBackend; 
+        [kwargs...]
+    )::Nothing
+
+Use the previous solution values stored in `backend` to warmstart the start values
+to be used for the next [`optimize!`](@ref) call. This serves as an extension point 
+for new backend types.
+"""
+function warmstart_backend_start_values(
+    backend::AbstractTransformationBackend; 
+    kwargs...
+    )
+    error("`warmstart_backend_start_values` not implemented for transformation backends " * 
+          "of type `$(typeof(backend))`.")
+end
+
+"""
+    warmstart_backend_start_values(model::InfiniteModel; [kwargs...])
+
+Use the previous solution values (primals and duals) stored in the transformation 
+backend of `model` to warmstart the start values to be used for the next 
+[`optimize!`](@ref) call. For `JuMPBackend`s (like `TranscriptionBackend`) this calls 
+`JuMP.set_start_values` on the underlying JuMP model. Note that only start values in
+the backend model are updated, the start values stored in `model` remain unchanged.
+
+**Example*
+```julia-repl
+julia> optimize!(model)
+
+julia> warmstart_backend_start_values(model) # call before making model updates
+
+julia> set_parameter_value(p, 42)
+
+julia> optimize!(model)
+```
+"""
+function warmstart_backend_start_values(model::InfiniteModel; kwargs...)
+    return warmstart_backend_start_values(model.backend; kwargs...)
+end
+
+"""
     JuMP.set_optimize_hook(
         model::InfiniteModel, 
         hook::Union{Function, Nothing}
@@ -695,6 +737,19 @@ function Base.empty!(backend::JuMPBackend)
 end
 function JuMP.optimize!(backend::JuMPBackend)
     return JuMP.optimize!(backend.model)
+end
+function warmstart_backend_start_values(backend::JuMPBackend; kwargs...)
+    jump_model = transformation_model(backend)
+    if JuMP.has_values(jump_model)
+        JuMP.set_start_values(
+            jump_model;
+            nonlinear_dual_start = nothing, 
+            kwargs...
+        )
+    else
+        @warn("No previous solution values found to warmstart the backend.")
+    end
+    return
 end
 
 ################################################################################

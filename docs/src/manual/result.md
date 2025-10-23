@@ -56,6 +56,11 @@ JuMP.lp_sensitivity_report(::InfiniteModel)
 InfOptSensitivityReport 
 ```
 
+## Warmstarts
+```@docs
+warmstart_backend_start_values(::InfiniteModel)
+```
+
 ## Transformation Backend Extension API
 ```@docs
 map_value(::Any, ::AbstractTransformationBackend)

@@ -779,6 +779,7 @@ extended using the following steps:
 8. As appropriate and if NOT a `JuMPBackend`, extend the following:
     - The remaining result related attributes listed in [`JuMP.get_attribute`](@ref JuMP.get_attribute(::AbstractTransformationBackend, ::Any))
     - [`JuMP.lp_sensitivity_report`](@ref JuMP.lp_sensitivity_report(::AbstractTransformationBackend))
+    - [`InfiniteOpt.warmstart_backend_start_values`](@ref) to enable automated warmstarts
 9. If Step 6 was skipped and/or the backend is NOT a `JuMPBackend` then extend the following:
     - [`InfiniteOpt.map_value`](@ref) (enables `JuMP.value`)
     - [`InfiniteOpt.map_infinite_parameter_value`](@ref) (enables `JuMP.value` for infinite parameters)
