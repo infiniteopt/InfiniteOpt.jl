@@ -203,6 +203,9 @@ end
             MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(c), -12.0)
         end
     end
+    for v in all_variables(tb.model)
+        MOI.set(mockoptimizer, MOI.VariablePrimal(1), JuMP.optimizer_index(v), 1.0)
+    end
     # MOI.set(mockoptimizer, MOI.ConstraintDual(), JuMP.optimizer_index(creft), 7.0)
     MOI.set(mockoptimizer, MOI.VariablePrimal(1), JuMP.optimizer_index(gt), 1.0)
     MOI.set(mockoptimizer, MOI.VariablePrimal(1), JuMP.optimizer_index(inft[1]), 2.0)
@@ -269,6 +272,11 @@ end
         @test isa(optimizer_index(g), MOI.VariableIndex)
         @test isa(optimizer_index(inf, label = InternalLabel), Vector{MOI.VariableIndex})
         @test isa(optimizer_index(rv), Vector{MOI.VariableIndex})
+    end
+    # test warmstart_backend_start_values
+    @testset "warmstart_backend_start_values" begin
+        @test warmstart_backend_start_values(m) isa Nothing
+        @test start_value(gt) == 1
     end
     # test dual
     @testset "JuMP.dual" begin
@@ -436,12 +444,21 @@ end
         @test shadow_price(c4) == [-2, -3]
         @test_throws ErrorException InfiniteOpt.map_shadow_price(c1, TestBackend())
     end
+    # test warmstart_backend_start_values
+    @testset "warmstart_backend_start_values" begin
+        @test warmstart_backend_start_values(m) isa Nothing
+        @test start_value(c1t) == 1
+        @test dual_start_value(c1t) == -1
+        @test_throws ErrorException warmstart_backend_start_values(TestBackend())
+    end
     # test model not up to date
     set_objective_sense(m, MOI.MAX_SENSE)
     @testset "Not up-to-date" begin 
         @test_throws ErrorException dual(c1)
         @test_throws ErrorException shadow_price(c1)
         @test_throws ErrorException optimizer_index(c1)
+        str = "No previous solution values found to warmstart the backend."
+        @test_logs (:warn, str) warmstart_backend_start_values(m)
     end
 end
 

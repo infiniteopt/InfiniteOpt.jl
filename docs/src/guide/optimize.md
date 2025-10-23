@@ -63,6 +63,18 @@ via [`set_optimizer`](@ref):
 julia> set_optimizer(model, Ipopt.Optimizer)
 ```
 
+!!! note
+    For effective resolves, 
+    [`warmstart_backend_start_values`](@ref warmstart_backend_start_values(::InfiniteModel))
+    provides a convenient and efficient way to update the start values used by
+    the backend using a previous solution stored in the backend.
+    ```julia
+    optimize!(model)
+    warmstart_backend_start_values(model)
+    set_parameter_value(p, 42)
+    optimize!(model)
+    ```
+
 A number of methods also exist to adjust the optimizer settings such as 
 suppressing output. This is explained below in the 
 [Optimizer Settings](@ref opt_settings) section.
