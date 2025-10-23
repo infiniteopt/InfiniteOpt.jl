@@ -266,6 +266,10 @@ end
         expected = VariableInfo(false, 0., false, 0., false, 0., true, 3, false, false)
         @test InfiniteOpt._update_point_info(info, divref, Float64[1, 2]) == expected
         @test reset_start_value_function(divref) isa Nothing
+        # test parameter function
+        pfref = ParameterFunctionRef(m, ParameterFunctionIndex(1))
+        @test InfiniteOpt._update_point_info(info, pfref, [0.]) == info
+        @test_throws ErrorException InfiniteOpt._update_point_info(info2, pfref, [0.])
     end
     # build_variable
     @testset "JuMP.build_variable" begin

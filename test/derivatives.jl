@@ -203,6 +203,7 @@ end
     @variable(m, x, Infinite(pref, prefs))
     @variable(m, y, Infinite(pref2))
     @variable(m, w, Infinite(pref, pref2))
+    f = parameter_function(sin, pref)
     num = Float64(0)
     func1 = (a, b) -> 2
     info = VariableInfo(false, num, false, num, false, num, false, NaN, false, false)
@@ -218,6 +219,7 @@ end
         @test_throws ErrorException build_derivative(error, info, pref, pref)
         @test_throws ErrorException build_derivative(error, info, y, pref2, -1)
         @test_throws ErrorException build_derivative(error, info, x, prefs[1])
+        @test_throws ErrorException build_derivative(error, info, f, pref)
         func = (a, b, c) -> a + sum(c)
         bad_info = VariableInfo(true, num, true, num, true, num, true, func, false, false)
         @test_throws ErrorException build_derivative(error, bad_info, x, pref)

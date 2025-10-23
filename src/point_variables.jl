@@ -214,7 +214,7 @@ function _update_point_info(
     point::Vector{Float64}
     )
     if info.has_lb || info.has_ub || info.has_fix || info.binary || info.integer
-        error("Cannot set domain information for on point variables ",
+        error("Cannot set domain information for point variables ",
               "based on parameter functions.")
     end
     return info

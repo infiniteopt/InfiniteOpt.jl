@@ -121,9 +121,16 @@
     @testset "JuMP.set_parameter_value" begin
         @test isa(set_parameter_value(fref, cos), Nothing)
         @test parameter_value(fref) == cos
-        @test isa(set_parameter_value(gvref, sin), Nothing)
-        @test parameter_value(gvref) == sin
+        @test isa(set_parameter_value(gvref, tan), Nothing)
+        @test parameter_value(gvref) == tan
         @test_throws ErrorException set_parameter_value(fref, (a, b) -> 42)
+        # test reset inducing change
+        set_transformation_backend_ready(m, true)
+        push!(InfiniteOpt._constraint_dependencies(fref), InfOptConstraintIndex(1))
+        @test isa(set_parameter_value(fref, sin), Nothing)
+        @test parameter_value(fref) == sin
+        @test !transformation_backend_ready(m)
+        empty!(InfiniteOpt._constraint_dependencies(fref))
     end
     # call_function
     @testset "call_function" begin

@@ -42,12 +42,12 @@ f(t)
 Here, we created a parameter function object, added it to `model`, and
 then created a Julia variable `f` that serves as a `GeneralVariableRef` that points
 to it. From here we can treat `f` as a normal infinite variable and use it with
-measures, derivatives, and constraints. For example, we can do the following:
+measures, and constraints. For example, we can do the following:
 ```jldoctest param_func
 julia> @variable(model, y, Infinite(t));
 
-julia> df = deriv(f, t)
-∂/∂t[f(t)]
+julia> f(0)
+f(0)
 
 julia> meas = integral(y - f, t)
 ∫{t ∈ [0, 10]}[y(t) - f(t)]

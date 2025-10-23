@@ -108,8 +108,9 @@ function build_parameter_function(
     extra_kwargs...
     )
     # check for unneeded keywords
-    for (kwarg, _) in extra_kwargs
-        _error("Keyword argument $kwarg is not for use with parameter functions.")
+    if !isempty(extra_kwargs)
+        _error("Keyword argument $(first(keys(extra_kwargs))) is not " * 
+               "for use with parameter functions.")
     end
     # process the parameter reference inputs and make checks
     prefs = Collections.VectorTuple(parameter_refs)

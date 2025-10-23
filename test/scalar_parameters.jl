@@ -1058,6 +1058,11 @@ end
         @test isa(set_parameter_value(pref, 41), Nothing)
         @test parameter_value(pref) == 41
         @test_deprecated isa(set_value(pref, 40), Nothing)
+        # test resetting update
+        set_transformation_backend_ready(m, true)
+        @test isa(set_parameter_value(pref, 39), Nothing)
+        @test parameter_value(pref) == 39
+        @test !transformation_backend_ready(m)
     end
 end
 
