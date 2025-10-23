@@ -1039,7 +1039,7 @@ end
     # initialize the model
     m = InfiniteModel()
     # test parameter_value
-    @testset "parameter_value" begin
+    @testset "JuMP.parameter_value" begin
         pref = GeneralVariableRef(m, 1, FiniteParameterIndex)
         dpref = dispatch_variable_ref(pref)
         @test_throws ArgumentError parameter_value(bad)
@@ -1047,16 +1047,22 @@ end
         @test parameter_value(dpref) == 1
         @test parameter_value(pref) == 1
     end
-    # test JuMP.set_value
-    @testset "JuMP.set_value" begin
+    # test JuMP.set_parameter_value
+    @testset "JuMP.set_parameter_value" begin
         pref = GeneralVariableRef(m, 1, FiniteParameterIndex)
         dpref = dispatch_variable_ref(pref)
         push!(InfiniteOpt._constraint_dependencies(dpref), InfOptConstraintIndex(1))
-        @test_throws ArgumentError set_value(bad, 42)
-        @test isa(set_value(dpref, 42), Nothing)
+        @test_throws ArgumentError set_parameter_value(bad, 42)
+        @test isa(set_parameter_value(dpref, 42), Nothing)
         @test parameter_value(pref) == 42
-        @test isa(set_value(pref, 41), Nothing)
+        @test isa(set_parameter_value(pref, 41), Nothing)
         @test parameter_value(pref) == 41
+        @test_deprecated isa(set_value(pref, 40), Nothing)
+        # test resetting update
+        set_transformation_backend_ready(m, true)
+        @test isa(set_parameter_value(pref, 39), Nothing)
+        @test parameter_value(pref) == 39
+        @test !transformation_backend_ready(m)
     end
 end
 

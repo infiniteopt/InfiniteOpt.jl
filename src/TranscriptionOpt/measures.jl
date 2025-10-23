@@ -32,7 +32,11 @@ function InfiniteOpt.add_point_variable(
         # make the reference and map it to a transcription variable
         pvref = InfiniteOpt.GeneralVariableRef(inf_model, raw_index, InfiniteOpt.PointVariableIndex)
         trans_var = lookup_by_support(ivref, backend, support)
-        data.finvar_mappings[pvref] = trans_var
+        if trans_var isa Float64
+            data.point_pfunc_mappings[pvref] = trans_var
+        else
+            data.finvar_mappings[pvref] = trans_var
+        end
         data.point_lookup[(ivref, support)] = pvref
         return pvref
     end
@@ -81,7 +85,13 @@ function InfiniteOpt.add_semi_infinite_variable(
         ivref_param_nums = InfiniteOpt._parameter_numbers(ivref)
         param_nums = var.parameter_nums
         supp_indices = support_index_iterator(backend, var.group_int_idxs)
-        lookup_dict = Dict{Vector{Float64}, JuMP.VariableRef}()
+        if ivref.index_type == InfiniteOpt.ParameterFunctionIndex && 
+           !data.update_parameter_functions
+            val_type = Float64
+        else
+            val_type = JuMP.VariableRef
+        end
+        lookup_dict = Dict{Vector{Float64}, val_type}()
         sizehint!(lookup_dict, length(supp_indices))
         for i in supp_indices
             raw_supp = index_to_support(backend, i)
@@ -90,21 +100,12 @@ function InfiniteOpt.add_semi_infinite_variable(
             supp = raw_supp[param_nums]
             lookup_dict[supp] = lookup_by_support(ivref, backend, ivref_supp)
         end
-        data.infvar_lookup[rvref] = lookup_dict
+        if val_type == JuMP.VariableRef
+            data.infvar_lookup[rvref] = lookup_dict
+        else
+            data.pfunc_lookup[rvref] = lookup_dict
+        end
         data.semi_lookup[(ivref, eval_supp)] = rvref
         return rvref
     end
-end
-
-function InfiniteOpt.make_point_variable_ref(
-    write_model::TranscriptionBackend, 
-    ivref, 
-    support, 
-    ::Union{Type{InfiniteOpt.ParameterFunctionIndex}}
-    )
-    prefs = parameter_list(ivref)
-    for i in eachindex(support)
-        support[i] = round(support[i], sigdigits = significant_digits(prefs[i]))
-    end 
-    return add_point_variable(write_model, ivref, support)
 end

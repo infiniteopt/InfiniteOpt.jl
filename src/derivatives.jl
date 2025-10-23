@@ -242,6 +242,8 @@ function build_derivative(
         _error("Cannot specify the operator parameter as the derivative argument.")
     elseif order <= 0 
         _error("The specified derivative order $order is not a positive integer.")
+    elseif _index_type(argument_ref) == ParameterFunctionIndex
+        _error("Derivatives of parameter functions are not supported.")
     end
     # check and format the info correctly
     prefs = raw_parameter_refs(argument_ref)
@@ -386,6 +388,9 @@ end
 
 # Helper method to to quickly build and add derivatives internally
 function _build_add_derivative(vref, pref, order)
+    if _index_type(vref) == ParameterFunctionIndex
+        error("Derivatives of parameter functions are not supported.")
+    end
     vref, order = _unnest_derivative(vref, pref, order)
     dindex = _existing_derivative_index(vref, pref, order)
     model = JuMP.owner_model(vref)
@@ -658,10 +663,7 @@ end
 """
     num_derivatives(model::InfiniteModel)::Int
 
-Returns the number of derivatives that have been defined in `model`. Note that 
-nested derivatives will be counted in accordance with their components (e.g., 
-``\\frac{d^2 x(t)}{dt^2} = ``\\frac{d}{dt}\\left(\\frac{d x(t)}{dt} \\right)`` 
-will count as 2 derivatives.)
+Returns the number of derivatives that have been defined in `model`.
 
 **Example**
 ```julia-repl
@@ -684,7 +686,7 @@ julia> all_derivatives(model)
 3-element Array{GeneralVariableRef,1}:
  ∂/∂t[T(x, t)]
  ∂/∂x[T(x, t)]
- ∂/∂x[∂/∂x[T(x, t)]]
+ ∂/∂x[∂/∂t[T(x, t)]]
 ```
 """
 function all_derivatives(model::InfiniteModel)

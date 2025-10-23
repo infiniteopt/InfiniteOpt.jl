@@ -140,11 +140,7 @@ end
         for method in (FiniteDifference(Forward()), FiniteDifference(Central()), FiniteDifference(Backward()))
             @test_throws ErrorException InfiniteOpt.evaluate_derivative(d3, q, method, m)
         end
-        # test parameter function 
-        f = parameter_function(sin, t)
-        df = deriv(f, t)
-        exprs = [2.5df(s) - sin(s) + sin(s-2.5) for s in (2.5, 5, 7.5, 10)]
-        @test isequal_canonical(InfiniteOpt.evaluate_derivative(df, f, method, m), exprs)
+
     end
     # test OrthogonalCollocation with evaluate_derivative
     @testset "OrthogonalCollocation" begin 

@@ -72,4 +72,5 @@ expression_supports(::Any, ::AbstractTransformationBackend)
 constraint_supports(::InfOptConstraintRef, ::AbstractTransformationBackend)
 transformation_backend_ready
 set_transformation_backend_ready
+update_parameter_value(::AbstractTransformationBackend, ::Any, ::Any)
 ```

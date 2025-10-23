@@ -14,12 +14,10 @@
     @variable(tb.model, b)
     @variable(tb.model, c)
     @variable(tb.model, d)
-    @variable(tb.model, e in Parameter(sin(0)))
-    @variable(tb.model, f in Parameter(sin(1)))
     data = IOTO.transcription_data(tb)
-    data.infvar_mappings[pf] = [e, f]
+    data.infvar_mappings[pf] = [sin(0), sin(1)]
     data.infvar_supports[pf] = [(0.,), (1.,)]
-    data.infvar_lookup[pf] = Dict([0] => e, [1] => f)
+    data.pfunc_lookup[pf] = Dict([0] => sin(0), [1] => sin(1))
     data.infvar_mappings[x] = [a, b]
     data.infvar_supports[x] = [(0.,), (1.,)]
     data.infvar_lookup[x] = Dict([0] => a, [1] => b)
@@ -37,10 +35,10 @@
         pfref = GeneralVariableRef(m, -1, PointVariableIndex)
         testRef = InfiniteOpt.make_point_variable_ref(tb, pf, Float64[1])
         @test isequal(pfref, testRef)
-        @test IOTO.transcription_variable(pfref) == f
+        @test IOTO.transcription_variable(pfref) == sin(1)
         # add a point var that was already added internally
         @test isequal(InfiniteOpt.add_point_variable(tb, pf, Float64[1]), pfref)
-        @test IOTO.transcription_variable(pfref) == f
+        @test IOTO.transcription_variable(pfref) == sin(1)
 
     end
     # test add_point_variable

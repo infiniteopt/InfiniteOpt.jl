@@ -384,6 +384,16 @@ behind infinite model transformation and is what encapsulates all the methods to
 transcribe measures, variables, derivatives, and constraints. This is also the 
 method that enables the use of [`optimize!`](@ref JuMP.optimize!(::InfiniteModel)).
 
+!!! note
+    To support incremental updates of parameter functions for efficient resolves,
+    set `update_parameter_functions = true` when defining the backend:
+    ```julia
+    backend = TranscriptionBackend(Ipopt.Optimizer, update_parameter_functions = true)
+    model = InfiniteModel(backend)
+    ```
+    This setting has parameters functions mapped with JuMP parameters rather than
+    just numerical values.
+
 ### Queries
 In this section we highlight a number of query methods that pertain to 
 `TranscriptionBackend`s and their mappings. First, we can retrieve the JuMP `Model`

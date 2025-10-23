@@ -33,6 +33,7 @@ include("point_variables.jl")
 include("finite_variables.jl")
 include("nlp.jl")
 include("macros.jl")
+include("parameter_function.jl")
 include("expressions.jl")
 include("measures.jl")
 
@@ -66,6 +67,7 @@ Base.@deprecate optimizer_model_variable(v; kwargs...) transformation_variable(v
 Base.@deprecate optimizer_model_expression(e; kwargs...) transformation_expression(e; kwargs...)
 Base.@deprecate optimizer_model_constraint(c; kwargs...) transformation_constraint(c; kwargs...)
 Base.@deprecate optimizer_model(m) transformation_model(m)
+Base.@deprecate set_value(v::GeneralVariableRef, val) set_parameter_value(v, val)
 
 # Define additional stuff that should not be exported
 const _EXCLUDE_SYMBOLS = [

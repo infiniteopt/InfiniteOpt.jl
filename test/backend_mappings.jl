@@ -43,7 +43,8 @@ end
 # Test transformation backend querying methods
 @testset "Transformation Backend Queries" begin
     # initialize model
-    m = InfiniteModel()
+    tb = TranscriptionBackend(update_parameter_functions = true)
+    m = InfiniteModel(tb)
     @infinite_parameter(m, par in [0, 1], supports = [0, 1], 
                         derivative_method = OrthogonalCollocation(3))
     @variable(m, x, Infinite(par))
@@ -154,6 +155,29 @@ end
         @test supports(c1, label = UserDefined) == [(0.,), (1.,)]
         # test fallback
         @test supports(c2) == ()
+    end
+end
+
+# Test Updates
+@testset "Transformation Backend Updates" begin
+    # initialize model
+    tb = TranscriptionBackend(update_parameter_functions = true)
+    m = InfiniteModel(tb)
+    @infinite_parameter(m, par in [0, 1], supports = [0, 1])
+    @variable(m, x, Infinite(par))
+    f = parameter_function(sin, par)
+    df = dispatch_variable_ref(f)
+    @finite_parameter(m, p == 2)
+    dp = dispatch_variable_ref(p)
+    build_transformation_backend!(m)
+    # Test update_parameter_value
+    @testset "update_parameter_value" begin
+        @test !update_parameter_value(TestBackend(), df, cos)
+        @test update_parameter_value(tb, df, cos)
+        @test parameter_value.(transformation_variable(f)) == [cos(0), cos(1)]
+        @test !update_parameter_value(TestBackend(), dp, 3)
+        @test update_parameter_value(tb, dp, 3)
+        @test parameter_value(transformation_variable(p)) == 3
     end
 end
 

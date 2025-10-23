@@ -186,9 +186,11 @@ end
     @variable(m, x0, Point(x, 0))
     @variable(m, y)
     meas = integral(x, par)
-    @constraint(m, c1, x + y - 2 <= 0)
+    @parameter_function(m, pf == sin(par))
+    @finite_parameter(m, p == 3)
+    @constraint(m, c1, x + y + pf - 2 <= 0)
     @constraint(m, c2, meas == 0)
-    @constraint(m, c3, x0 + y == 5)
+    @constraint(m, c3, x0 + y == 5 + p)
     @objective(m, Min, y)
 
     # test backend constructor
@@ -223,22 +225,30 @@ end
     # test build_transformation_backend!
     @test build_transformation_backend!(m, my_kwarg = true) isa Nothing
     @test transformation_backend_ready(m)
-    @test num_variables(transformation_model(m)) == 13
+    @test num_variables(transformation_model(m)) == 16
 
     # test retrivals
     @test transformation_variable(x, my_kwarg = true) isa Vector{VariableRef}
     @test transformation_variable(x0, my_kwarg = true) isa VariableRef
     @test transformation_variable(y, my_kwarg = true) isa VariableRef
+    @test transformation_variable(pf, my_kwarg = true) isa Vector{VariableRef}
+    @test transformation_variable(p, my_kwarg = true) isa VariableRef
     @test transformation_variable(meas, my_kwarg = true) isa Vector{VariableRef}
     @test transformation_constraint(c1, my_kwarg = true) isa Vector{<:ConstraintRef}
     @test transformation_constraint(c2, my_kwarg = true) isa Vector{<:ConstraintRef}
     @test transformation_constraint(c3, my_kwarg = true) isa Vector{<:ConstraintRef}
     @test transformation_expression(x^2) == zero(AffExpr)
     @test supports(x, my_kwarg = true) == [(0.,), (1.,)]
+    @test supports(pf) == [(0.,), (1.,)]
     @test supports(y) == ()
     @test supports(meas) == [(-1.,), (-2.,)]
     @test supports(c1, my_kwarg = true) == [(2.,), (3.,)]
     @test supports(x + y) == [(-42.,), (1.,)]
+
+    # test parameter updates
+    @test set_parameter_value(pf, cos) isa Nothing
+    @test set_parameter_value(p, 10) isa Nothing
+    @test parameter_value(transformation_variable(p)) == 10
 
     # test optimization with rebuild
     mockoptimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),

@@ -10,13 +10,15 @@
     @variable(m, 0 <= y0 <= 1, Point(y, 0, [0, 0]), Int)
     @variable(m, 0 <= z <= 1, Bin)
     @variable(m, w == 1, Int, start = 1)
+    @parameter_function(m, pf == (par, pars) -> 42)
+    point_pf = pf(0, [0, 0])
+    semi_pf = pf(0, pars)
     dx = @deriv(x, par)
     dy = @deriv(y, par)
     dx3 = @deriv(x, par^3)
     set_lower_bound(dx, 0)
     set_start_value_function(dy, (p, ps) -> p + sum(ps))
-    var = build_variable(error, y, [NaN, 0, 0])
-    yrv = add_variable(m, var)
+    yrv = y(par, [0, 0])
     data = DiscreteMeasureData(par, [0.5, 0.5], [0, 1])
     @constraint(m, c1, x + z - 2 <= 0)
     @constraint(m, c2, measure(x + y, data) - w == 0)
@@ -79,6 +81,12 @@
         @test supports(x) == [(0,), (1,)]
         @test supports(y) == [(0, [0, 0]) (0, [1, 1]); (1, [0, 0]) (1, [1, 1])]
     end
+    # test transcribe_parameter_functions!
+    @testset "transcribe_parameter_functions!" begin
+        @test isa(IOTO.transcribe_parameter_functions!(tb, m), Nothing)
+        @test IOTO.transcription_variable(pf, tb) == fill(42, 2, 2)
+        @test supports(pf) == [(0, [0, 0]) (0, [1, 1]); (1, [0, 0]) (1, [1, 1])]
+    end
     # test _format_derivative_info
     @testset "_format_derivative_info" begin
         der = core_object(dy)
@@ -101,7 +109,7 @@
     # test transcribe_derivative_variables!
     @testset "transcribe_derivative_variables!" begin
         @test isa(IOTO.transcribe_derivative_variables!(tb, m), Nothing)
-        @test length(IOTO.transcription_data(tb).infvar_mappings) == 6
+        @test length(IOTO.transcription_data(tb).infvar_mappings) == 7
         @test num_derivatives(m) == 4
         @test IOTO.transcription_variable(dx, tb) isa Vector{VariableRef}
         @test IOTO.transcription_variable(dy, tb) isa Matrix{VariableRef}
@@ -120,8 +128,11 @@
     @testset "transcribe_semi_infinite_variables!" begin 
         @test IOTO.transcribe_semi_infinite_variables!(tb, m) isa Nothing
         @test IOTO.transcription_variable(yrv) isa Vector{VariableRef}
-        @test length(IOTO.transcription_data(tb).infvar_mappings) == 7
+        @test length(IOTO.transcription_data(tb).infvar_mappings) == 9
         @test IOTO.lookup_by_support(y, tb, [1., 0., 0.]) == IOTO.lookup_by_support(yrv, tb, [1.])
+        @test IOTO.transcription_variable(semi_pf) == fill(42, 2)
+        @test supports(semi_pf) == [([0, 0],), ([1, 1],)]
+        @test IOTO.lookup_by_support(semi_pf, tb, [0., 0.]) == 42
     end
     # test _update_point_info
     @testset "_update_point_info" begin
@@ -175,6 +186,8 @@
         @test is_integer(IOTO.transcription_variable(y0, tb))
         @test start_value(IOTO.transcription_variable(y0, tb)) == 0.
         @test has_lower_bound(IOTO.lookup_by_support(y, tb, [0., 0., 0.]))
+        @test length(IOTO.transcription_data(tb).point_pfunc_mappings) == 1
+        @test IOTO.transcription_variable(point_pf, tb) == 42
     end
 end
 
@@ -604,11 +617,13 @@ end
     @variable(m, 0 <= y0 <= 1, Point(y, 0, [0, 0]), Int)
     @variable(m, 0 <= z <= 1, Bin)
     @variable(m, w == 1, Int, start = 1)
-    meas1 = support_sum(x - w, par)
+    @finite_parameter(m, p == 0)
+    @parameter_function(m, pf == sin(par))
+    meas1 = support_sum(x - w + pf, par)
     meas2 = integral(y, pars)
     @constraint(m, c1, x + par - z == 0)
     @constraint(m, c2, z + x0 >= -3)
-    @constraint(m, c3, meas1 + z == 0)
+    @constraint(m, c3, meas1 + z == p)
     @constraint(m, c4, meas2 - 2y0 + x <= 1, DomainRestrictions(par => [0.5, 1]))
     @constraint(m, c5, meas2 == 0)
     @constraint(m, @deriv(x, par) == 0)
@@ -619,8 +634,18 @@ end
     # test normal usage
     @test isa(build_transformation_backend!(m), Nothing)
     @test transformation_backend_ready(m)
-    @test num_variables(m.backend.model) == 44
+    @test num_variables(m.backend.model) == 45
     @test time_limit_sec(m.backend.model) == 42
     # test bad keyword
     @test_throws ErrorException build_transformation_backend!(m, bad = 42)
+    # test parameter update mode
+    new_backend = TranscriptionBackend(update_parameter_functions = true)
+    @test set_transformation_backend(m, new_backend) isa Nothing
+    @test build_transformation_backend!(m) isa Nothing
+    @test transformation_backend_ready(m)
+    @test num_variables(m.backend.model) == 48
+    @test set_parameter_value(p, 42) isa Nothing
+    @test parameter_value(transformation_variable(p)) == 42
+    @test set_parameter_value(pf, cos) isa Nothing
+    @test parameter_value.(transformation_variable(pf)) == [cos(0), cos(0.5), cos(1)]
 end

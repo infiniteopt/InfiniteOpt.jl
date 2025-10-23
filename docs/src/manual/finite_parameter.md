@@ -19,8 +19,8 @@ parameter [technical manual](@ref inf_par_manual) for the remainder of the
 methods available for finite parameters (i.e., any method typed for 
 `ScalarParameterRef`s)
 ```@docs
-parameter_value(::FiniteParameterRef)
-JuMP.set_value(::FiniteParameterRef, ::Real)
+JuMP.parameter_value(::FiniteParameterRef)
+JuMP.set_parameter_value(::FiniteParameterRef, ::Real)
 used_by_objective(::FiniteParameterRef)
 core_object(::FiniteParameterRef)
 ```

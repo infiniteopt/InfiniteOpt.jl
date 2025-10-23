@@ -627,6 +627,19 @@ end
         @test name.(vrefs) == names
         @test num_constraints(m, MOI.SecondOrderCone) == 1
     end
+    # test Parameter creation
+    @testset "MOI.Parameter (constant)" begin
+        vref = GeneralVariableRef(m, 1, ParameterFunctionIndex)
+        @test @variable(m, p in MOI.Parameter(3.14), Infinite(t)) == vref
+        @test name(vref) == "p"
+        @test parameter_value(vref)(0.5) == 3.14
+    end
+    @testset "MOI.Parameter (function)" begin
+        vref = GeneralVariableRef(m, 2, ParameterFunctionIndex)
+        @test @variable(m, p2 in Parameter(sin), Infinite(t)) == vref
+        @test name(vref) == "p2"
+        @test parameter_value(vref)(0.5) == sin(0.5)
+    end
 end
 
 # test usage methods

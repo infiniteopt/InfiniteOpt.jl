@@ -89,7 +89,7 @@ end
 # infinite variable reference
 function _check_tuple_shape(
     _error::Function,
-    ivref::Union{InfiniteVariableRef, DerivativeRef},
+    ivref::Union{InfiniteVariableRef, DerivativeRef, ParameterFunctionRef},
     values::Collections.VectorTuple
     )
     prefs = raw_parameter_refs(ivref)
@@ -130,7 +130,7 @@ end
 # Used to ensure values don't violate parameter bounds
 function _check_tuple_values(
     _error::Function, 
-    ivref::Union{InfiniteVariableRef, DerivativeRef},
+    ivref::Union{InfiniteVariableRef, DerivativeRef, ParameterFunctionRef},
     param_values::Vector{Float64}
     )
     raw_prefs = raw_parameter_refs(ivref)
@@ -162,6 +162,17 @@ end
 function _process_restricted_info(_error::Function, info::JuMP.VariableInfo)
     _error("Bounds and start value for point and semi-infinite variables must " *
            "be of type `Real`.")
+end
+function _update_point_info(
+    info::JuMP.VariableInfo,
+    ivref::ParameterFunctionRef,
+    point::Vector{Float64}
+    )
+    if info.has_lb || info.has_ub || info.has_fix || info.binary || info.integer
+        error("Cannot set domain information for point variables ",
+              "based on parameter functions.")
+    end
+    return info
 end
 
 """
@@ -198,7 +209,7 @@ function JuMP.build_variable(
     # check the infinite variable reference
     ivref = var_type.infinite_variable_ref
     dispatch_ivref = dispatch_variable_ref(ivref)
-    if !(dispatch_ivref isa Union{InfiniteVariableRef, DerivativeRef})
+    if !(dispatch_ivref isa Union{InfiniteVariableRef, DerivativeRef, ParameterFunctionRef})
         _error("Expected an infinite variable/derivative reference dependency,", 
                "but got a variable reference of type $(typeof(dispatch_ivref)).")
     end
@@ -246,7 +257,7 @@ end
 
 # Used to add point variable support to parameter supports if necessary
 function _update_param_supports(
-    ivref::Union{InfiniteVariableRef, DerivativeRef},
+    ivref::Union{InfiniteVariableRef, DerivativeRef, ParameterFunctionRef},
     param_values::Vector{Float64}
     )
     raw_prefs = raw_parameter_refs(ivref)
@@ -261,7 +272,7 @@ end
 # Used to update mapping infinite_to_points
 function _update_infinite_point_mapping(
     pvref::PointVariableRef,
-    ivref::Union{InfiniteVariableRef, DerivativeRef}
+    ivref::Union{InfiniteVariableRef, DerivativeRef, ParameterFunctionRef}
     )
     push!(_point_variable_dependencies(ivref), JuMP.index(pvref))
     return
