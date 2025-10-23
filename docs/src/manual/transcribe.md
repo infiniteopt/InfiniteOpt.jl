@@ -45,6 +45,12 @@ InfiniteOpt.constraint_supports(::InfiniteOpt.InfOptConstraintRef,::InfiniteOpt.
 InfiniteOpt.TranscriptionOpt.parameter_supports(::InfiniteOpt.TranscriptionOpt.TranscriptionBackend)
 ```
 
+## Updates
+```@docs
+InfiniteOpt.update_parameter_value(::InfiniteOpt.TranscriptionOpt.TranscriptionBackend, ::InfiniteOpt.FiniteParameterRef, ::Real)
+InfiniteOpt.update_parameter_value(::InfiniteOpt.TranscriptionOpt.TranscriptionBackend, ::InfiniteOpt.ParameterFunctionRef, ::Function)
+```
+
 ## Utilities
 ```@docs
 InfiniteOpt.TranscriptionOpt.support_index_iterator

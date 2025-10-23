@@ -600,7 +600,7 @@ function evaluate(dref::DerivativeRef)
         method = derivative_method(dref)
         model = JuMP.owner_model(dref)
         constr_list = _derivative_constraint_dependencies(dref)
-        gvref = GeneralVariableRef(model, JuMP.index(dref).value, DerivativeIndex)
+        gvref = GeneralVariableRef(dref)
         # recursively build 1st order derivatives if necessary
         vref = derivative_argument(dref)
         if !allows_high_order_derivatives(method) && derivative_order(dref) > 1 

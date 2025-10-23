@@ -87,10 +87,10 @@
         @test InfiniteOpt._semi_infinite_variable_dependencies(fref) == SemiInfiniteVariableIndex[]
         @test InfiniteOpt._semi_infinite_variable_dependencies(gvref) == SemiInfiniteVariableIndex[]
     end
-    # _derivative_dependencies
-    @testset "_derivative_dependencies" begin
-        @test InfiniteOpt._derivative_dependencies(fref) == DerivativeIndex[]
-        @test InfiniteOpt._derivative_dependencies(gvref) == DerivativeIndex[]
+    # _point_variable_dependencies
+    @testset "_point_variable_dependencies" begin
+        @test InfiniteOpt._point_variable_dependencies(fref) == PointVariableIndex[]
+        @test InfiniteOpt._point_variable_dependencies(gvref) == PointVariableIndex[]
     end
     # raw_parameter_refs
     @testset "raw_parameter_refs" begin
@@ -112,6 +112,26 @@
         @test raw_function(fref) == sin
         @test raw_function(gvref) == sin
     end
+    # parameter_value
+    @testset "JuMP.parameter_value" begin
+        @test parameter_value(fref) == sin
+        @test parameter_value(gvref) == sin
+    end
+    # set_parameter_value
+    @testset "JuMP.set_parameter_value" begin
+        @test isa(set_parameter_value(fref, cos), Nothing)
+        @test parameter_value(fref) == cos
+        @test isa(set_parameter_value(gvref, tan), Nothing)
+        @test parameter_value(gvref) == tan
+        @test_throws ErrorException set_parameter_value(fref, (a, b) -> 42)
+        # test reset inducing change
+        set_transformation_backend_ready(m, true)
+        push!(InfiniteOpt._constraint_dependencies(fref), InfOptConstraintIndex(1))
+        @test isa(set_parameter_value(fref, sin), Nothing)
+        @test parameter_value(fref) == sin
+        @test !transformation_backend_ready(m)
+        empty!(InfiniteOpt._constraint_dependencies(fref))
+    end
     # call_function
     @testset "call_function" begin
         @test call_function(fref, 0) == 0
@@ -125,12 +145,12 @@
         @test used_by_semi_infinite_variable(fref)
         empty!(InfiniteOpt._semi_infinite_variable_dependencies(fref))
     end
-    # test used_by_derivative
-    @testset "used_by_derivative" begin
-        @test !used_by_derivative(fref)
-        push!(InfiniteOpt._derivative_dependencies(fref), DerivativeIndex(1))
-        @test used_by_derivative(fref)
-        empty!(InfiniteOpt._derivative_dependencies(fref))
+    # test used_by_point_variable
+    @testset "used_by_point_variable" begin
+        @test !used_by_point_variable(fref)
+        push!(InfiniteOpt._point_variable_dependencies(fref), PointVariableIndex(1))
+        @test used_by_point_variable(fref)
+        empty!(InfiniteOpt._point_variable_dependencies(fref))
     end
     # test used_by_measure
     @testset "used_by_measure" begin
@@ -213,9 +233,17 @@
     @testset "Other Objects" begin
         f = parameter_function((a,b) -> 2, (t, x))
         # test making semi_infinite variable
-        @test add_variable(m, build_variable(error, f, [0.0, NaN, NaN])) isa GeneralVariableRef
+        @test f(0, x) isa GeneralVariableRef
+        # test making point
+        @test f(0, [0, 0]) isa GeneralVariableRef
+        @test_macro_throws ErrorException @variable(m, pt_var => 0, Point(f, 0, [0, 0])) 
         # test making derivative 
-        @test deriv(f, t) isa GeneralVariableRef
+        @test_throws ErrorException deriv(f, t)
+    end
+    # test model Queries
+    @testset "Model Queries" begin
+        @test num_parameter_functions(m) == 6
+        @test all_parameter_functions(m) isa Vector{GeneralVariableRef}
     end
 end
 

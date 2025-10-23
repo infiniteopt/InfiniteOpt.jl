@@ -1358,7 +1358,7 @@ function JuMP.delete(model::InfiniteModel, mref::MeasureRef)
     if is_used(mref)
         set_transformation_backend_ready(model, false)
     end
-    gvref = GeneralVariableRef(JuMP.owner_model(mref), JuMP.index(mref))
+    gvref = GeneralVariableRef(mref)
     # Remove from dependent measures if there are any
     for mindex in _measure_dependencies(mref)
         meas_ref = dispatch_variable_ref(model, mindex)

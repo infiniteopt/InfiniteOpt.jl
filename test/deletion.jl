@@ -656,9 +656,8 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, par in [0, 1])
     f = parameter_function(sin, par)
-    d = deriv(f, par)
-    d = deriv(f, par)
     rv = add_variable(m, build_variable(error, f, [0.0]))
+    pt = f(0)
     data = TestData(par, 0, 0)
     meas1 = measure(f + par, data)
     meas2 = measure(f, data)
@@ -674,9 +673,9 @@ end
     @test isequal(jump_function(constraint_object(con2)), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
     @test !haskey(InfiniteOpt._data_dictionary(f), JuMP.index(f))
     @test !is_valid(m, f)
-    @test !is_valid(m, d)
     @test !is_valid(m, rv)
     @test !is_valid(m, con3)
+    @test !is_valid(m, pt)
     # test errors
     @test_throws AssertionError delete(m, f)
 end

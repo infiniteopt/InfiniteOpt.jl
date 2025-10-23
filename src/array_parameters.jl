@@ -1633,7 +1633,7 @@ function JuMP.delete(
     )
     @assert JuMP.is_valid(model, first(prefs)) "Parameter references are invalid."
     _check_complete_param_array(prefs)
-    gvrefs = [GeneralVariableRef(model, JuMP.index(pref)) for pref in prefs]
+    gvrefs = GeneralVariableRef.(prefs)
     # ensure deletion is okay (prefs are not used by measure data)
     for pref in gvrefs
         for mindex in _measure_dependencies(pref)

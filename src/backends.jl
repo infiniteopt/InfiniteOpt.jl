@@ -1060,3 +1060,22 @@ function supports(cref::InfOptConstraintRef; kwargs...)
     model = JuMP.owner_model(cref)
     return constraint_supports(cref, model.backend; kwargs...)
 end
+
+################################################################################
+#                                 UPDATING API
+################################################################################
+"""
+    update_parameter_value(
+        backend::AbstractTransformationBackend,
+        ref::Union{FiniteParameterRef, ParameterFunctionRef},
+        value
+    )::Bool
+
+If `backend`` is built, then this method updates what `ref` corresponds to in the
+`backend` to `value`, then it returns a `Bool` on whether the update was successful.
+This is intended as an extension point for new `AbstractTransformationBackend`s to
+more efficiently handle parameter updates for resolves. This defaults to `false`,
+meaning that no update occurs (forcing the backend to be rebuilt). Users should
+use [`JuMP.set_parameter_value`](@ref) rather than call this method directly.
+"""
+update_parameter_value(backend::AbstractTransformationBackend, ref, value) = false

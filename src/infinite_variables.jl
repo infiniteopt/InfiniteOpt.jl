@@ -452,7 +452,11 @@ end
 # This enables functional calls (e.g., `y(0, x)` => semi-infinite variable)
 function _functional_reference_call(
     ivref::GeneralVariableRef, 
-    ::Union{Type{InfiniteVariableIndex}, Type{DerivativeIndex}}, 
+    ::Union{
+        Type{InfiniteVariableIndex},
+        Type{DerivativeIndex},
+        Type{ParameterFunctionIndex}
+    }, 
     supps...
     )
     return _restrict_infinite_variable(ivref, Collections.VectorTuple(supps))

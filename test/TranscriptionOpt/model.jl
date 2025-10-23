@@ -268,11 +268,12 @@ end
     end
     # test lookup_by_support (infinite parameter functions)
     @testset "lookup_by_support (Parameter Function)" begin
+        data.update_parameter_functions = true
         lookups = Dict{Vector{Float64}, VariableRef}(
             [0.] => p1a,
             [0.5] => p1b,
             [1.] => p1c
-            )
+        )
         data.infvar_lookup[f1] = lookups
         lookups = Dict{Vector{Float64}, VariableRef}(
             [0., 0., 0.] => p2a,
@@ -281,7 +282,7 @@ end
             [0., 1., 1.] => p2d,
             [0.5, 1., 1.] => p2e,
             [1., 1., 1.] => p2f
-            )
+        )
         data.infvar_lookup[f2] = lookups
         # test errors
         @test_throws ErrorException IOTO.lookup_by_support(f1, tb, [0.75])
@@ -292,6 +293,30 @@ end
         @test IOTO.lookup_by_support(f1, tb, [1.]) == p1c
         @test IOTO.lookup_by_support(f2, tb, [0.5, 0., 0.]) == p2b
         @test IOTO.lookup_by_support(f2, tb, [0.5, 1., 1.]) == p2e
+        # test no updates
+        data.update_parameter_functions = false
+        delete!(data.infvar_lookup, f1)
+        delete!(data.infvar_lookup, f2)
+        lookups = Dict{Vector{Float64}, Float64}(
+            [0.] => 1,
+            [0.5] => 2,
+            [1.] => 3
+        )
+        data.pfunc_lookup[f1] = lookups
+        lookups = Dict{Vector{Float64}, Float64}(
+            [0., 0., 0.] => 10,
+            [0.5, 0., 0.] => 20,
+            [1., 0., 0.] => 30,
+            [0., 1., 1.] => 40,
+            [0.5, 1., 1.] => 50,
+            [1., 1., 1.] => 60
+        )
+        data.pfunc_lookup[f2] = lookups
+        @test IOTO.lookup_by_support(f1, tb, [0.]) == 1
+        @test IOTO.lookup_by_support(f1, tb, [0.5]) == 2
+        @test IOTO.lookup_by_support(f1, tb, [1.]) == 3
+        @test IOTO.lookup_by_support(f2, tb, [0.5, 0., 0.]) == 20
+        @test IOTO.lookup_by_support(f2, tb, [0.5, 1., 1.]) == 50
     end
     # test lookup_by_support (finite vars)
     @testset "lookup_by_support (Finite)" begin
@@ -448,19 +473,17 @@ end
     @variable(tb.model, c)
     @variable(tb.model, d)
     @variable(tb.model, e in Parameter(42))
-    @variable(tb.model, pf1 in Parameter(1))
-    @variable(tb.model, pf2 in Parameter(1))
     # transcribe the variables and measures
     data = IOTO.transcription_data(tb)
     data.finvar_mappings[y] = a
     data.finvar_mappings[x0] = a
     data.finvar_mappings[finpar] = e
-    data.infvar_mappings[f] = [pf1, pf2]
+    data.infvar_mappings[f] = [0.5, 0.7]
     data.infvar_mappings[x] = reshape([a, b], :, 1)
     data.measure_mappings[meas1] = fill(-2 * zero(AffExpr))
     data.measure_mappings[meas2] = [a^2 + c^2 - 2a, b^2 + d^2 - 2a]
     data.infvar_lookup[x] = Dict([0, 0, 0] => a, [1, 0, 0] => b)
-    data.infvar_lookup[f] = Dict([0, 0, 0] => pf1, [1, 0, 0] => pf2)
+    data.pfunc_lookup[f] = Dict([0, 0, 0] => 0.5, [1, 0, 0] => 0.7)
     data.measure_lookup[meas1] = Dict(Float64[] => 1)
     data.measure_lookup[meas2] = Dict([0] => 1, [1] => 2)
     @test IOTO.set_parameter_supports(tb, m) isa Nothing
@@ -472,16 +495,16 @@ end
     @testset "IOTO.transcription_expression (Infinite Variable)" begin
         @test IOTO.transcription_expression(x, tb, [0., 0., 0.]) == a
         @test IOTO.transcription_expression(meas1, tb, [0., 0., 1.]) == -2 * zero(AffExpr)
-        @test IOTO.transcription_expression(f, tb, [0., 0., 1.]) == pf2
+        @test IOTO.transcription_expression(f, tb, [0., 0., 1.]) == 0.7
     end
     # test transcription expression for semi_infinite variables with 3 args
     @testset "IOTO.transcription_expression (Semi-Infinite Variable)" begin
         # semi_infinite of parameter function
         rv = add_variable(m, build_variable(error, f, [1, NaN, NaN]),
                           add_support = false)
-        data.infvar_mappings[rv] = [pf2]
-        data.infvar_lookup[rv] = Dict([0, 0] => pf2)
-        @test IOTO.transcription_expression(rv, tb, [0., 0., 1.]) == pf2
+        data.infvar_mappings[rv] = [0.7]
+        data.pfunc_lookup[rv] = Dict([0, 0] => 0.7)
+        @test IOTO.transcription_expression(rv, tb, [0., 0., 1.]) == 0.7
         # semi_infinite of infinite variable
         rv = add_variable(m, build_variable(error, x, [1, NaN, NaN]),
                           add_support = false)

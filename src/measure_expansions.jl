@@ -34,7 +34,7 @@ function make_point_variable_ref(
     write_model::InfiniteModel, 
     ivref, 
     support, 
-    ::Union{Type{InfiniteVariableIndex}, Type{DerivativeIndex}}
+    ::Union{Type{InfiniteVariableIndex}, Type{DerivativeIndex}, Type{ParameterFunctionIndex}}
     )
     prefs = parameter_list(ivref)
     for i in eachindex(support)
@@ -50,19 +50,6 @@ function make_point_variable_ref(
     else
         return GeneralVariableRef(write_model, pindex)
     end
-end
-
-# Infinite parameter function index (this works for both optimizer and infinite models)
-function make_point_variable_ref(
-    write_model, 
-    fref, 
-    support, 
-    ::Type{ParameterFunctionIndex}
-    )
-    prefs = raw_parameter_refs(fref)
-    supp_tuple = Tuple(support, prefs)
-    func = raw_function(fref)
-    return func(supp_tuple...)
 end
 
 """
@@ -100,7 +87,7 @@ function make_point_variable_ref(
     write_model::AbstractTransformationBackend, 
     ivref, 
     support, 
-    ::Union{Type{InfiniteVariableIndex}, Type{DerivativeIndex}}
+    ::Union{Type{InfiniteVariableIndex}, Type{DerivativeIndex}, Type{ParameterFunctionIndex}}
     )
     prefs = parameter_list(ivref)
     for i in eachindex(support)

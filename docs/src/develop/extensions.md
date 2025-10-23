@@ -789,6 +789,7 @@ extended using the following steps:
 10. Extend [`InfiniteOpt.add_point_variable`](@ref) and 
     [`InfiniteOpt.add_semi_infinite_variable`](@ref) to use 
     [`expand_measure`](@ref) without modifying the infinite model.
+11. Extend [`InfiniteOpt.update_parameter_value`](@ref) to enable incremental parameter updates.
 
 This may seem like a lot a work, but the majority of the above steps can be
 skipped for [`JuMPBackend`](@ref)s as exemplified below. A complete extension,

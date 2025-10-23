@@ -636,6 +636,23 @@ julia> semi = y(0, x) # make semi-infinite variable y(0, x)
 y(0, [x[1], x[2]])
 ```
 
+## Parameters
+Like JuMP, InfiniteOpt supports the use of `MOI.Parameter`. For instance, 
+consider making a finite variable as a parameter:
+```jldoctest restrict_vars
+julia> @variable(model, param in Parameter(42))
+param
+```
+which simply produces a finite parameter (i.e., is equivalent to 
+`@finite_parameter(model, param == 42)`). For infinite variables, the use 
+of `MOI.Parameter` simply produces a parameter function:
+```jldoctest restrict_vars
+julia> @variable(model, pfunc in Parameter(sin), Infinite(t))
+pfunc(t)
+```
+which is equivalent to `@parameter_function(model, pfunc == sin(t))`. All
+parameters can be updated via [`set_parameter_value`](@ref), see [Finite Parameters](@ref finite_param_docs) and [Parameter Function](@ref par_func_docs) to learn more.
+
 ## Queries
 `InfiniteOpt` contains a large suite of methods to query information about
 variables. This suite comprises extensions to all current `JuMP` query
