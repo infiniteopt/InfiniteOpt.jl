@@ -66,11 +66,3 @@ julia> set_parameter_value(max_cost, 10.2)
 julia> parameter_value(max_cost)
 10.2
 ```
-
-## Advanced Details
-The ability to implement finite parameters stems from its ability to support 
-mixed variable types using by using the `GeneralVariableRef` buffer. As such, 
-finite parameters will be treated as variables until the model is transcribed. 
-For example, this means that the expression `max_cost * x` will be treated as a 
-quadratic expression when it is expressed in its `InfiniteOpt` form, however it is 
-converted into the appropriate affine expression when transcribed. 
