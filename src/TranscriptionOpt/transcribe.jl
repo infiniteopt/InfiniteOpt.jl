@@ -386,8 +386,8 @@ function transcribe_semi_infinite_variables!(
         data = transcription_data(backend)
         supp_indices = support_index_iterator(backend, group_idxs)
         supp_type = typeof(Tuple(ones(length(prefs)), prefs))
-        supps = Array{supp_type, length(dims)}(undef, dims...)
         dims = size(supp_indices)[group_idxs]
+        supps = Array{supp_type, length(dims)}(undef, dims...)
         if ivref.index_type == InfiniteOpt.ParameterFunctionIndex && 
            !data.update_parameter_functions
             val_type = Float64
@@ -485,9 +485,14 @@ function transcribe_point_variables!(
         # find the corresponding variable record the mapping
         vref = lookup_by_support(ivref, backend, supp)
         pvref = InfiniteOpt.GeneralVariableRef(model, idx)
-        transcription_data(backend).finvar_mappings[pvref] = vref
-        # update the info constraints as needed
-        _update_point_info(pvref, vref)
+        data = transcription_data(backend)
+        if vref isa Float64
+            data.point_pfunc_mappings[pvref] = vref
+        else
+            data.finvar_mappings[pvref] = vref
+            # update the info constraints as needed
+            _update_point_info(pvref, vref)
+        end
     end
     return
 end
@@ -622,7 +627,7 @@ function transcribe_measures!(
         # prepare to transcribe over the supports
         supp_indices = support_index_iterator(backend, group_idxs)
         dims = size(supp_indices)[group_idxs]
-        exprs = Array{JuMP.AbstractJuMPScalar, length(dims)}(undef, dims...)
+        exprs = Array{Any, length(dims)}(undef, dims...)
         supp_type = typeof(Tuple(ones(length(prefs)), prefs))
         supps = Array{supp_type, length(dims)}(undef, dims...)
         lookup_dict = sizehint!(Dict{Vector{Float64}, Int}(), length(exprs))

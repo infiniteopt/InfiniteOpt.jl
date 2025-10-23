@@ -123,7 +123,7 @@ function build_parameter_function(
     # get the parameter numbers 
     param_nums = [_parameter_number(pref) for pref in prefs]
     # make the variable and return
-    return ParameterFunction(func, prefs, param_nums, group_int_idxs)
+    return ParameterFunction(func, prefs, group_int_idxs, param_nums)
 end 
 
 # Fallback for weird macro inputs
@@ -347,7 +347,7 @@ function JuMP.set_parameter_value(
     )
     # check the function method
     old_pfunc = core_object(fref)
-    _check_param_func_method(error, func, old_pfunc.prefs)
+    _check_param_func_method(error, func, old_pfunc.parameter_refs)
     # set the function
     new_pfunc = ParameterFunction(
         func, 
@@ -355,12 +355,21 @@ function JuMP.set_parameter_value(
         old_pfunc.parameter_nums,
         old_pfunc.group_int_idxs
     )
-    _data_object(fref).func = new_pfunc
+    old_data_object = _data_object(fref)
+    data_object = ParameterFunctionData(
+        new_pfunc,
+        old_data_object.name,
+        old_data_object.measure_indices,
+        old_data_object.constraint_indices,
+        old_data_object.semi_infinite_var_indices,
+        old_data_object.point_var_indices
+    )
+    _data_dictionary(fref)[JuMP.index(fref)] = data_object
     # update the transformation backend
     model = JuMP.owner_model(fref)
     if is_used(fref) && transformation_backend_ready(model)
         successful_backend_update = update_parameter_value(
-            model.transformation_backend, 
+            transformation_backend(model),    
             fref, 
             func
         )
@@ -388,9 +397,9 @@ function _semi_infinite_variable_dependencies(fref::ParameterFunctionRef)
     return _data_object(fref).semi_infinite_var_indices
 end
 
-# Extend _derivative_dependencies
-function _derivative_dependencies(fref::ParameterFunctionRef)
-    return _data_object(fref).derivative_indices
+# Extend _point_variable_dependencies
+function _point_variable_dependencies(fref::ParameterFunctionRef)
+    return _data_object(fref).point_var_indices
 end
 
 # Extend _measure_dependencies
@@ -419,18 +428,18 @@ function used_by_semi_infinite_variable(fref::ParameterFunctionRef)
 end
 
 """
-    used_by_derivative(fref::ParameterFunctionRef)::Bool
+    used_by_point_variable(fref::ParameterFunctionRef)::Bool
 
-Return a `Bool` indicating if `fref` is used by a derivative.
+Return a `Bool` indicating if `fref` is used by a point variable.
 
 **Example**
 ```julia-repl
-julia> used_by_derivative(vref)
+julia> used_by_point_variable(vref)
 true
 ```
 """
-function used_by_derivative(fref::ParameterFunctionRef)
-    return !isempty(_derivative_dependencies(fref))
+function used_by_point_variable(fref::ParameterFunctionRef)
+    return !isempty(_point_variable_dependencies(fref))
 end
 
 """
@@ -476,7 +485,47 @@ true
 """
 function is_used(fref::ParameterFunctionRef)
     return used_by_measure(fref) || used_by_constraint(fref) || 
-           used_by_semi_infinite_variable(fref) || used_by_derivative(fref)
+           used_by_semi_infinite_variable(fref) || used_by_point_variable(fref)
+end
+
+################################################################################
+#                              MODEL QUERIES
+################################################################################
+"""
+    num_parameter_functions(model::InfiniteModel)::Int
+
+Returns the number of parameter functions that have been defined in `model`.
+
+**Example**
+```julia-repl
+julia> num_parameter_functions(model)
+2
+```
+"""
+function num_parameter_functions(model::InfiniteModel)
+    return length(model.param_functions)
+end
+
+"""
+    all_parameter_functions(model::InfiniteModel)::Vector{GeneralVariableRef}
+
+Returns a list of all the individual parameter functions stored in `model`. 
+
+**Example**
+```julia-repl
+julia> all_parameter_functions(model)
+3-element Array{GeneralVariableRef,1}:
+ sin(t)
+ cos(t)
+ exp(t)
+```
+"""
+function all_parameter_functions(model::InfiniteModel)
+    vrefs_list = Vector{GeneralVariableRef}(undef, num_parameter_functions(model))
+    for (i, (index, _)) in enumerate(model.param_functions)
+        vrefs_list[i] = GeneralVariableRef(model, index)
+    end
+    return vrefs_list
 end
 
 ################################################################################
@@ -505,8 +554,8 @@ function JuMP.delete(model::InfiniteModel, fref::ParameterFunctionRef)
     for index in _semi_infinite_variable_dependencies(fref)
         JuMP.delete(model, dispatch_variable_ref(model, index))
     end
-    # delete associated derivative variables and mapping 
-    for index in _derivative_dependencies(fref)
+    # delete associated point variables and mapping 
+    for index in _point_variable_dependencies(fref)
         JuMP.delete(model, dispatch_variable_ref(model, index))
     end
     # remove from measures if used

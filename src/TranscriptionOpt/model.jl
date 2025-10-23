@@ -20,6 +20,7 @@ mutable struct TranscriptionData
     # Parameter function information (additional dicts are needed if update_parameter_functions is false)
     update_parameter_functions::Bool
     pfunc_lookup::Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Float64}}
+    point_pfunc_mappings::Dict{InfiniteOpt.GeneralVariableRef, Float64}
 
     # Metadata
     valid_indices::Dict{Any, Array{Bool}}
@@ -32,7 +33,7 @@ mutable struct TranscriptionData
 
     # Measure information
     measure_lookup::Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}
-    measure_mappings::Dict{InfiniteOpt.GeneralVariableRef, Array{JuMP.AbstractJuMPScalar}}
+    measure_mappings::Dict{InfiniteOpt.GeneralVariableRef, Array}
     measure_supports::Dict{InfiniteOpt.GeneralVariableRef, Array{Tuple}}
 
     # Constraint information
@@ -57,6 +58,7 @@ mutable struct TranscriptionData
             # pfunc info
             false,
             Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Float64}}(),
+            Dict{InfiniteOpt.GeneralVariableRef, Float64}(),
             # meta data
             Dict{Any, Array{Bool}}(),
             # internal variables
@@ -66,7 +68,7 @@ mutable struct TranscriptionData
             Dict{Tuple{InfiniteOpt.GeneralVariableRef, Vector{Float64}}, InfiniteOpt.GeneralVariableRef}(),
             # measure info
             Dict{InfiniteOpt.GeneralVariableRef, Dict{Vector{Float64}, Int}}(),
-            Dict{InfiniteOpt.GeneralVariableRef, Array{JuMP.AbstractJuMPScalar}}(),
+            Dict{InfiniteOpt.GeneralVariableRef, Array}(),
             Dict{InfiniteOpt.GeneralVariableRef, Array{Tuple}}(),
             # constraint info
             Dict{InfiniteOpt.InfOptConstraintRef, Array{JuMP.ConstraintRef}}(),
@@ -86,6 +88,7 @@ function Base.empty!(data::TranscriptionData)
     empty!(data.infvar_supports)
     empty!(data.finvar_mappings)
     empty!(data.pfunc_lookup)
+    empty!(data.point_pfunc_mappings)
     empty!(data.valid_indices)
     empty!(data.semi_infinite_vars)
     empty!(data.semi_lookup)
@@ -134,9 +137,7 @@ const TranscriptionBackend = InfiniteOpt.JuMPBackend{Transcription, Float64, Tra
 function TranscriptionBackend(; update_parameter_functions::Bool = false, kwargs...)
     model = JuMP.Model(; kwargs...)
     data = TranscriptionData()
-    if update_parameter_functions
-        data.update_parameter_functions = true
-    end
+    data.update_parameter_functions = update_parameter_functions
     return InfiniteOpt.JuMPBackend{Transcription}(model, data)
 end
 function TranscriptionBackend(optimizer_constructor; kwargs...)
@@ -359,11 +360,14 @@ function transcription_variable(
     backend::TranscriptionBackend,
     label::Type{<:InfiniteOpt.AbstractSupportLabel}
     ) where {V <: Union{FinVarIndex, InfiniteOpt.FiniteParameterIndex}}
-    var = get(transcription_data(backend).finvar_mappings, vref, nothing)
-    if isnothing(var)
+    data = transcription_data(backend)
+    var = get(data.finvar_mappings, vref, nothing)
+    !isnothing(var) && return var
+    var2 = get(data.point_pfunc_mappings, vref, nothing)
+    if isnothing(var2)
         error("Variable reference $vref not used in transcription backend.")
     end
-    return var
+    return var2
 end
 
 # InfVarIndex & ParameterFunctionIndex
@@ -493,12 +497,11 @@ function lookup_by_support(
     support::Vector
     ) where {V <: Union{InfVarIndex, InfiniteOpt.ParameterFunctionIndex}}
     data = transcription_data(backend)
-    if idx_type == InfiniteOpt.ParameterFunctionIndex && data.update_parameter_functions
+    if haskey(data.infvar_lookup, vref)
         lookup_dict = data.infvar_lookup
-    else
+    elseif haskey(data.pfunc_lookup, vref)
         lookup_dict = data.pfunc_lookup
-    end
-    if !haskey(lookup_dict, vref)
+    else
         error("Variable reference $vref not used in transcription backend.")
     end
     return get(_supp_error, lookup_dict[vref], support)
@@ -511,10 +514,7 @@ function lookup_by_support(
     backend::TranscriptionBackend,
     support::Vector
     ) where {V <: Union{FinVarIndex, InfiniteOpt.FiniteParameterIndex}}
-    if !haskey(transcription_data(backend).finvar_mappings, vref)
-        error("Variable reference $vref not used in transcription backend.")
-    end
-    return transcription_data(backend).finvar_mappings[vref]
+    return transcription_variable(vref, V, backend, InfiniteOpt.All)
 end
 
 """

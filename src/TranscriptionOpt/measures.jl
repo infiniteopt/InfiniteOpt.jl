@@ -1,21 +1,3 @@
-# Extend make_point_variable_ref to handle parameter functions correctly
-function InfiniteOpt.make_point_variable_ref(
-    write_model::TranscriptionBackend, 
-    ivref, 
-    support, 
-    ::Type{InfiniteOpt.ParameterFunctionIndex}
-    )
-    prefs = InfiniteOpt.parameter_list(ivref)
-    for i in eachindex(support)
-        support[i] = round(support[i], sigdigits = significant_digits(prefs[i]))
-    end 
-    if transcription_data(write_model).update_parameter_functions
-        return InfiniteOpt.add_point_variable(write_model, ivref, support)
-    else
-        return lookup_by_support(ivref, write_model, support)
-    end
-end
-
 """
     InfiniteOpt.add_point_variable(
         backend::TranscriptionBackend,
@@ -50,7 +32,11 @@ function InfiniteOpt.add_point_variable(
         # make the reference and map it to a transcription variable
         pvref = InfiniteOpt.GeneralVariableRef(inf_model, raw_index, InfiniteOpt.PointVariableIndex)
         trans_var = lookup_by_support(ivref, backend, support)
-        data.finvar_mappings[pvref] = trans_var
+        if trans_var isa Float64
+            data.point_pfunc_mappings[pvref] = trans_var
+        else
+            data.finvar_mappings[pvref] = trans_var
+        end
         data.point_lookup[(ivref, support)] = pvref
         return pvref
     end

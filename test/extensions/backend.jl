@@ -128,6 +128,13 @@ function InfiniteOpt.build_transformation_backend!(
             data.finvar_mappings[vref] = @variable(reform_model)
         end
     end
+    for pref in all_parameters(model, FiniteParameter)
+        data.finvar_mappings[pref] = @variable(reform_model, set = Parameter(parameter_value(pref)))
+    end 
+    for pfref in all_parameter_functions(model)
+        data.infvar_mappings[pfref] = @variable(reform_model, [1:2], set = Parameter(42))
+        data.infvar_to_supports[pfref] = [(0.,), (1.,)]
+    end
     # TODO add derivatives
     for mref in all_measures(model)
         data.meas_mappings[mref] = [@variable(reform_model) for _ = 1:2]
@@ -199,7 +206,7 @@ function InfiniteOpt.transformation_variable(
     )
     # REPLACE BELOW WITH ACTUAL CORRESPONDENCE TO THE OPTIMIZER MODEL VARIABLE(S)
     vindex = index(vref)
-    if vindex isa Union{InfiniteVariableIndex, SemiInfiniteVariableIndex, DerivativeIndex}
+    if vindex isa Union{InfiniteVariableIndex, SemiInfiniteVariableIndex, DerivativeIndex, ParameterFunctionIndex}
         map_dict = backend.data.infvar_mappings
     elseif vindex isa MeasureIndex
         map_dict = backend.data.meas_mappings
@@ -234,7 +241,7 @@ end
 
 # If appropriate extend variable_supports (enables support queries of infinite variables)
 function InfiniteOpt.variable_supports(
-    vref::Union{InfiniteVariableRef, SemiInfiniteVariableRef, DerivativeRef},
+    vref::Union{InfiniteVariableRef, SemiInfiniteVariableRef, DerivativeRef, ParameterFunctionRef},
     backend::NewReformBackend;
     my_kwarg::Bool = true # ADD KEY ARGS AS NEEDED
     )
@@ -373,3 +380,28 @@ end
 #   `InfiniteOpt.map_optimizer_index`
 #   `InfiniteOpt.map_shadow_price`
 #   `JuMP.lp_sensitivity_report`
+
+# Extend `update_parameter_value` to support incremental parameter value updates
+function InfiniteOpt.update_parameter_value(
+    backend::NewReformBackend,
+    pref::FiniteParameterRef,
+    new_value::Real
+    )
+    # REPLACE BELOW WITH ACTUAL PARAMETER UPDATE IN THE BACKEND
+    opt_param = transformation_variable(GeneralVariableRef(pref), backend)
+    JuMP.set_parameter_value(opt_param, new_value)
+    return true
+end
+function InfiniteOpt.update_parameter_value(
+    backend::NewReformBackend,
+    pfref::ParameterFunctionRef,
+    new_func::Function
+    )
+    # REPLACE BELOW WITH ACTUAL PARAMETER FUNCTION UPDATE IN THE BACKEND
+    opt_param_funcs = transformation_variable(GeneralVariableRef(pfref), backend)
+    supps = variable_supports(pfref, backend)
+    for (i, pf) in enumerate(opt_param_funcs)
+        JuMP.set_parameter_value(pf, new_func(supps[i]...))
+    end
+    return true
+end

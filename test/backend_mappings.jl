@@ -43,7 +43,8 @@ end
 # Test transformation backend querying methods
 @testset "Transformation Backend Queries" begin
     # initialize model
-    m = InfiniteModel()
+    tb = TranscriptionBackend(update_parameter_functions = true)
+    m = InfiniteModel(tb)
     @infinite_parameter(m, par in [0, 1], supports = [0, 1], 
                         derivative_method = OrthogonalCollocation(3))
     @variable(m, x, Infinite(par))

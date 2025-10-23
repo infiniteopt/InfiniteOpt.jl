@@ -89,6 +89,14 @@ setpoint(t)
 Please consult the following links for more information about defining parameter
 functions: [`@parameter_function`](@ref) and [`parameter_function`](@ref).
 
+We can also update the underlying function as often required for repeated solves.
+This is accomplished via 
+[`set_parameter_value`](@ref JuMP.set_parameter_value(::ParameterFunctionRef, ::Function)):
+```jldoctest param_func
+julia> set_parameter_value(setpoint, t -> 5)
+
+```
+
 Beyond this, there are a number of query and modification methods that can be
 employed for parameter functions and these are detailed in the
 [technical manual](@ref par_func_manual).

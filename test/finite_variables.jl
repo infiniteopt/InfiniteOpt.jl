@@ -242,6 +242,20 @@ end
         @test name.(vrefs) == names
         @test num_constraints(m, MOI.SecondOrderCone) == 1
     end
+    # test parameter syntax
+    @testset "MOI.Parameter" begin
+        v = VariableConstrainedOnCreation(v1, MOI.Parameter(5.0))
+        vref = GeneralVariableRef(m, 1, FiniteParameterIndex)
+        @test isequal(add_variable(m, v, "param_var"), vref)
+        @test name(vref) == "param_var"
+        @test parameter_value(vref) == 5.0
+        vref = GeneralVariableRef(m, 2, FiniteParameterIndex)
+        @test @variable(m, p2 in MOI.Parameter(10.0)) == vref
+        @test name(vref) == "p2"
+        @test parameter_value(vref) == 10.0 
+        @test set_parameter_value(vref, 15.0) isa Nothing
+        @test parameter_value(vref) == 15.0
+    end
 end
 
 # test usage methods

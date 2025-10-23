@@ -26,10 +26,12 @@ parameter_list(::ParameterFunctionRef)
 raw_parameter_refs(::ParameterFunctionRef)
 is_used(::ParameterFunctionRef)
 used_by_semi_infinite_variable(::ParameterFunctionRef)
-used_by_derivative(::ParameterFunctionRef)
+used_by_point_variable(::ParameterFunctionRef)
 used_by_measure(::ParameterFunctionRef)
 used_by_constraint(::ParameterFunctionRef)
 parameter_group_int_indices(::ParameterFunctionRef)
+num_parameter_functions
+all_parameter_functions
 ```
 
 ### Modification

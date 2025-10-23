@@ -714,8 +714,8 @@ incorporated in expressions via [`ParameterFunctionRef`](@ref)s.
 - `parameter_refs::Collections.VectorTuple{T}`: The infinite parameter references that serve as 
                         inputs to `func`. Their formatting is analagous 
                         to those of infinite variables. 
-- `parameter_nums::Vector{Int}`: The parameter numbers of `parameter_refs`.
 - `group_int_idxs::Vector{Int}`: The parameter group integer indices associated with `parameter_refs`.
+- `parameter_nums::Vector{Int}`: The parameter numbers of `parameter_refs`.
 """
 struct ParameterFunction{F <: Function, T <: JuMP.AbstractVariableRef}
     func::F
@@ -735,7 +735,7 @@ A mutable `DataType` for storing `ParameterFunction`s and their data.
 - `measure_indices::Vector{MeasureIndex}`: Indices of dependent measures.
 - `constraint_indices::Vector{InfOptConstraintIndex}`: Indices of dependent constraints.
 - `semi_infinite_var_indices::Vector{SemiInfiniteVariableIndex}`: Indices of dependent semi-infinite variables.
-- `derivative_indices::Vector{DerivativeIndex}`: Indices of dependent derivatives.
+- `point_var_indices::Vector{PointVariableIndex}`: Indices of dependent point variables.
 """
 mutable struct ParameterFunctionData{F <: ParameterFunction} <: AbstractDataObject
     func::F
@@ -743,11 +743,19 @@ mutable struct ParameterFunctionData{F <: ParameterFunction} <: AbstractDataObje
     measure_indices::Vector{MeasureIndex}
     constraint_indices::Vector{InfOptConstraintIndex}
     semi_infinite_var_indices::Vector{SemiInfiniteVariableIndex}
-    derivative_indices::Vector{DerivativeIndex}
-    function ParameterFunctionData(func::F, name::String = "") where {F <: ParameterFunction}
-        return new{F}(func, name, MeasureIndex[], InfOptConstraintIndex[], 
-                      SemiInfiniteVariableIndex[], DerivativeIndex[])
-    end
+    point_var_indices::Vector{PointVariableIndex}
+end
+
+# Default constructor
+function ParameterFunctionData(func::ParameterFunction, name::String = "") 
+    return ParameterFunctionData(
+        func,
+        name,
+        MeasureIndex[],
+        InfOptConstraintIndex[], 
+        SemiInfiniteVariableIndex[],
+        PointVariableIndex[]
+    )
 end
 
 ################################################################################
@@ -864,13 +872,25 @@ end
 
 # Define constructor
 function VariableData(
-    var::V, 
+    var::JuMP.AbstractVariable, 
     name::String = ""
-    )::VariableData{V} where {V <: JuMP.AbstractVariable}
-    return VariableData{V}(var, name, nothing, nothing, nothing, nothing, nothing,
-                           MeasureIndex[], InfOptConstraintIndex[], false, 
-                           PointVariableIndex[], SemiInfiniteVariableIndex[], 
-                           DerivativeIndex[], InfOptConstraintIndex[])
+    )
+    return VariableData(
+        var,
+        name,
+        nothing,
+        nothing,
+        nothing,
+        nothing,
+        nothing,
+        MeasureIndex[],
+        InfOptConstraintIndex[],
+        false, 
+        PointVariableIndex[],
+        SemiInfiniteVariableIndex[], 
+        DerivativeIndex[],
+        InfOptConstraintIndex[]
+    )
 end
 
 ################################################################################

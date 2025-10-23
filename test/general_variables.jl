@@ -372,13 +372,13 @@ end
     @testset "fill_in_supports! (GeneralVariableRef Array)" begin
         @test_throws ArgumentError fill_in_supports!(gvrefs, num_supports = 1)
     end
-    # test JuMP.set_value (Fallback)
+    # test JuMP.set_parameter_value (Fallback)
     @testset "JuMP.set_value (Fallback)" begin
-        @test_throws ArgumentError set_value(dvref, 2)
+        @test_throws ArgumentError set_parameter_value(dvref, 2)
     end
-    # test JuMP.set_value (GeneralVariableRef)
+    # test JuMP.set_parameter_value (GeneralVariableRef)
     @testset "JuMP.set_value (GeneralVariableRef)" begin
-        @test_throws ArgumentError set_value(gvref, 2)
+        @test_throws ArgumentError set_parameter_value(gvref, 2)
     end
     # test set_derivative_method (Fallback)
     @testset "set_derivative_method (Fallback)" begin

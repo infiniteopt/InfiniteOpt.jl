@@ -38,8 +38,7 @@
     # test make_point_variable_ref with infinite parameter functions 
     @testset "make_point_variable_ref (Parameter Function)" begin
         f = parameter_function(sin, par1)
-        @test make_point_variable_ref(m, f, [0.]) == 0 
-        @test make_point_variable_ref(TestBackend(), f, [0.]) == 0 
+        @test make_point_variable_ref(m, f, [0.]) == f(0)
     end
     # test add_point_variable
     @testset "add_point_variable" begin
@@ -169,7 +168,7 @@ end
     # test expand_measure (infinite parameter functions) with DiscreteMeasureData
     @testset "Parameter Function (1D DiscreteMeasureData)" begin
         # test single param infinite var with measure param
-        @test InfiniteOpt.expand_measure(f1, data1, m) == 0.5 * (sin(1) + sin(2))
+        @test InfiniteOpt.expand_measure(f1, data1, m) == 0.5 * (f1(1) + f1(2))
         # test single param infinite var without measure param
         @test isequal_canonical(InfiniteOpt.expand_measure(f1, data2, m), 3 * f1)
         # test single param infinite var with measure param and others
@@ -235,7 +234,7 @@ end
     # test expand_measure (infinite parameter functions) with Multi DiscreteMeasureData
     @testset "Parameter Function (Multi DiscreteMeasureData)" begin
         # test infinite var with measure param
-        @test InfiniteOpt.expand_measure(f4, data3, m) == -2
+        @test InfiniteOpt.expand_measure(f4, data3, m) == f4(1, 1) + f4(2, 2)
         # test infinite var without measure param
         @test isequal_canonical(InfiniteOpt.expand_measure(f4, data4, m), 4 * f4)
         # test infinite var with measure param and others
@@ -245,13 +244,13 @@ end
         @test isequal_canonical(InfiniteOpt.expand_measure(f5, data3, m), rv1 + rv2)
         @test eval_support(rv2)[[1, 2]] == [2, 2]
         # test infinite var with measure param that is out of order
-        @test InfiniteOpt.expand_measure(f4, data5, m) == -2
+        @test InfiniteOpt.expand_measure(f4, data5, m) == f4(1.2, 1) + f4(2, 2)
         # test infinite var with measure param that doesn't overlap
         @test isequal_canonical(InfiniteOpt.expand_measure(f8, data6, m), 2 * f8)
         # test infinite var with measure param that doesn't overlap and there are others
         @test isequal_canonical(InfiniteOpt.expand_measure(f9, data6, m), 2 * f9)
         # test infinite variable has subset of multi params
-        @test InfiniteOpt.expand_measure(f8, data3, m) == cos(1) + cos(2)
+        @test InfiniteOpt.expand_measure(f8, data3, m) == f8(1) + f8(2)
         # test making semi-infinite vars with variable not containing all the measure prefs
         idx = length(InfiniteOpt._data_dictionary(m, SemiInfiniteVariable)) + 1
         rv1 = GeneralVariableRef(m, idx, SemiInfiniteVariableIndex)

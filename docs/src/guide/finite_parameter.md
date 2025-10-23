@@ -54,14 +54,14 @@ corresponding `GeneralVariableRef` can be used in expressions, objectives, measu
 and constraints just like infinite parameters.
 
 The value of a finite parameter can be checked using
-[`parameter_value`](@ref parameter_value(::FiniteParameterRef)) and can modified using
-[`set_value`](@ref JuMP.set_value(::FiniteParameterRef, ::Real)). For example,
+[`parameter_value`](@ref JuMP.parameter_value(::FiniteParameterRef)) and can modified using
+[`set_parameter_value`](@ref JuMP.set_parameter_value(::FiniteParameterRef, ::Real)). For example,
 let's update the value of `max_cost` to be now be `10.2`:
 ```jldoctest fpar
 julia> parameter_value(max_cost)
 42.0
 
-julia> set_value(max_cost, 10.2)
+julia> set_parameter_value(max_cost, 10.2)
 
 julia> parameter_value(max_cost)
 10.2
@@ -74,13 +74,3 @@ finite parameters will be treated as variables until the model is transcribed.
 For example, this means that the expression `max_cost * x` will be treated as a 
 quadratic expression when it is expressed in its `InfiniteOpt` form, however it is 
 converted into the appropriate affine expression when transcribed. 
-
-!!! note 
-    In previous versions finite parameters were just special cases of infinite 
-    parameters. However, they now have their own distinct underlying data structure. 
-
-!!! warning 
-    `InfiniteOpt`'s implementation of finite parameters should not be a reason to 
-    use `InfiniteOpt` to model non-infinite-dimensional problems, since the added 
-    overhead will make it slower than just iteratively building `JuMP` models. For 
-    this behavior, we recommend looking into using `ParametricOptInterface`.

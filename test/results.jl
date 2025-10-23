@@ -179,8 +179,7 @@ end
     @parameter_function(m, a == sin(par))
     @variable(m, g <=3)
     d1 = @deriv(inf, par)
-    var = build_variable(error, inf2, [NaN, 0])
-    rv = add_variable(m, var)
+    rv = inf2(par2, 0)
     @objective(m, Min, g^2)
     @constraint(m, c1, 2 * g <= 1)
     tb = m.backend
@@ -214,9 +213,6 @@ end
     MOI.set(mockoptimizer, MOI.VariablePrimal(1), JuMP.optimizer_index(d1t[1]), 2.0)
     MOI.set(mockoptimizer, MOI.VariablePrimal(1), JuMP.optimizer_index(d1t[2]), 1.0)
     MOI.set(mockoptimizer, MOI.VariablePrimal(1), JuMP.optimizer_index(d1t[3]), 2.0)
-    MOI.set(mockoptimizer, MOI.VariablePrimal(1), JuMP.optimizer_index(at[1]), sin(0.0))
-    MOI.set(mockoptimizer, MOI.VariablePrimal(1), JuMP.optimizer_index(at[2]), sin(0.5))
-    MOI.set(mockoptimizer, MOI.VariablePrimal(1), JuMP.optimizer_index(at[3]), sin(1.0))
     # test has_values
     @testset "JuMP.has_values" begin
         @test has_values(m)
