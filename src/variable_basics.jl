@@ -61,6 +61,28 @@ function _set_info_constraints(
     return
 end
 
+# Set info constraints for RestrictedDomainInfo
+function _set_info_constraints(
+    info::RestrictedDomainInfo, 
+    gvref::GeneralVariableRef, 
+    dvref::DispatchVariableRef
+    )
+    var_info = JuMP.VariableInfo(
+        info.active_lower_bound_info && !isnan(info.lower_bound),
+        info.lower_bound,
+        info.active_upper_bound_info && !isnan(info.upper_bound),
+        info.upper_bound,
+        info.active_fix_info && !isnan(info.fixed_value),
+        info.fixed_value,
+        false,
+        NaN,
+        false,
+        false
+    )
+    _set_info_constraints(var_info, gvref, dvref)
+    return
+end
+
 # Add VariableConstrainedOnCreation (TODO change paradigm to leverage MOI.add_constrained_variable)
 function JuMP.add_variable(
     model::InfiniteModel, 

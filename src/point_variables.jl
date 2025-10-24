@@ -163,17 +163,6 @@ function _process_restricted_info(_error::Function, info::JuMP.VariableInfo)
     _error("Bounds and start value for point and semi-infinite variables must " *
            "be of type `Real`.")
 end
-function _update_point_info(
-    info::JuMP.VariableInfo,
-    ivref::ParameterFunctionRef,
-    point::Vector{Float64}
-    )
-    if info.has_lb || info.has_ub || info.has_fix || info.binary || info.integer
-        error("Cannot set domain information for point variables ",
-              "based on parameter functions.")
-    end
-    return info
-end
 
 """
     JuMP.build_variable(
