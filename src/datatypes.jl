@@ -676,6 +676,18 @@ functions that take support instances of infinite parameters `parameter_refs` in
 as input and compute a scalar value as output via `func`. These can then can 
 incorporated in expressions via [`ParameterFunctionRef`](@ref)s.
 
+Once constructed, these can be called directly and treated like hte functions they
+wrap:
+```julia
+(pfunc::ParameterFunction)(support...)
+```
+where `support::Tuple` matches the format of the corresponding tuple of infinite
+parameters (e.g., `(t, x)`). For developers, it is also convenient to pass the
+vectorized form of the support that comes from `support::VectorTuple` via:
+```julia
+(pfunc::ParameterFunction)(vect_support::Vector{<:Real})
+```
+
 **Fields**
 - `func::F`: The function the takes infinite parameters as input and provide a 
             scalar number as output.
@@ -1856,13 +1868,20 @@ struct FiniteParameterRef <: FiniteRef
 end
 
 ## Define convenient aliases
-const DecisionVariableRef = Union{InfiniteVariableRef, SemiInfiniteVariableRef,
-                                  PointVariableRef, FiniteVariableRef, 
-                                  DerivativeRef}
-
-const UserDecisionVariableRef = Union{InfiniteVariableRef, PointVariableRef,
-                                      FiniteVariableRef, DerivativeRef}
-
+const DecisionVariableRef = Union{
+    InfiniteVariableRef, 
+    SemiInfiniteVariableRef,
+    PointVariableRef, 
+    FiniteVariableRef, 
+    DerivativeRef
+}
+const UserDecisionVariableRef = Union{
+    InfiniteVariableRef,
+    PointVariableRef,
+    FiniteVariableRef, 
+    DerivativeRef
+}
+const RestrictedVariableRef = Union{SemiInfiniteVariableRef, PointVariableRef}
 const ScalarParameterRef = Union{IndependentParameterRef, FiniteParameterRef}
 
 """
