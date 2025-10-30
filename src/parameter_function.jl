@@ -68,7 +68,9 @@ function _check_param_func_method(_error::Function, func::Function, prefs)
                "If you get this message specifying a function for the ",
                "bounds/fix-value/start of a variable, then the function arguments ",
                "do not properly accomodate the format of the variable's infinite ",
-               "parameters.")
+               "parameters. Or if you got this message from specifying ",
+               "`DomainRestrictions` the function inputs do not match the ",
+               "input format specied for the infinite parameters.")
     end
     return
 end
@@ -112,8 +114,16 @@ function build_parameter_function(
         _error("Keyword argument $(first(keys(extra_kwargs))) is not " * 
                "for use with parameter functions.")
     end
-    # process the parameter reference inputs and make checks
     prefs = Collections.VectorTuple(parameter_refs)
+    return build_parameter_function(_error, func, prefs)
+end 
+function build_parameter_function(
+    _error::Function, 
+    func::Function, 
+    prefs::Collections.VectorTuple{GeneralVariableRef};
+    extra_kwargs...
+    )
+    # Make checks
     _check_parameter_tuple(_error, prefs)
     _check_param_func_method(_error, func, prefs)
     # get the parameter group integer indices
@@ -125,7 +135,7 @@ function build_parameter_function(
     param_nums = [_parameter_number(pref) for pref in prefs]
     # make the variable and return
     return ParameterFunction(func, prefs, group_int_idxs, param_nums)
-end 
+end
 
 # Fallback for weird macro inputs
 function build_parameter_function(_error::Function, func, prefs; kwargs...)

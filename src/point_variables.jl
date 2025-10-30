@@ -48,6 +48,29 @@ end
 ################################################################################
 #                          DEFINTION HELPER METHODS
 ################################################################################
+# build point variable without checks
+function _build_point_variable(
+    ivref::GeneralVariableRef, 
+    support::Vector{<:Real},
+    pref_list::Vector{GeneralVariableRef},
+    info::RestrictedDomainInfo
+    )
+    # enforce parameter significant digits on the values
+    pvalues = Vector{Float64}(support)
+    for i in eachindex(pvalues)
+        pvalues[i] = round(pvalues[i], sigdigits = significant_digits(pref_list[i]))
+    end
+    # make variable and return
+    return PointVariable(info, ivref, pvalues)
+end
+function _build_point_variable(
+    ivref::GeneralVariableRef, 
+    support::Vector{<:Real},
+    pref_list::Vector{GeneralVariableRef}
+    )
+    return _build_point_variable(ivref, support, pref_list, RestrictedDomainInfo())
+end
+
 # Ensure parameter values match shape of parameter reference tuple stored in the
 # infinite variable reference
 function _check_tuple_shape(
@@ -130,25 +153,11 @@ function JuMP.build_variable(
             _error("Expected an infinite variable/derivative reference dependency,", 
                 "but got a variable reference of type $(typeof(dispatch_ivref)).")
         end
-        pvalues = Vector{Float64}(support.values)
         _check_tuple_shape(_error, prefs, support)
         _check_tuple_values(_error, prefs, pvalues)
     end
-    # enforce parameter significant digits on the values
-    for i in eachindex(pvalues)
-        pvalues[i] = round(pvalues[i], sigdigits = significant_digits(prefs[i]))
-    end
-    # make variable and return
-    return PointVariable(info, ivref, pvalues)
-end
-function JuMP.build_variable(
-    _error::Function,
-    ivref::GeneralVariableRef, 
-    support::Collections.VectorTuple{<:Real};
-    check::Bool = true
-    )
-    info = RestrictedDomainInfo()
-    return JuMP.build_variable(_error, ivref, support, info, check = check)
+    # make the point variable
+    return _make_point_variable(ivref, support.values, prefs.values, info)
 end
 
 """

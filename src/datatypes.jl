@@ -1239,7 +1239,7 @@ struct DomainRestrictedConstraint{
     T <: JuMP.AbstractVariableRef
     } <: JuMP.AbstractConstraint
     constraint::C
-    restrictions::ParameterFunction{F, T}
+    restriction::ParameterFunction{F, T}
 end
 
 """
@@ -1416,7 +1416,6 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
 
     # Constraint Data
     constraints::MOIUC.CleverDict{InfOptConstraintIndex, <:ConstraintData}
-    constraint_restrictions::Dict{InfOptConstraintIndex, <:ParameterFunction}
     name_to_constr::Union{Dict{String, InfOptConstraintIndex}, Nothing}
 
     # Objective Data
@@ -1514,7 +1513,6 @@ function InfiniteModel(backend::AbstractTransformationBackend = TranscriptionBac
         MOIUC.CleverDict{MeasureIndex, MeasureData{<:Measure}}(),
         # Constraints
         MOIUC.CleverDict{InfOptConstraintIndex, ConstraintData{<:JuMP.AbstractConstraint}}(),
-        Dict{InfOptConstraintIndex, <:ParameterFunction}(),
         nothing,
         # Objective
         MOI.FEASIBILITY_SENSE,

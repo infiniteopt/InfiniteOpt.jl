@@ -215,7 +215,7 @@ function _process_info_arg(
     group_idxs::Vector{Int},
     )
     _check_param_func_method(_error, value, prefs)
-    return ParameterFunction(func, prefs, param_nums, group_idxs)
+    return ParameterFunction(func, prefs, group_idxs, param_nums)
 end
 
 ## Check and format the variable info considering functional start values
@@ -294,7 +294,7 @@ function JuMP.build_variable(
         union!(group_int_idxs, parameter_group_int_index(pref))
     end
     param_nums = [_parameter_number(pref) for pref in prefs]
-    # check and format the info (accounting for start value functions)
+    # check and format the info
     new_info = _check_and_format_infinite_info(_error, info, prefs, param_nums, group_int_idxs)
     # make the variable and return
     return InfiniteVariable(new_info, prefs, param_nums, group_int_idxs)

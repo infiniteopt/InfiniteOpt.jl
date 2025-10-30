@@ -398,8 +398,7 @@ julia> supp = eval_support(vref)
 ```
 """
 function eval_support(vref::SemiInfiniteVariableRef)
-    var = core_object(vref)
-    return var.eval_support
+    return core_object(vref).eval_support
 end
 
 # helper version of raw_parameter_refs

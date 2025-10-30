@@ -200,11 +200,13 @@ function _unnest_derivative(vref, pref, order)
 end
 
 """
-    build_derivative(_error::Function, info::JuMP.VariableInfo, 
-                     argument_ref::GeneralVariableRef, 
-                     parameter_ref::GeneralVariableRef,
-                     order::Int = 1
-                     )::Derivative
+    build_derivative(
+        _error::Function, 
+        info::JuMP.VariableInfo, 
+        argument_ref::GeneralVariableRef, 
+        parameter_ref::GeneralVariableRef,
+        order::Int = 1
+    )::Derivative
 
 Constructs and returns a [`Derivative`](@ref) with a differential operator that 
 depends on `parameter_ref` and operates on `argument_ref`. The order of the derivative 
@@ -220,7 +222,7 @@ julia> @infinite_parameter(m, t in [0, 1]); @variable(m, y, Infinite(t));
 julia> info = VariableInfo(false, 0, false, 0, false, 0, false, 0, false, false);
 
 julia> build_derivative(error, info, y, t)
-Derivative{GeneralVariableRef}(VariableInfo{Float64,Float64,Float64,Function}(false, 0.0, false, 0.0, false, 0.0, false, start_func, false, false), true, y(t), t, 1)
+Derivative{GeneralVariableRef}(VariableInfo{Float64,Float64,Float64,Float64}(false, 0.0, false, 0.0, false, 0.0, false, 0.0, false, false), true, y(t), t, 1)
 ````
 """
 function build_derivative(
@@ -282,8 +284,11 @@ struct Deriv{V, P} <: InfOptVariableType
 end
 
 """
-    JuMP.build_variable(_error::Function, info::JuMP.VariableInfo, 
-                        var_type::Deriv)::InfiniteVariable{GeneralVariableRef}
+    JuMP.build_variable(
+        _error::Fu`nction,
+        info::JuMP.VariableInfo, 
+        var_type::Deriv`
+    )::InfiniteVariable{GeneralVariableRef}
 
 Build and return a first order derivative based on `info` and `var_type`. Errors 
 if the information in `var_type` is invalid. See [`Deriv`](@ref) for more 
@@ -303,8 +308,8 @@ function JuMP.build_variable(
     extra_kw_args...
     )
     # Error extra keyword arguments
-    for (kwarg, _) in extra_kw_args
-        _error("Keyword argument $kwarg is not for use with derivatives.")
+    if !isempty(extra_kw_args)
+        _error("Keyword argument $(first(keys(extra_kw_args))) is not for use with derivatives.")
     end
     # check for valid inputs
     ivref = var_type.argument
@@ -323,8 +328,11 @@ function JuMP.build_variable(
 end
 
 """
-    add_derivative(model::InfiniteModel, d::Derivative, 
-                   [name::String = ""])::GeneralVariableRef
+    add_derivative(
+        model::InfiniteModel,
+        d::Derivative, 
+        [name::String = ""]
+    )::GeneralVariableRef
 
 Adds a derivative `d` to `model` and returns a `GeneralVariableRef` that points 
 to it. Errors if the derivative dependencies do not belong to `model`. Note that 
@@ -361,23 +369,17 @@ function add_derivative(model::InfiniteModel, d::Derivative, name::String = "")
         push!(_derivative_dependencies(pref), dindex)
         # update the derivative lookup dict
         model.deriv_lookup[(d.variable_ref, d.parameter_ref, d.order)] = dindex
-        # add the info constraints
-        gvref = GeneralVariableRef(model, dindex)
-        _set_info_constraints(d.info, gvref, dref)
     else
         dref = DerivativeRef(model, existing_index)
-        gvref = GeneralVariableRef(model, existing_index)
         old_info = _variable_info(dref)
-        if old_info.has_lb || old_info.has_ub || old_info.has_fix || old_info.has_start
-            @warn "Overwriting $dref, any previous properties (e.g., lower bound " * 
-                  "or start value) will be lost/changed."
-        end
-        _update_info_constraints(d.info, gvref, dref)
+        _delete_info_constraints(dref)
         _set_core_object(dref, d)
         if !isempty(name)
             set_name(dref, name)
         end
     end
+    gvref = GeneralVariableRef(dref)
+    _set_info_constraints(d.info, gvref, dref)
     return gvref
 end
 

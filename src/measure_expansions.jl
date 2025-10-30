@@ -36,30 +36,17 @@ function make_point_variable_ref(
     support, 
     ::Union{Type{InfiniteVariableIndex}, Type{DerivativeIndex}, Type{ParameterFunctionIndex}}
     )
-    prefs = parameter_list(ivref)
-    for i in eachindex(support)
-        support[i] = round(support[i], sigdigits = significant_digits(prefs[i]))
-    end
-    pindex = get(write_model.point_lookup, (ivref, support), nothing)
-    if isnothing(pindex)
-        base_info = JuMP.VariableInfo(false, NaN, false, NaN, false, NaN, false,
-                                      NaN, false, false)
-        info = _update_point_info(base_info, dispatch_variable_ref(ivref), support)
-        var = PointVariable(_make_float_info(info), ivref, support)
-        return JuMP.add_variable(write_model, var; add_support = false)
-    else
-        return GeneralVariableRef(write_model, pindex)
-    end
+    var = _make_point_variable(ivref, support, parameter_list(ivref))
+    return JuMP.add_variable(write_model, var; add_support = false)
 end
 
 """
     add_point_variable(
         backend::AbstractTransformationBackend, 
-        ivref::GeneralVariableRef, 
-        support::Vector{Float64}
-        )::GeneralVariableRef
+        var::PointVariable
+    )::GeneralVariableRef
 
-Add a point variable (defined by restricting `ivref` to `support`) to the 
+Add a point variable `var` to the 
 tranformation backend `backend` and return the correct `InfiniteOpt` 
 variable reference. This is an internal method used by 
 [`make_point_variable_ref`](@ref) to make point variables when the `write_model` 
@@ -79,21 +66,8 @@ function make_point_variable_ref(
     ivref::GeneralVariableRef,
     support::Vector{Float64}
     )
-    return make_point_variable_ref(write_model, ivref, support, _index_type(ivref))
-end
-
-# Infinite variable index
-function make_point_variable_ref(
-    write_model::AbstractTransformationBackend, 
-    ivref, 
-    support, 
-    ::Union{Type{InfiniteVariableIndex}, Type{DerivativeIndex}, Type{ParameterFunctionIndex}}
-    )
-    prefs = parameter_list(ivref)
-    for i in eachindex(support)
-        support[i] = round(support[i], sigdigits = significant_digits(prefs[i]))
-    end 
-    return add_point_variable(write_model, ivref, support)
+    var = _make_point_variable(ivref, support, parameter_list(ivref))
+    return add_point_variable(write_model, var)
 end
 
 """
