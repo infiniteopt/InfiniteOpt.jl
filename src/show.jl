@@ -550,7 +550,7 @@ function _param_domain_string(
     return string(
         JuMP.function_string(print_mode, pref),
         " ",
-        in_domain_string(print_mode, gvref, domain)
+        in_domain_string(print_mode, domain)
     )
 end
 
@@ -578,7 +578,7 @@ function _param_domain_string(
             domain_str *= string(
                 JuMP.function_string(print_mode, gvref),
                 " ",
-                in_domain_string(print_mode, gvref, sdomain), 
+                in_domain_string(print_mode, sdomain), 
                 ", "
             )
         end
@@ -594,13 +594,15 @@ function _param_domain_string(
 end
 
 # Return string of an infinite constraint
-function JuMP.constraint_string(print_mode, 
+function JuMP.constraint_string(
+    print_mode, 
     cref::InfOptConstraintRef;
     in_math_mode = false
     )
     # get the function and set strings
-    func_str = JuMP.function_string(print_mode, JuMP.constraint_object(cref))
-    in_set_str = JuMP.in_set_string(print_mode, JuMP.constraint_object(cref))
+    constr = JuMP.constraint_object(cref)
+    func_str = JuMP.function_string(print_mode, constr)
+    in_set_str = JuMP.in_set_string(print_mode, constr)
     # check if constraint if finite
     group_int_idxs = parameter_group_int_indices(cref)
     if isempty(group_int_idxs)
@@ -615,7 +617,7 @@ function JuMP.constraint_string(print_mode,
         bound_str = bound_str[1:end-2]
         if has_domain_restrictions(cref)
             restriction = domain_restriction(cref)
-            bound_str *= string(", if ", _object_string(print_mode, restriction), " = true")
+            bound_str *= string("; if ", _object_string(print_mode, restriction), " = true")
         end
     end
     # form the constraint string

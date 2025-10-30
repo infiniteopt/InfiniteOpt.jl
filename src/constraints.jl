@@ -248,6 +248,11 @@ function JuMP.build_constraint(
         restriction.restriction_func,
         restriction.parameter_refs
     )
+    constr_group_idxs = parameter_group_int_indices(JuMP.jump_function(constr))
+    if !all(idx in constr_group_idxs for idx in pfunc_restrict.group_int_idxs)
+        _error("The `DomainRestriction` restricts infinite parameters that the " *
+               "does not depend on.")
+    end
     return DomainRestrictedConstraint(constr, pfunc_restrict)
 end
 
@@ -392,9 +397,8 @@ end
 function JuMP.jump_function(c::DomainRestrictedConstraint) 
     return JuMP.jump_function(c.constraint)
 end
-function JuMP.moi_set(c::DomainRestrictedConstraint)
-    return JuMP.moi_set(c.constraint)
-end
+JuMP.moi_set(c::DomainRestrictedConstraint)= JuMP.moi_set(c.constraint)
+JuMP.shape(c::DomainRestrictedConstraint) = JuMP.shape(c.constraint)
 function _update_constraint(old_c::JuMP.ScalarConstraint, func, set)
     return JuMP.ScalarConstraint(func, set)
 end
@@ -790,7 +794,7 @@ domain restriction.
 **Example**
 ```julia-repl
 julia> domain_restriction(cref)
-
+restrict_func(t)
 ```
 """
 function domain_restriction(cref::InfOptConstraintRef)
@@ -821,7 +825,7 @@ julia> restrict_func(t_s) = 0 <= t_s <= 0.5;
 julia> set_domain_restriction(cref, DomainRestrictions(restrict_func, t))
 
 julia> domain_restriction(cref)
-
+restrict_func(t)
 ```
 """
 function set_domain_restriction(

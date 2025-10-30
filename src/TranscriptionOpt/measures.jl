@@ -1,9 +1,8 @@
 """
     InfiniteOpt.add_point_variable(
         backend::TranscriptionBackend,
-        var::InfiniteOpt.PointVariable,
-        support::Vector{Float64}
-        )::InfiniteOpt.GeneralVariableRef
+        var::InfiniteOpt.PointVariable
+    )::InfiniteOpt.GeneralVariableRef
 
 Make a `PointVariableRef` and map it to the appropriate transcription variable
 and return the `GeneralVariableRef`. This is an extension of
@@ -12,10 +11,11 @@ for `TranscriptionOpt`.
 """
 function InfiniteOpt.add_point_variable(
     backend::TranscriptionBackend,
-    ivref::InfiniteOpt.GeneralVariableRef,
-    support::Vector{Float64},
+    var::InfiniteOpt.PointVariable,
     )
     # check if an internal variable was already created
+    ivref = var.infinite_variable_ref
+    support = var.parameter_values
     data = transcription_data(backend)
     internal_vref = get(data.point_lookup, (ivref, support), nothing)
     if !isnothing(internal_vref)

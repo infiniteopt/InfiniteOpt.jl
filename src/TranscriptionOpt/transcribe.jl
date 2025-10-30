@@ -5,7 +5,7 @@
     set_parameter_supports(
         backend::TranscriptionBackend,
         model::InfiniteOpt.InfiniteModel
-        )::Nothing
+    )::Nothing
 
 Collect the infinite parameter supports stored in their respective dictionaries
 form `model` and process them into a tuple of vectors where each vector
@@ -58,7 +58,7 @@ end
     transcribe_finite_parameters!(
         backend::TranscriptionBackend,
         model::InfiniteOpt.InfiniteModel
-        )::Nothing
+    )::Nothing
 
 Create a transcription variable (i.e., a JuMP Parameter) for each `FiniteParameter`
 stored in `model` and add it to `backend`. The variable mapping is
@@ -86,7 +86,7 @@ end
     transcribe_finite_variables!(
         backend::TranscriptionBackend,
         model::InfiniteOpt.InfiniteModel
-        )::Nothing
+    )::Nothing
 
 Create a transcription variable (i.e., a JuMP variable) for each `FiniteVariable`
 stored in `model` and add it to `backend`. The variable mapping is
@@ -106,24 +106,6 @@ function transcribe_finite_variables!(
     return
 end
 
-# Return a proper scalar variable info object given on with a start value function
-function _format_infinite_info(
-    var::InfiniteOpt.InfiniteVariable,
-    support::Vector{Float64}
-    )
-    # generate the start value
-    info = var.info
-    if var.is_vector_start
-        start = info.start(support)
-    else
-        start = info.start(Tuple(support, var.parameter_refs)...)
-    end
-    # make the info and return
-    return JuMP.VariableInfo(info.has_lb, info.lower_bound, info.has_ub,
-                             info.upper_bound, info.has_fix, info.fixed_value,
-                             info.has_start, start, info.binary, info.integer)
-end
-
 # Set the cutoff for number of infinite parameters to be included in a variable name
 const _MaxNumParamsForPrinting = 4
 
@@ -140,7 +122,7 @@ end
     transcribe_parameter_functions!(
         backend::TranscriptionBackend,
         model::InfiniteOpt.InfiniteModel
-        )::Nothing
+    )::Nothing
 
 Create transcription variables (i.e., JuMP Parameters) corresponding to 
 all supports of each `Parameter Function` stored in `model` and add them to 
@@ -159,7 +141,6 @@ function transcribe_parameter_functions!(
         # get the basic parameter function information
         pf = object.func
         base_name = object.name
-        func = pf.func
         param_nums = pf.parameter_nums
         group_idxs = pf.group_int_idxs
         prefs = pf.parameter_refs
@@ -177,7 +158,7 @@ function transcribe_parameter_functions!(
             supp = index_to_support(backend, i)[param_nums]
             var_idx = i.I[group_idxs]
             tuple_supp = Tuple(supp, prefs)
-            p_value = func(tuple_supp...)
+            p_value = pf(tuple_supp...)
             if data.update_parameter_functions
                 p_name = _make_var_name(base_name, param_nums, tuple_supp, var_idx)
                 jump_pref = JuMP.@variable(
@@ -205,11 +186,40 @@ function transcribe_parameter_functions!(
     return
 end
 
+# Process an info argument
+_process_info_arg(c::Real, support) = c
+_process_info_arg(pfunc::InfiniteOpt.ParameterFunction, support) = pfunc(support)
+
+# Return a proper scalar variable info object
+function _format_infinite_info(
+    info::JuMP.VariableInfo{Float64, Float64, Float64, Float64},
+    support::Vector{Float64}
+    )
+    return info
+end
+function _format_infinite_info(
+    info::JuMP.VariableInfo, 
+    support::Vector{Float64}
+    )
+    return JuMP.VariableInfo(
+        info.has_lb,
+        _process_info_arg(info.lower_bound, support),
+        info.has_ub,
+        _process_info_arg(info.upper_bound, support),
+        info.has_fix,
+        _process_info_arg(info.fixed_value, support),
+        info.has_start, 
+        _process_info_arg(start, support),
+        info.binary, 
+        info.integer
+    )
+end
+
 """
     transcribe_infinite_variables!(
         backend::TranscriptionBackend,
         model::InfiniteOpt.InfiniteModel
-        )::Nothing
+    )::Nothing
 
 Create transcription variables (i.e., JuMP variables) for each `InfiniteVariable`
 stored in `model` and add them to `backend`. The variable mappings are
@@ -240,7 +250,7 @@ function transcribe_infinite_variables!(
         # create a variable for each support
         for i in supp_indices
             supp = index_to_support(backend, i)[param_nums]
-            info = _format_infinite_info(var, supp)
+            info = _format_infinite_info(var.info, supp)
             var_idx = i.I[group_idxs]
             tuple_supp = Tuple(supp, prefs)
             v_name = _make_var_name(base_name, param_nums, tuple_supp, var_idx)
@@ -260,22 +270,6 @@ function transcribe_infinite_variables!(
     return
 end
 
-# Return a proper scalar variable info object given on with a start value function
-function _format_derivative_info(d::InfiniteOpt.Derivative, support::Vector{Float64})
-    # generate the start value
-    info = d.info
-    if d.is_vector_start
-        start = info.start(support)
-    else
-        prefs = InfiniteOpt.raw_parameter_refs(d.variable_ref)
-        start = info.start(Tuple(support, prefs)...)
-    end
-    # make the info and return
-    return JuMP.VariableInfo(info.has_lb, info.lower_bound, info.has_ub,
-                             info.upper_bound, info.has_fix, info.fixed_value,
-                             info.has_start, start, info.binary, info.integer)
-end
-
 function _transcribe_derivative_variable(dref, d, backend)
     base_name = InfiniteOpt.variable_string(MIME("text/plain"), dispatch_variable_ref(dref))
     param_nums = InfiniteOpt._parameter_numbers(d.variable_ref)
@@ -291,7 +285,7 @@ function _transcribe_derivative_variable(dref, d, backend)
     # create a variable for each support
     for i in supp_indices
         supp = index_to_support(backend, i)[param_nums]
-        info = _format_derivative_info(d, supp)
+        info = _format_infinite_info(d.info, supp)
         var_idx = i.I[group_idxs]
         tuple_supp = Tuple(supp, prefs)
         d_name = _make_var_name(base_name, param_nums, tuple_supp, var_idx)
@@ -313,7 +307,7 @@ end
     transcribe_derivative_variables!(
         backend::TranscriptionBackend,
         model::InfiniteOpt.InfiniteModel
-        )::Nothing
+    )::Nothing
 
 Create transcription variables (i.e., JuMP variables) for each `Derivative`
 stored in `model` and add them to `backend`. The variable mappings are
@@ -352,11 +346,49 @@ function transcribe_derivative_variables!(
     return
 end
 
+# Update variable domain constraints based on restricted variable
+function _update_variable_domain(
+    vref::JuMP.GenericVariableRef,
+    info::InfiniteOpt.RestrictedDomainInfo
+    )
+    if info.active_lower_bound_info
+        if !isnan(info.lower_bound)
+            JuMP.set_lower_bound(vref, info.lower_bound)
+        elseif JuMP.has_lower_bound(vref)
+            JuMP.delete_lower_bound(vref)
+        end
+    end
+    if info.active_upper_bound_info
+        if !isnan(info.upper_bound)
+            JuMP.set_lower_bound(vref, info.upper_bound)
+        elseif JuMP.has_upper_bound(vref)
+            JuMP.delete_upper_bound(vref)
+        end
+    end
+    if info.active_fix_info
+        if !isnan(info.fixed_value)
+            JuMP.fix(vref, info.fixed_value, force = true)
+        elseif JuMP.is_fixed(vref)
+            JuMP.unfix(vref)
+        end
+    end
+    if info.active_start_info
+        JuMP.set_start_value(vref, info.start_value)
+    end
+    return
+end
+function _update_variable_domain(
+    vref::Real,
+    info::InfiniteOpt.RestrictedDomainInfo
+    )
+    return
+end
+
 """
     transcribe_semi_infinite_variables!(
         backend::TranscriptionBackend,
         model::InfiniteOpt.InfiniteModel
-        )::Nothing
+    )::Nothing
 
 Map each `SemiInfiniteVariable` in `model` to transcription variables stored in
 `backend`. The variable mappings are also stored in
@@ -408,6 +440,8 @@ function transcribe_semi_infinite_variables!(
             @inbounds vrefs[var_idx...] = jump_vref
             lookup_dict[supp] = jump_vref
             @inbounds supps[var_idx...] = Tuple(supp, prefs)
+            # update variable domain
+            _update_variable_domain(jump_vref, var.info)
         end
         # save the mappings
         data.infvar_mappings[rvref] = vrefs
@@ -421,49 +455,11 @@ function transcribe_semi_infinite_variables!(
     return
 end
 
-# Override the info of the jump variable with the point variable's if it is different
-function _update_point_info(
-    gvref::InfiniteOpt.GeneralVariableRef,
-    vref::JuMP.VariableRef
-    )
-    pvref = InfiniteOpt.dispatch_variable_ref(gvref)
-    if JuMP.has_lower_bound(pvref)
-        if JuMP.is_fixed(vref)
-            JuMP.unfix(vref)
-        end
-        JuMP.set_lower_bound(vref, JuMP.lower_bound(pvref))
-    end
-    if JuMP.has_upper_bound(pvref)
-        if JuMP.is_fixed(vref)
-            JuMP.unfix(vref)
-        end
-        JuMP.set_upper_bound(vref, JuMP.upper_bound(pvref))
-    end
-    if JuMP.is_fixed(pvref)
-        JuMP.fix(vref, JuMP.fix_value(pvref), force = true)
-    end
-    if JuMP.is_binary(pvref) && !JuMP.is_binary(vref)
-        if JuMP.is_integer(vref)
-            JuMP.unset_integer(vref)
-        end
-        JuMP.set_binary(vref)
-    elseif JuMP.is_integer(pvref) && !JuMP.is_integer(vref)
-        if JuMP.is_binary(vref)
-            JuMP.unset_binary(vref)
-        end
-        JuMP.set_integer(vref)
-    end
-    if JuMP.start_value(pvref) != JuMP.start_value(vref)
-        JuMP.set_start_value(vref, JuMP.start_value(pvref))
-    end
-    return
-end
-
 """
     transcribe_point_variables!(
         backend::TranscriptionBackend,
         model::InfiniteOpt.InfiniteModel
-        )::Nothing
+    )::Nothing
 
 Map each `PointVariable` in `model` to a transcription variable stored in
 `backend`. The variable mapping is also stored in
@@ -490,8 +486,8 @@ function transcribe_point_variables!(
             data.point_pfunc_mappings[pvref] = vref
         else
             data.finvar_mappings[pvref] = vref
-            # update the info constraints as needed
-            _update_point_info(pvref, vref)
+            # update the variable domain as needed
+            _update_variable_domain(vref, var.info)
         end
     end
     return
@@ -597,7 +593,7 @@ end
     transcribe_measures!(
         backend::TranscriptionBackend,
         model::InfiniteOpt.InfiniteModel
-        )::Nothing
+    )::Nothing
 
 For each `Measure` in `model` expand it via `InfiniteOpt.expand_measure` or
 `analytic_expansion` as appropriate and transcribe the expanded expression via
@@ -656,7 +652,7 @@ end
     transcribe_objective!(
         backend::TranscriptionBackend,
         model::InfiniteOpt.InfiniteModel
-        )::Nothing
+    )::Nothing
 
 Form the transcripted version of the objective stored in `model` and add it
 to `backend`. Note that all the variables and measures in `model` must
@@ -734,17 +730,15 @@ end
 
 # Determine if a given raw support satisfies constraint domain restrictions
 function _support_in_restrictions(
-    support::Vector{Float64},
-    indices::Vector{Int},
-    domains::Vector{InfiniteOpt.IntervalDomain}
+    constr::DomainRestrictedConstraint,
+    support::Vector{Float64}
     )
-    for i in eachindex(indices)
-        s = support[indices[i]]
-        if !isnan(s) && (s < JuMP.lower_bound(domains[i]) || 
-            s > JuMP.upper_bound(domains[i]))
-            return false
-        end
-    end
+    return constr.restriction_func(support[restriction.parameter_nums])
+end
+function _support_in_restrictions(
+    constr::JuMP.AbstractConstraint,
+    support::Vector{Float64}
+    )
     return true
 end
 
@@ -781,6 +775,18 @@ function _process_constraint(
     return JuMP.add_constraint(backend.model, trans_constr, name)
 end
 
+# DomainRestrictedConstraint
+function _process_constraint(
+    backend::TranscriptionBackend, 
+    constr::DomainRestrictedConstraint, 
+    func, 
+    set, 
+    raw_supp::Vector{Float64}, 
+    name::String
+    )
+    return _process_constraint(backend, constr.constraint, func, set, raw_supp, name)
+end
+
 # Fallback 
 function _process_constraint(
     backend::TranscriptionBackend, 
@@ -798,7 +804,7 @@ end
     transcribe_constraints!(
         backend::TranscriptionBackend,
         model::InfiniteOpt.InfiniteModel
-        )::Nothing
+    )::Nothing
 
 For each constraint in `model` form its transcripted version(s) and add them
 to `backend`. The mappings are stored in `TranscriptionData.constr_mappings`
@@ -834,7 +840,7 @@ function transcribe_constraints!(
                 raw_supp = index_to_support(backend, i)
                 info_ref = _get_info_constr_from_var(backend, func, set,
                                                      raw_supp)
-                # not all supports may be defined if overwritten by a point variable
+                # not all supports may be defined if overwritten by a restricted variable
                 con_idx = i.I[group_idxs]
                 if !isnothing(info_ref)
                     @inbounds crefs[con_idx...] = info_ref
@@ -847,17 +853,12 @@ function transcribe_constraints!(
         # iterate over the supports for regular constraints
         else
             # get basic setup information
-            restrictions = InfiniteOpt.domain_restrictions(cref)
-            prefs = collect(keys(restrictions))
-            restrict_indices = map(p -> InfiniteOpt._parameter_number(p), prefs)
-            restrict_domains = map(p -> restrictions[p], prefs)
             name = object.name
             for i in supp_indices
                 raw_supp = index_to_support(backend, i)
                 # ensure the support satisfies parameter bounds and then add it
                 con_idx = i.I[group_idxs]
-                if _support_in_restrictions(raw_supp, restrict_indices, 
-                                            restrict_domains)
+                if _support_in_restrictions(constr, raw_supp)
                     new_name = if isempty(name)
                         ""
                     elseif isempty(group_idxs)
@@ -897,7 +898,7 @@ end
     transcribe_derivative_evaluations!(
         backend::TranscriptionBackend, 
         model::InfiniteOpt.InfiniteModel
-        )::Nothing
+    )::Nothing
 
 Generate the auxiliary derivative evaluation equations and transcribe them 
 appropriately for all the derivatives in `model`. These are in turn added to 
@@ -948,7 +949,7 @@ end
     transcribe_variable_collocation_restictions!(
         backend::TranscriptionBackend, 
         model::InfiniteOpt.InfiniteModel
-        )::Nothing
+    )::Nothing
 
 Add constraints to `backend` that make infinite variables constant over collocation 
 points following the calls made to [`InfiniteOpt.constant_over_collocation`](@ref). Note that 
@@ -1000,7 +1001,7 @@ end
         backend::TranscriptionBackend,
         model::InfiniteOpt.InfiniteModel;
         [check_support_dims::Bool = true]
-        )::Nothing
+    )::Nothing
 
 Given an empty `backend` build it using the information stored in `model`.
 This is intended for a `TranscriptionModel` that serves as a internal transformation backend
@@ -1061,7 +1062,7 @@ end
         model::InfiniteOpt.InfiniteModel,
         backend::TranscriptionBackend;
         check_support_dims::Bool = true
-        )::Nothing
+    )::Nothing
 
 Build `backend` and set it as the transformation backend to `model`.
 Ths clears out the existing `backend` and rebuilds it. Optionally, 

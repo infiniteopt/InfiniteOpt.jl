@@ -68,7 +68,9 @@ function _check_param_func_method(_error::Function, func::Function, prefs)
                "If you get this message specifying a function for the ",
                "bounds/fix-value/start of a variable, then the function arguments ",
                "do not properly accomodate the format of the variable's infinite ",
-               "parameters.")
+               "parameters. Or if you got this message from specifying ",
+               "`DomainRestrictions` the function inputs do not match the ",
+               "input format specied for the infinite parameters.")
     end
     return
 end
@@ -108,11 +110,20 @@ function build_parameter_function(
     extra_kwargs...
     )
     # check for unneeded keywords
-    for (kwarg, _) in extra_kwargs
-        _error("Keyword argument $kwarg is not for use with parameter functions.")
+    if !isempty(extra_kwargs)
+        _error("Keyword argument $(first(keys(extra_kwargs))) is not " * 
+               "for use with parameter functions.")
     end
-    # process the parameter reference inputs and make checks
     prefs = Collections.VectorTuple(parameter_refs)
+    return build_parameter_function(_error, func, prefs)
+end 
+function build_parameter_function(
+    _error::Function, 
+    func::Function, 
+    prefs::Collections.VectorTuple{GeneralVariableRef};
+    extra_kwargs...
+    )
+    # Make checks
     _check_parameter_tuple(_error, prefs)
     _check_param_func_method(_error, func, prefs)
     # get the parameter group integer indices
@@ -123,8 +134,8 @@ function build_parameter_function(
     # get the parameter numbers 
     param_nums = [_parameter_number(pref) for pref in prefs]
     # make the variable and return
-    return ParameterFunction(func, prefs, param_nums, group_int_idxs)
-end 
+    return ParameterFunction(func, prefs, group_int_idxs, param_nums)
+end
 
 # Fallback for weird macro inputs
 function build_parameter_function(_error::Function, func, prefs; kwargs...)
@@ -311,14 +322,92 @@ function parameter_list(fref::ParameterFunctionRef)
     return raw_parameter_refs(fref).values
 end
 
+# raw_function of ParameterFunction
+raw_function(pfunc::ParameterFunction) = pfunc.func
+
 """
     raw_function(fref::ParameterFunctionRef)::Function
+    raw_function(pfunc::ParameterFunction)::Function
 
 Returns the raw function behind `fref` that takes a particular support of `fref`'s 
 infinite parameters as input. 
 """
-function raw_function(fref::ParameterFunctionRef)
-    return core_object(fref).func
+raw_function(fref::ParameterFunctionRef) = raw_function(core_object(fref))
+
+"""
+    JuMP.parameter_value(fref::ParameterFunctionRef)::ParameterFunction
+
+Return the current function assigned to `fref`. See also
+[`raw_function`](@ref).
+"""
+JuMP.parameter_value(fref::ParameterFunctionRef) = core_object(fref)
+
+"""
+    JuMP.set_parameter_value(
+        fref::ParameterFunctionRef, 
+        func::Function
+    )::Nothing
+
+Update the function used by `fref` to `func`. Errors if `func` does not accept the
+same infinite parameter format as the original function of `fref`. If possible,
+this will also update the transformation backend to enable efficient resolves.
+"""
+function JuMP.set_parameter_value(
+    fref::ParameterFunctionRef, 
+    func::Function
+    )
+    # check the function method
+    old_pfunc = core_object(fref)
+    _check_param_func_method(error, func, old_pfunc.parameter_refs)
+    # set the function
+    new_pfunc = ParameterFunction(
+        func, 
+        old_pfunc.parameter_refs, 
+        old_pfunc.parameter_nums,
+        old_pfunc.group_int_idxs
+    )
+    old_data_object = _data_object(fref)
+    data_object = ParameterFunctionData(
+        new_pfunc,
+        old_data_object.name,
+        old_data_object.measure_indices,
+        old_data_object.constraint_indices,
+        old_data_object.semi_infinite_var_indices,
+        old_data_object.point_var_indices
+    )
+    _data_dictionary(fref)[JuMP.index(fref)] = data_object
+    # update the transformation backend
+    model = JuMP.owner_model(fref)
+    if is_used(fref) && transformation_backend_ready(model)
+        successful_backend_update = update_parameter_value(
+            transformation_backend(model),    
+            fref, 
+            func
+        )
+        if !successful_backend_update
+            set_transformation_backend_ready(model, false)
+        end
+    end
+    return
+end
+
+## Make ParameterFunction callable based on the infinite parameter supports
+# User-defined tuple inputs
+(pfunc::ParameterFunction)(args...) = pfunc.func(args...)
+
+# Vectorized input (or a user-defined input that is a single vector)
+function (pfunc::ParameterFunction)(supp::Vector{<:Real})
+    prefs = pfunc.parameter_refs
+    if all(iszero(d) for d in prefs)
+        # all scalar inputs
+        return pfunc.func(supp...)
+    elseif isone(length(prefs.dimensions)) && isone(only(prefs.dimensions))
+        # a single vector input
+        return pfunc.func(supp)
+    else
+        # some other more complex input tuple format
+        return pfunc.func(Tuple(supp, prefs)...)
+    end
 end
 
 """
@@ -328,19 +417,16 @@ Safely evaluates the [`raw_function`](@ref) of `fref` at a particular support `s
 point that matches the format of the infinite parameter tuple given when the `fref` 
 was defined. This is essentially equivalent to `raw_function(fref)(supps...)`. 
 """
-function call_function(fref::ParameterFunctionRef, supps...)
-    pfunc = core_object(fref)
-    return pfunc.func(supps...)
-end
+call_function(fref::ParameterFunctionRef, supps...) = core_object(fref)(supps...)
 
 # Extend _semi_infinite_variable_dependencies
 function _semi_infinite_variable_dependencies(fref::ParameterFunctionRef)
     return _data_object(fref).semi_infinite_var_indices
 end
 
-# Extend _derivative_dependencies
-function _derivative_dependencies(fref::ParameterFunctionRef)
-    return _data_object(fref).derivative_indices
+# Extend _point_variable_dependencies
+function _point_variable_dependencies(fref::ParameterFunctionRef)
+    return _data_object(fref).point_var_indices
 end
 
 # Extend _measure_dependencies
@@ -369,18 +455,18 @@ function used_by_semi_infinite_variable(fref::ParameterFunctionRef)
 end
 
 """
-    used_by_derivative(fref::ParameterFunctionRef)::Bool
+    used_by_point_variable(fref::ParameterFunctionRef)::Bool
 
-Return a `Bool` indicating if `fref` is used by a derivative.
+Return a `Bool` indicating if `fref` is used by a point variable.
 
 **Example**
 ```julia-repl
-julia> used_by_derivative(vref)
+julia> used_by_point_variable(vref)
 true
 ```
 """
-function used_by_derivative(fref::ParameterFunctionRef)
-    return !isempty(_derivative_dependencies(fref))
+function used_by_point_variable(fref::ParameterFunctionRef)
+    return !isempty(_point_variable_dependencies(fref))
 end
 
 """
@@ -426,7 +512,43 @@ true
 """
 function is_used(fref::ParameterFunctionRef)
     return used_by_measure(fref) || used_by_constraint(fref) || 
-           used_by_semi_infinite_variable(fref) || used_by_derivative(fref)
+           used_by_semi_infinite_variable(fref) || used_by_point_variable(fref)
+end
+
+################################################################################
+#                              MODEL QUERIES
+################################################################################
+"""
+    num_parameter_functions(model::InfiniteModel)::Int
+
+Returns the number of parameter functions that have been defined in `model`.
+
+**Example**
+```julia-repl
+julia> num_parameter_functions(model)
+2
+```
+"""
+function num_parameter_functions(model::InfiniteModel)
+    return length(model.param_functions)
+end
+
+"""
+    all_parameter_functions(model::InfiniteModel)::Vector{GeneralVariableRef}
+
+Returns a list of all the individual parameter functions stored in `model`. 
+
+**Example**
+```julia-repl
+julia> all_parameter_functions(model)
+3-element Array{GeneralVariableRef,1}:
+ sin(t)
+ cos(t)
+ exp(t)
+```
+"""
+function all_parameter_functions(model::InfiniteModel)
+    return [GeneralVariableRef(model, idx) for (idx, _) in model.param_functions]
 end
 
 ################################################################################
@@ -450,13 +572,13 @@ function JuMP.delete(model::InfiniteModel, fref::ParameterFunctionRef)
     for pref in all_prefs
         filter!(e -> e != JuMP.index(fref), _parameter_function_dependencies(pref))
     end
-    gvref = GeneralVariableRef(model, JuMP.index(fref))
+    gvref = GeneralVariableRef(fref)
     # delete associated semi-infinite variables and mapping
     for index in _semi_infinite_variable_dependencies(fref)
         JuMP.delete(model, dispatch_variable_ref(model, index))
     end
-    # delete associated derivative variables and mapping 
-    for index in _derivative_dependencies(fref)
+    # delete associated point variables and mapping 
+    for index in _point_variable_dependencies(fref)
         JuMP.delete(model, dispatch_variable_ref(model, index))
     end
     # remove from measures if used
