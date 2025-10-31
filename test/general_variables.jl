@@ -413,7 +413,6 @@ end
     gvref = GeneralVariableRef(m, 1, TestIndex)
     # test 1 argument methods 
     for f in (:raw_parameter_refs, :parameter_refs, :parameter_list,
-              :start_value_function, :reset_start_value_function,
               :infinite_variable_ref, :eval_support, :raw_parameter_values,
               :parameter_values)
         @test_throws ArgumentError eval(f)(dvref)
@@ -492,13 +491,5 @@ end
     # test constant_over_collocation (GeneralVariableRef)
     @testset "constant_over_collocation (GeneralVariableRef)" begin
         @test_throws ArgumentError constant_over_collocation(gvref, pref)
-    end
-    # test set_start_value_function (Fallback)
-    @testset "set_start_value_function (Fallback)" begin
-        @test_throws ArgumentError set_start_value_function(dvref, sin)
-    end
-    # test set_start_value_function (GeneralVariableRef)
-    @testset "set_start_value_function (GeneralVariableRef)" begin
-        @test_throws ArgumentError set_start_value_function(gvref, sin)
     end
 end

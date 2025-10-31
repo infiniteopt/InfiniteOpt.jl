@@ -91,7 +91,7 @@ end
 function _check_element_support(
     _error::Function, 
     prefs::Vector{IndependentParameterRef},
-    param_values::Vector{Float64}
+    param_values::Vector{<:Real}
     )
     if !supports_in_domain(only(param_values), infinite_domain(only(prefs)))
         _error("Parameter values violate parameter bounds.")
@@ -103,7 +103,7 @@ end
 function _check_element_support(
     _error::Function, 
     prefs::Vector{DependentParameterRef},
-    param_values::Vector{Float64}
+    param_values::Vector{<:Real}
     )
     supp = reshape(param_values, length(prefs), 1)
     if !supports_in_domain(supp, infinite_domain(prefs))
@@ -116,7 +116,7 @@ end
 function _check_tuple_values(
     _error::Function, 
     prefs::Collections.VectorTuple{GeneralVariableRef},
-    param_values::Vector{Float64}
+    param_values::Vector{<:Real}
     )
     for i in 1:size(prefs, 1)
         dprefs = map(e -> dispatch_variable_ref(e), prefs[i, :])
@@ -143,21 +143,18 @@ function JuMP.build_variable(
     _error::Function,
     ivref::GeneralVariableRef, 
     support::Collections.VectorTuple{<:Real},
-    info::RestrictedDomainInfo;
-    check::Bool = true
+    info::RestrictedDomainInfo
     )
     # check the infinite variable reference
-    prefs = raw_parameter_refs(ivref)
-    if check
-        if !(dispatch_ivref isa Union{InfiniteVariableRef, DerivativeRef, ParameterFunctionRef})
-            _error("Expected an infinite variable/derivative reference dependency,", 
-                "but got a variable reference of type $(typeof(dispatch_ivref)).")
-        end
-        _check_tuple_shape(_error, prefs, support)
-        _check_tuple_values(_error, prefs, pvalues)
+    if !(_index_type(ivref) in (InfiniteVariableIndex, DerivativeIndex, ParameterFunctionIndex))
+        _error("Expected an infinite variable/derivative reference dependency,", 
+               "but got `$(ivref)`.")
     end
+    prefs = raw_parameter_refs(ivref)
+    _check_tuple_shape(_error, prefs, support)
+    _check_tuple_values(_error, prefs, support.values)
     # make the point variable
-    return _make_point_variable(ivref, support.values, prefs.values, info)
+    return _build_point_variable(ivref, support.values, prefs.values, info)
 end
 
 """
@@ -200,7 +197,7 @@ function _process_restricted_info(
     _error::Function,
     info::JuMP.VariableInfo{<:Real, <:Real, <:Real, <:Real}
     )
-    if info.is_binary || info.is_integer
+    if info.binary || info.integer
         _error("Cannot set the integrality of a point or semi-infinite " *
                "variable. They only inherit the integrality of the infinite " *
                "variable they originate from.")

@@ -75,6 +75,8 @@ Base.@deprecate delete_domain_restrictions(cref) delete_domain_restriction(cref)
 function DomainRestrictions(args...)
     error("`DomainRestrictions` is deprecated in favor of `DomainRestriction`, see docs for details.")
 end
+Base.@deprecate start_value_function(vref)  start_value(vref)
+Base.@deprecate set_start_value_function(vref, f)  set_start_value(vref, f)
 
 # Define additional stuff that should not be exported
 const _EXCLUDE_SYMBOLS = [

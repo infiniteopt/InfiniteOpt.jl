@@ -726,7 +726,6 @@ end
 ################################################################################
 # Define single argument variable method wrappers and their fallbacks
 for op = (:raw_parameter_refs, :parameter_refs, :parameter_list,
-          :start_value_function, :reset_start_value_function,
           :infinite_variable_ref, :eval_support, :raw_parameter_values,
           :parameter_values)
     @eval begin
@@ -750,23 +749,6 @@ for op = (:raw_parameter_refs, :parameter_refs, :parameter_list,
             return $op(dispatch_variable_ref(vref))
         end
     end
-end
-
-# Dispatch fallback
-function set_start_value_function(vref::DispatchVariableRef, start)
-    throw(ArgumentError("`set_start_value_function` not defined for variable reference type " *
-                        "`$(typeof(vref))`."))
-end
-
-"""
-    set_start_value_function(vref::GeneralVariableRef, start::Union{Real, Function})::Nothing
-
-Set the start value function of `vref`. It relies on `set_start_value_function`
-being defined for the underlying `DispatchVariableRef`, otherwise an
-`ArgumentError` is thrown.
-"""
-function set_start_value_function(vref::GeneralVariableRef, start)
-    return set_start_value_function(dispatch_variable_ref(vref), start)
 end
 
 ################################################################################
@@ -881,14 +863,14 @@ for op = (:set_lower_bound, :set_upper_bound, :set_start_value)
         `ArgumentError` is thrown. See the underlying docstrings for more
         information.
         """
-        function JuMP.$op(vref::GeneralVariableRef, value::Real)
+        function JuMP.$op(vref::GeneralVariableRef, value)
             return JuMP.$op(dispatch_variable_ref(vref), value)
         end
     end
 end
 
 # Dispatch fallback for JuMP.fix
-function JuMP.fix(vref::DispatchVariableRef, value::Real; force::Bool = false)
+function JuMP.fix(vref::DispatchVariableRef, value; force = false)
     throw(ArgumentError("`JuMP.fix` not defined for variable reference type " *
                         "`$(typeof(vref))`."))
 end
@@ -901,7 +883,7 @@ being defined for the underlying `DispatchVariableRef`, otherwise an
 `ArgumentError` is thrown. See the underlying docstrings for more
 information.
 """
-function JuMP.fix(vref::GeneralVariableRef, value::Real; force::Bool = false)
+function JuMP.fix(vref::GeneralVariableRef, value; force = false)
     return JuMP.fix(dispatch_variable_ref(vref), value, force = force)
 end
 

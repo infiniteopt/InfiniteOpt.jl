@@ -730,7 +730,7 @@ end
 
 # Determine if a given raw support satisfies constraint domain restrictions
 function _support_in_restrictions(
-    constr::DomainRestrictedConstraint,
+    constr::InfiniteOpt.DomainRestrictedConstraint,
     support::Vector{Float64}
     )
     return constr.restriction_func(support[restriction.parameter_nums])
@@ -778,7 +778,7 @@ end
 # DomainRestrictedConstraint
 function _process_constraint(
     backend::TranscriptionBackend, 
-    constr::DomainRestrictedConstraint, 
+    constr::InfiniteOpt.DomainRestrictedConstraint, 
     func, 
     set, 
     raw_supp::Vector{Float64}, 

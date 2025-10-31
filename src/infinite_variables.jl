@@ -214,7 +214,7 @@ function _process_info_arg(
     param_nums::Vector{Int},
     group_idxs::Vector{Int},
     )
-    _check_param_func_method(_error, value, prefs)
+    _check_param_func_method(_error, func, prefs)
     return ParameterFunction(func, prefs, group_idxs, param_nums)
 end
 
@@ -373,11 +373,8 @@ function _restrict_infinite_variable(
     ivref::GeneralVariableRef, 
     vt::Collections.VectorTuple{<:Real}
     )
-    info = JuMP.VariableInfo(false, NaN, false, NaN, false, NaN, false, NaN, 
-                             false, false)
-    new_var = JuMP.build_variable(error, info, Point(ivref, vt))
-    return JuMP.add_variable(JuMP.owner_model(ivref), new_var, 
-                             update_info = false)
+    new_var = JuMP.build_variable(error, ivref, vt, RestrictedDomainInfo())
+    return JuMP.add_variable(JuMP.owner_model(ivref), new_var)
 end
 
 # Infinite variable
@@ -400,9 +397,7 @@ function _restrict_infinite_variable(
     ivref::GeneralVariableRef, 
     vt::Collections.VectorTuple
     )
-    info = JuMP.VariableInfo(false, NaN, false, NaN, false, NaN, false, NaN, 
-                             false, false)
-    new_var = JuMP.build_variable(error, info, SemiInfinite(ivref, vt))
+    new_var = JuMP.build_variable(error, ivref, vt, RestrictedDomainInfo())
     return JuMP.add_variable(JuMP.owner_model(ivref), new_var)
 end
 

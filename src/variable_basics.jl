@@ -384,11 +384,11 @@ function _process_restricted_value(
                 s
             end
         end for s in supp_tuple)
-        return val.func(v...)
+        return val(v...)
     end
     return ParameterFunction(
         new_func,
-        var.parameter_refs,
+        raw_parameter_refs(var),
         var.group_int_idxs, 
         var.parameter_nums
     )
@@ -544,7 +544,7 @@ function JuMP.set_lower_bound(vref::RestrictedVariableRef, lower::Real)
         _set_core_object(cref, new_constr)
         set_transformation_backend_ready(model, false)
     else
-        @assert !isnan(info.fixed_value) "$vref is fixed, cannot set lower bound."
+        @assert isnan(info.fixed_value) "$vref is fixed, cannot set lower bound."
         cref = JuMP.add_constraint(model, new_constr, is_info_constr = true)
         _set_lower_bound_index(vref, JuMP.index(cref))
     end
@@ -573,7 +573,8 @@ function JuMP.LowerBoundRef(vref::RestrictedVariableRef)
     if info.active_lower_bound_info
         cindex = _lower_bound_index(vref)
     else
-        cindex = _lower_bound_index(infinite_variable_ref(vref))
+        ivref = dispatch_variable_ref(infinite_variable_ref(vref))
+        cindex = _lower_bound_index(ivref)
     end
     model = JuMP.owner_model(vref)
     return InfOptConstraintRef(model, cindex)
@@ -747,7 +748,7 @@ function JuMP.set_upper_bound(vref::RestrictedVariableRef, upper::Real)
         _set_core_object(cref, new_constr)
         set_transformation_backend_ready(model, false)
     else
-        @assert !isnan(info.fixed_value) "$vref is fixed, cannot set upper bound."
+        @assert isnan(info.fixed_value) "$vref is fixed, cannot set upper bound."
         cref = JuMP.add_constraint(model, new_constr, is_info_constr = true)
         _set_upper_bound_index(vref, JuMP.index(cref))
     end
@@ -777,7 +778,8 @@ function JuMP.UpperBoundRef(vref::RestrictedVariableRef)
     if info.active_upper_bound_info
         cindex = _upper_bound_index(vref)
     else
-        cindex = _upper_bound_index(infinite_variable_ref(vref))
+        ivref = dispatch_variable_ref(infinite_variable_ref(vref))
+        cindex = _upper_bound_index(ivref)
     end
     model = JuMP.owner_model(vref)
     return InfOptConstraintRef(model, cindex)
@@ -1024,7 +1026,8 @@ function JuMP.FixRef(vref::RestrictedVariableRef)
     if info.active_fix_info
         cindex = _fix_index(vref)
     else
-        cindex = _fix_index(infinite_variable_ref(vref))
+        ivref = dispatch_variable_ref(infinite_variable_ref(vref))
+        cindex = _fix_index(ivref)
     end
     model = JuMP.owner_model(vref)
     return InfOptConstraintRef(model, cindex)
@@ -1061,7 +1064,7 @@ function JuMP.unfix(vref::DecisionVariableRef)
 end
 function JuMP.unfix(vref::RestrictedVariableRef)
     info = _variable_info(vref)
-    if info.active_fix_info && !isnan(info.fix)
+    if info.active_fix_info && !isnan(info.fixed_value)
         JuMP.delete(JuMP.owner_model(vref), JuMP.FixRef(vref))
         _set_fix_index(vref, nothing)
     end

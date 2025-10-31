@@ -691,10 +691,9 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, pref in [0, 1])
     dpref = dispatch_variable_ref(pref)
-    func = (x) -> NaN
     num = 0.
-    info = VariableInfo(true, num, true, num, true, num, false, func, false, false)
-    d = Derivative(info, true, pref, pref, 1) # this is wrong but that is ok
+    info = VariableInfo(true, num, true, num, true, num, false, NaN, false, false)
+    d = Derivative(info, pref, pref, 1) # this is wrong but that is ok
     object = VariableData(d)
     idx = InfiniteOpt._add_data_object(m, object)
     push!(InfiniteOpt._derivative_dependencies(pref), idx)
@@ -895,10 +894,9 @@ end
         # test array input 
         @test isa(delete_supports([pref]), Nothing)
         # prepare to test derivative constraints 
-        func = (x) -> NaN
         num = 0.
-        info = VariableInfo(true, num, true, num, true, num, false, func, false, false)
-        deriv = Derivative(info, true, pref, pref, 1)
+        info = VariableInfo(true, num, true, num, true, num, false, NaN, false, false)
+        deriv = Derivative(info, pref, pref, 1)
         object = VariableData(deriv)
         idx = InfiniteOpt._add_data_object(m, object)
         push!(InfiniteOpt._derivative_dependencies(pref), idx)

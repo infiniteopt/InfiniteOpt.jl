@@ -1584,7 +1584,6 @@ function Base.empty!(model::InfiniteModel)
     empty!(model.measures)
     # constraints
     empty!(model.constraints)
-    empty!(model.constraint_restrictions)
     model.name_to_constr = nothing
     # objective
     model.objective_sense = MOI.FEASIBILITY_SENSE

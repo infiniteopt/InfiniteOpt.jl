@@ -7,18 +7,18 @@
     @infinite_parameter(m, c[1:2] in [0, 1])
     @infinite_parameter(m, d in [0, 1])
     idx = InfiniteVariableIndex(1)
-    num = Float64(0)
-    func = (x) -> NaN
-    func2 = (x...) -> 1 
-    info = VariableInfo(false, num, false, num, false, num, false, func, false, false)
-    new_info = VariableInfo(true, 0., true, 0., true, 0., true, func2, true, false)
-    new_info2 = VariableInfo(true, 0, true, 0, true, 0, true, func2, true, false)
     group_idxs = [1, 3, 5, 6]
     param_idxs = [1, 3, 5, 6, 7]
+    num = Float64(0)
+    func = (x...) -> 1
+    pfunc = ParameterFunction(func, IC.VectorTuple(a, b[2], c, d), group_idxs, param_idxs)
+    info = VariableInfo(false, num, false, num, false, num, false, pfunc, false, false)
+    new_info = VariableInfo(true, 0., true, 0., true, pfunc, true, num, true, false)
+    new_info2 = VariableInfo(true, 0., true, pfunc, true, 0., true, num, true, false)
     var = InfiniteVariable(info, IC.VectorTuple(a, b[2], c, d),
-                           param_idxs, group_idxs, true)
+                           param_idxs, group_idxs)
     var2 = InfiniteVariable(new_info, IC.VectorTuple(a, b[2], c, d),
-                            param_idxs, group_idxs, true)
+                            param_idxs, group_idxs)
     object = VariableData(var, "var")
     vref = InfiniteVariableRef(m, idx)
     gvref = GeneralVariableRef(m, 1, InfiniteVariableIndex)
@@ -81,10 +81,6 @@
     # test _variable_info
     @testset "_variable_info" begin
         @test InfiniteOpt._variable_info(vref) == info
-    end
-    # test _is_vector_start
-    @testset "_is_vector_start" begin
-        @test InfiniteOpt._is_vector_start(vref)
     end
     # _update_variable_info
     @testset "_update_variable_info" begin
@@ -196,10 +192,10 @@ end
     @infinite_parameter(m, prefs[1:2] in [0, 1])
     @finite_parameter(m, fin == 42)
     num = Float64(0)
-    func1 = (a) -> 2
+    func = (a, b, c) -> 2
     info = VariableInfo(false, num, false, num, false, num, false, NaN, false, false)
-    info2 = VariableInfo(true, num, true, num, true, num, true, func1, true, false)
-    info3 = VariableInfo(true, num, true, num, true, num, true, 42, false, true)
+    info2 = VariableInfo(true, num, true, num, true, num, true, func, true, false)
+    info3 = VariableInfo(true, func, true, func, true, func, true, 42, false, true)
     # test Infinite 
     @testset "Infinite" begin 
         @test Infinite(pref, prefs).parameter_refs isa IC.VectorTuple
@@ -240,41 +236,26 @@ end
         @test_throws ErrorException InfiniteOpt._check_parameter_tuple(error, tuple)
     end
     # _check_and_format_infinite_info (Real)
-    @testset "_check_and_format_infinite_info (Real)" begin
+    @testset "_check_and_format_infinite_info" begin
         tuple = IC.VectorTuple((pref, prefs, pref2))
-        @test !InfiniteOpt._check_and_format_infinite_info(error, info, tuple)[1].has_start
-        @test InfiniteOpt._check_and_format_infinite_info(error, info, tuple)[1].start isa Function
-        @test InfiniteOpt._check_and_format_infinite_info(error, info, tuple)[2]
-        @test InfiniteOpt._check_and_format_infinite_info(error, info3, tuple)[1].has_start
-        @test InfiniteOpt._check_and_format_infinite_info(error, info3, tuple)[1].start isa Function
-        @test InfiniteOpt._check_and_format_infinite_info(error, info3, tuple)[2]
-    end
-    # _check_and_format_infinite_info (Function)
-    @testset "_check_and_format_infinite_info (Function)" begin
-        tuple = IC.VectorTuple((pref,))
-        # test normal
-        @test InfiniteOpt._check_and_format_infinite_info(error, info2, tuple)[1].has_start
-        @test InfiniteOpt._check_and_format_infinite_info(error, info2, tuple)[1].start == func1
-        @test !InfiniteOpt._check_and_format_infinite_info(error, info2, tuple)[2]
-        # test multiple methods
-        mult_func(a,b,c) = 2
-        mult_func(a) = 2
-        mult_info = VariableInfo(true, num, true, num, true, num, true, mult_func, true, false)
-        @test InfiniteOpt._check_and_format_infinite_info(error, mult_info, tuple)[1] isa VariableInfo 
-        # test bad method
+        param_idxs = [1, 3, 4, 2]
+        group_idxs = [1, 3, 2]
+        @test !InfiniteOpt._check_and_format_infinite_info(error, info, tuple, param_idxs, group_idxs).has_start
+        @test InfiniteOpt._check_and_format_infinite_info(error, info2, tuple, param_idxs, group_idxs).start isa ParameterFunction
+        @test InfiniteOpt._check_and_format_infinite_info(error, info3, tuple, param_idxs, group_idxs).start == 42
+        @test InfiniteOpt._check_and_format_infinite_info(error, info3, tuple, param_idxs, group_idxs).has_lb
+        @test InfiniteOpt._check_and_format_infinite_info(error, info3, tuple, param_idxs, group_idxs).lower_bound isa ParameterFunction
         bad_func(a, b) = 2
         bad_info = VariableInfo(true, num, true, num, true, num, true, bad_func, true, false)
-        @test_throws ErrorException InfiniteOpt._check_and_format_infinite_info(error, bad_info, tuple)
-        # test bad args
-        func = (a, b) -> a + sum(b)
-        bad_info = VariableInfo(true, num, true, num, true, num, true, func, true, false)
-        @test_throws ErrorException InfiniteOpt._check_and_format_infinite_info(error, bad_info, tuple)
+        @test_throws ErrorException InfiniteOpt._check_and_format_infinite_info(error, bad_info, tuple, param_idxs, group_idxs)
     end
     # _check_and_format_infinite_info (Fallback)
     @testset "_check_and_format_infinite_info (Fallback)" begin
         tuple = IC.VectorTuple((pref, prefs, pref2))
+        param_idxs = [1, 3, 4, 2]
+        group_idxs = [1, 3, 2]
         bad_info = VariableInfo(true, num, true, num, true, num, true, Complex(1), true, false)
-        @test_throws ErrorException InfiniteOpt._check_and_format_infinite_info(error, bad_info, tuple)
+        @test_throws ErrorException InfiniteOpt._check_and_format_infinite_info(error, bad_info, tuple, param_idxs, group_idxs)
     end
     # build_variable
     @testset "JuMP.build_variable" begin
@@ -285,7 +266,7 @@ end
         @test_throws ErrorException build_variable(error, info, Infinite(pref, fin))
         @test_throws ErrorException build_variable(error, info, Infinite(pref, pref))
         # test for expected output
-        @test build_variable(error, info, Infinite(pref)).info isa JuMP.VariableInfo{Float64, Float64, Float64, <:Function}
+        @test build_variable(error, info, Infinite(pref)).info isa JuMP.VariableInfo{Float64, Float64, Float64, Float64}
         @test isequal(build_variable(error, info, Infinite(pref)).parameter_refs, IC.VectorTuple(pref))
         # test various types of param tuples
         tuple = IC.VectorTuple(pref, prefs)
@@ -342,15 +323,14 @@ end
         @test InfiniteOpt._infinite_variable_dependencies(pref) == [idx]
         @test name(vref) == "name"
         # prepare infinite variable with all the possible info additions
-        v = build_variable(error, info2, Infinite(pref))
+        v = build_variable(error, info2, Infinite(pref, prefs, pref2))
         # test info addition functions
         idx = InfiniteVariableIndex(2)
         vref = InfiniteVariableRef(m, idx)
         gvref = InfiniteOpt.GeneralVariableRef(m, idx)
         @test isequal(add_variable(m, v, "name"), gvref)
         @test !transformation_backend_ready(m)
-        @test !InfiniteOpt._is_vector_start(vref)
-        @test InfiniteOpt._variable_info(vref).start == func1
+        @test InfiniteOpt._variable_info(vref).start.func == func
         # lower bound
         cindex = InfOptConstraintIndex(1)
         cref = InfOptConstraintRef(m, cindex)
@@ -386,15 +366,14 @@ end
         @test InfiniteOpt._constraint_dependencies(vref) == [InfOptConstraintIndex(i)
                                                              for i = 1:4]
         # prepare infinite variable with integer info addition
-        v = build_variable(error, info3, Infinite(pref))
+        v = build_variable(error, info3, Infinite(pref, prefs, pref2))
         # test integer addition functions
         idx = InfiniteVariableIndex(3)
         vref = InfiniteVariableRef(m, idx)
         gvref = InfiniteOpt.GeneralVariableRef(m, idx)
         @test isequal(add_variable(m, v, "name"), gvref)
         @test !transformation_backend_ready(m)
-        @test InfiniteOpt._is_vector_start(vref)
-        @test InfiniteOpt._variable_info(vref).start isa Function
+        @test InfiniteOpt._variable_info(vref).start == 42
         cindex = InfOptConstraintIndex(8)
         cref = InfOptConstraintRef(m, cindex)
         @test is_integer(vref)
@@ -447,25 +426,23 @@ end
         idx = InfiniteVariableIndex(5)
         vref = InfiniteVariableRef(m, idx)
         gvref = InfiniteOpt.GeneralVariableRef(m, idx)
-        @test isequal(@variable(m, 0 <= c, Infinite(t)), gvref)
+        @test isequal(@variable(m, c >= sin, Infinite(t)), gvref)
         @test name(vref) == "c"
-        @test lower_bound(vref) == 0
+        @test lower_bound(vref)(0.5) == sin(0.5)
         # test multi-argument expr 1
         idx = InfiniteVariableIndex(6)
         vref = InfiniteVariableRef(m, idx)
         gvref = InfiniteOpt.GeneralVariableRef(m, idx)
-        @test isequal(@variable(m, d == 0, Infinite(t), Int, base_name = "test"), gvref)
+        @test isequal(@variable(m, d == cos, Infinite(t), Int, base_name = "test"), gvref)
         @test name(vref) == "test"
-        @test fix_value(vref) == 0
+        @test fix_value(vref)(0.8) == cos(0.8)
         # test single start value
         idx = InfiniteVariableIndex(7)
         vref = InfiniteVariableRef(m, idx)
         gvref = InfiniteOpt.GeneralVariableRef(m, idx)
         @test isequal(@variable(m, aa, Infinite(t), Int, start = 42), gvref)
         @test name(vref) == "aa"
-        @test start_value_function(vref) isa Function
-        @test start_value_function(vref)([0]) == 42
-        @test_throws MethodError start_value_function(vref)(0)
+        @test start_value(vref) == 42
         # test function start value
         idx = InfiniteVariableIndex(8)
         vref = InfiniteVariableRef(m, idx)
@@ -473,8 +450,8 @@ end
         func = (a) -> a
         @test isequal(@variable(m, ab, Infinite(t), Int, start = func), gvref)
         @test name(vref) == "ab"
-        @test start_value_function(vref) isa Function
-        @test start_value_function(vref)(0) == 0
+        @test start_value(vref) isa ParameterFunction
+        @test start_value(vref)(0.7) == 0.7
     end
     # test array variable definition
     @testset "Array" begin
@@ -494,10 +471,10 @@ end
         idxs = [InfiniteVariableIndex(13), InfiniteVariableIndex(14)]
         vrefs = [InfiniteVariableRef(m, idx) for idx in idxs]
         gvrefs = [InfiniteOpt.GeneralVariableRef(m, idx) for idx in idxs]
-        @test isequal(@variable(m, 0 <= f[1:2] <= 1, Infinite(t, x)), gvrefs)
+        @test isequal(@variable(m, 0 <= f[1:2] <= (a, b) -> 42, Infinite(t, x)), gvrefs)
         @test name(vrefs[2]) == "f[2]"
         @test lower_bound(vrefs[1]) == 0
-        @test upper_bound(vrefs[2]) == 1
+        @test upper_bound(vrefs[2])(0.4, 0.2) == 42
         # test comparison with call
         idxs = [InfiniteVariableIndex(15), InfiniteVariableIndex(16)]
         vrefs = [InfiniteVariableRef(m, idx) for idx in idxs]
@@ -526,8 +503,8 @@ end
         gvrefs = [InfiniteOpt.GeneralVariableRef(m, idx) for idx in idxs]
         starts = [2, 5]
         @test isequal(@variable(m, w[i = 1:2], Infinite(t), start = starts[i]), gvrefs)
-        @test start_value_function(vrefs[1])([0]) == 2
-        @test start_value_function(vrefs[2])([0]) == 5
+        @test start_value(vrefs[1]) == 2
+        @test start_value(vrefs[2]) == 5
         # test mixed starts
         idxs = [InfiniteVariableIndex(23), InfiniteVariableIndex(24)]
         vrefs = [InfiniteVariableRef(m, idx) for idx in idxs]
@@ -535,8 +512,8 @@ end
         starts = [(a) -> 2, 5]
         @test isequal(@variable(m, cat[i = 1:2], Infinite(t), 
                         start = starts[i]), gvrefs)
-        @test start_value_function(vrefs[1])(0) == 2
-        @test start_value_function(vrefs[2])([0]) == 5
+        @test start_value(vrefs[1])(0) == 2
+        @test start_value(vrefs[2]) == 5
         # test with set 
         idxs = [InfiniteVariableIndex(i) for i in 25:27]
         vrefs = [InfiniteVariableRef(m, idx) for idx in idxs]
@@ -706,8 +683,7 @@ end
         empty!(InfiniteOpt._constraint_dependencies(vref))
         # test used by point variable
         num = Float64(0)
-        info = VariableInfo(false, num, false, num, false, num, false, num, false, false)
-        var = PointVariable(info, y, [0., 0., 0.])
+        var = PointVariable(RestrictedDomainInfo(), y, [0., 0., 0.])
         object = VariableData(var, "var")
         idx = PointVariableIndex(1)
         pvref = PointVariableRef(m, idx)
@@ -718,7 +694,7 @@ end
         @test is_used(vref)
         empty!(InfiniteOpt._point_variable_dependencies(vref))
         # test used by semi-infinite variable
-        var = SemiInfiniteVariable(y, [0.5, NaN, NaN], [2], [2])
+        var = SemiInfiniteVariable(RestrictedDomainInfo(), y, [0.5, NaN, NaN], [2], [2])
         object = VariableData(var, "var")
         idx = SemiInfiniteVariableIndex(1)
         rvref = SemiInfiniteVariableRef(m, idx)
@@ -729,10 +705,9 @@ end
         @test is_used(vref)
         empty!(InfiniteOpt._semi_infinite_variable_dependencies(vref))
         # test used by derivative
-        func = (x) -> NaN
         num = 0.
-        info = VariableInfo(true, num, true, num, true, num, false, func, true, true)
-        deriv = Derivative(info, true, y, t, 1)
+        info = VariableInfo(true, num, true, num, true, num, false, num, true, true)
+        deriv = Derivative(info, y, t, 1)
         object = VariableData(deriv)
         idx = DerivativeIndex(1)
         dref = DerivativeRef(m, idx)

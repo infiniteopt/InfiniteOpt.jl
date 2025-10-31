@@ -9,19 +9,6 @@
     return true
 end
 
-# Extend comparison for JuMP.VariableInfo 
-function Base.:(==)(info1::JuMP.VariableInfo, info2::JuMP.VariableInfo)
-    return info1.has_lb == info2.has_lb && 
-           (!info1.has_lb || info1.lower_bound == info2.lower_bound) && 
-           info1.has_ub == info2.has_ub && 
-           (!info1.has_ub || info1.upper_bound == info2.upper_bound) && 
-           info1.has_fix == info2.has_fix && 
-           (!info1.has_fix || info1.fixed_value == info2.fixed_value) && 
-           info1.has_start == info2.has_start && 
-           (!info1.has_start || info1.start == info2.start) && 
-           info1.binary == info2.binary && info1.integer == info2.integer
-end
-
 ## Convert JuMP variable info to only use Float64
 # Change needed
 function _make_float_info(info::JuMP.VariableInfo)

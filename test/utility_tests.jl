@@ -6,17 +6,6 @@
     @test InfiniteOpt._allequal([1 1; 1 1])
 end
 
-# Test Base.:(==) for VariableInfo
-@testset "VariableInfo Comparison" begin
-    info1 = VariableInfo(true, 1, false, NaN, false, NaN, false, NaN, false, true)
-    info2 = VariableInfo(true, 1., false, NaN, false, NaN, false, NaN, false, true)
-    info3 = VariableInfo(true, 1, false, NaN, false, NaN, false, NaN, false, true)
-    info4 = VariableInfo(true, 1, false, NaN, false, NaN, false, NaN, false, false)
-    @test info1 == info3 
-    @test info1 == info2
-    @test info1 != info4
-end
-
 # Test _make_float_info
 @testset "_make_float_info" begin
     info1 = VariableInfo(false, 0, false, 0, false, 0, false, 0, false, false)

@@ -105,6 +105,36 @@ function _process_value(v::JuMP.GenericAffExpr)
     end
 end
 
+# Convenient dispatch for restrict syntax
+function JuMP.build_variable(
+    _error::Function,  
+    ivref::GeneralVariableRef,
+    raw_params::Collections.VectorTuple,
+    restricted_info::RestrictedDomainInfo
+    )
+    # check that the values are the same format as the infinite variable 
+    ivref_prefs = raw_parameter_refs(ivref)
+    if !all(v isa Union{Real, GeneralVariableRef} for v in raw_params)
+        _error("Unexpected inputs given, expected them to be parameter references ",
+               "and real numbers.")
+    elseif !Collections.same_structure(raw_params, ivref_prefs)
+        _error("The parameter reference/value input format $(raw_params) does ",
+               "not match that of the infinite variable $(ivref).")
+    end
+    # make the evaluation supports
+    eval_support = Float64[p isa Real ? p : NaN for p in raw_params]
+    # check that no dependent parameters are partially transcribed
+    for r in ivref_prefs.ranges
+        real_inds = map(s -> !isnan(s), @view(eval_support[r]))
+        if any(real_inds) != all(real_inds)
+            _error("Cannot partially evaluate a multi-dimensional input of an " *
+                   "infinite variable.")
+        end
+    end
+    # dispatch to the main builder 
+    return JuMP.build_variable(_error, ivref, eval_support, restricted_info)
+end
+
 """
     SemiInfinite{T} <: InfOptVariableType 
 
@@ -166,37 +196,14 @@ function JuMP.build_variable(
     var_type::SemiInfinite; 
     extra_kwargs...
     )
-    # check for unneeded keywords
-    for (kwarg, _) in extra_kwargs
-        _error("Keyword argument $kwarg is not for use with semi-infinite ",
+    if !isempty(extra_kwargs)
+        _error("Keyword argument $(first(keys(extra_kwargs))) is not for use with semi-infinite ",
                "variables.")
     end
-    # process the domain information
     restricted_info = _process_restricted_info(_error, info)
-    # get the infinite variable reference
     ivref = var_type.infinite_variable_ref
-    # check that the values are the same format as the infinite variable 
     raw_params = var_type.parameter_values
-    ivref_prefs = raw_parameter_refs(ivref)
-    if !all(v isa Union{Real, GeneralVariableRef} for v in raw_params)
-        _error("Unexpected inputs given, expected them to be parameter references ",
-               "and real numbers.")
-    elseif !Collections.same_structure(raw_params, ivref_prefs)
-        _error("The parameter reference/value input format $(raw_params) does ",
-               "not match that of the infinite variable $(ivref).")
-    end
-    # make the evaluation supports
-    eval_support = Float64[p isa Real ? p : NaN for p in raw_params]
-    # check that no dependent parameters are partially transcribed
-    for r in ivref_prefs.ranges
-        real_inds = map(s -> !isnan(s), @view(eval_support[r]))
-        if any(real_inds) != all(real_inds)
-            _error("Cannot partially evaluate a multi-dimensional input of an " *
-                   "infinite variable.")
-        end
-    end
-    # dispatch to the main builder 
-    return JuMP.build_variable(_error, ivref, eval_support, restricted_info)
+    return JuMP.build_variable(_error, ivref, raw_params, restricted_info)
 end
 
 """
