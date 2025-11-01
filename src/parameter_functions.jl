@@ -398,7 +398,7 @@ end
 # Vectorized input (or a user-defined input that is a single vector)
 function (pfunc::ParameterFunction)(supp::Vector{<:Real})
     prefs = pfunc.parameter_refs
-    if all(iszero(d) for d in prefs)
+    if all(iszero(d) for d in prefs.dimensions)
         # all scalar inputs
         return pfunc.func(supp...)
     elseif isone(length(prefs.dimensions)) && isone(only(prefs.dimensions))

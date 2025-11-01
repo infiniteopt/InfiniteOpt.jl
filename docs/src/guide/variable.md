@@ -321,7 +321,7 @@ how to query/modify variable names.
 We can specify variable bounds in like manner to `JuMP` variables. Let's 
 demonstrate this with infinite variables (which accept scalars or functions): 
 ```jldoctest var_macro
-julia> @variable(model, y_lb >= (a, b, c) -> a + b + c, Infinite(t, x...)) # add w/ lower bound
+julia> @variable(model, y_lb >= (a, b, c, d) -> a + b + c + d, Infinite(t, x...)) # add w/ lower bound
 y_lb(t, x[1], x[2], x[3])
 
 julia> @variable(model, y_ub <= 10, Infinite(t, x...)) # add w/ upper bound

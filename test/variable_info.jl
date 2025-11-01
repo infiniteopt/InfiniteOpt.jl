@@ -180,6 +180,7 @@ end
         @test InfiniteOpt._data_object(cref).is_info_constraint
         @test !transformation_backend_ready(m)
         @test constraint_object(cref) == ScalarConstraint(gvref1, MOI.LessThan(1.))
+        @test_throws ErrorException set_upper_bound(vref1, sin)
         # test changing upper bound
         @test isa(set_upper_bound(vref2, 1.5), Nothing)
         @test has_upper_bound(vref2)
@@ -321,8 +322,13 @@ end
         @test fix_value(y)(0, 0) == 42
         @test fix(y0, 6) isa Nothing
         @test fix_value(y0) == 6
+        @test fix(y0, 3) isa Nothing
+        @test fix_value(y0) == 3
         @test fix(yb, 2) isa Nothing
         @test fix_value(yb) == 2
+        @test unfix(yb) isa Nothing
+        @test !is_fixed(yb)
+        @test_throws ErrorException fix_value(yb)
     end
 end
 

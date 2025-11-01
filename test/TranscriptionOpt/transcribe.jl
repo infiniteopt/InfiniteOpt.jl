@@ -449,6 +449,8 @@ end
     @variable(m, y == 2, Infinite(par, pars), Bin, start = 0)
     x0 = x(0)
     @variable(m, 0 <= y0 <= 1, Point(y, 0, [0, 0]))
+    y1 = y(1, [1, 1])
+    unfix(y1)
     @variable(m, 0 <= z <= 1, Bin)
     @variable(m, w == 1, Int, start = 1)
     @finite_parameter(m, fin == 0)
@@ -498,7 +500,7 @@ end
     @test name(IOTO.transcription_variable(y)[1, 2]) == "y(0.0, [1.0, 1.0])"
     @test has_lower_bound(IOTO.transcription_variable(x)[1])
     @test is_binary(IOTO.transcription_variable(y)[2])
-    @test is_fixed(IOTO.transcription_variable(y)[4])
+    @test is_fixed(IOTO.transcription_variable(y)[3])
     @test is_integer(IOTO.transcription_variable(x)[2])
     @test start_value(IOTO.transcription_variable(y)[1]) == 0.
     @test supports(x) == [(0.,), (1.,)]
@@ -514,6 +516,7 @@ end
     @test has_upper_bound(IOTO.transcription_variable(y0))
     @test is_binary(IOTO.transcription_variable(y0))
     @test start_value(IOTO.transcription_variable(y0)) == 0.
+    @test !is_fixed(IOTO.transcription_variable(y1))
     # test derivatives 
     d1t = IOTO.transcription_variable(d1)
     d2t = IOTO.transcription_variable(d2)

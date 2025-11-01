@@ -44,7 +44,6 @@ Subject to
  y(t) ≥ 0, ∀ t ∈ [0, 10]
  z ≥ 0
  c1 : z - y(t) ≥ 0, ∀ t ∈ [0, 10]
- y(0) ≥ 0
  c2 : y(0) = 42
 ```
 Now we optimize the model using `optimize!`:

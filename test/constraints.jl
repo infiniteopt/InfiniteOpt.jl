@@ -261,6 +261,7 @@ end
     @variable(m, x >= 0, Int)
     @constraint(m, c1, inf + x == 0, DomainRestriction(a -> 0 <= a <= 1, par))
     @constraint(m, c2, x * pt + x == 2)
+    @constraint(m, c3, inf^2 <= 0)
     # test has_domain_restriction
     @testset "has_domain_restriction" begin
         @test has_domain_restriction(c1)
@@ -284,6 +285,8 @@ end
         @test domain_restriction(c1)(0.1) == false
         @test domain_restriction(c1)(0.3) == true
         @test !transformation_backend_ready(m)
+        @test set_domain_restriction(c3, r) isa Nothing
+        @test domain_restriction(c3)(0.1) == false
         # test deprecation
         @test_deprecated set_domain_restrictions(c1, r) isa Nothing
         @test_throws ErrorException DomainRestrictions(par => [0, 1])

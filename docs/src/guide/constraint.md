@@ -135,7 +135,7 @@ illustrate this, let's define the constraint
 julia> restrict(t_s, x_s) = iszero(t_s) && -1 <= x_s <= 1;
 
 julia> @constraint(model, 2ya^2 + z[1] >= 3, DomainRestriction(restrict, t, x))
-2 ya(t, x)² + z[1] ≥ 3, ∀ t ∈ [0, 10], x[1] ∈ [-1, 1], x[2] ∈ [-1, 1]; if restrict(t, x) = True
+2 ya(t, x)² + z[1] ≥ 3, ∀ t ∈ [0, 10], x[1] ∈ [-2, 2], x[2] ∈ [-2, 2]; if restrict(t, x) = True
 ```
 
 Now we have added constraints to our model, and it is ready to be solved!
@@ -411,7 +411,7 @@ let's update the name of `initial` to `"init_cond"`:
 julia> set_name(initial, "init_cond")
 
 julia> initial
-initial_cond : yb(t) = 0, ∀ t ∈ [0, 10]; if iszero(t) = True
+init_cond : yb(t) = 0, ∀ t ∈ [0, 10]; if iszero(t) = True
 ```
 
 We can also update the normalized right hand side constant value or normalized 
@@ -448,7 +448,7 @@ Domain Restrictions can be modified or removed from any constraint in
 what restrictions a constraint has (overwriting any existing ones if forced). It  
 follows the same syntax, so let's use it to change the bounds on `t` to ``t = 0``:
 ```jldoctest constrs
-julia> set_domain_restriction(constr, DomainRestrictions(iszero, t), force = true)
+julia> set_domain_restriction(constr, DomainRestriction(iszero, t))
 
 julia> constr
 constr : 2.5 yb(t) - z[1] ≤ -1, ∀ t ∈ [0, 10]; if iszero(t) = True

@@ -495,6 +495,11 @@ end
         @test fix_value(dx) == 42
         @test FixRef(dx) isa InfOptConstraintRef 
     end
+    # test integality errors
+    @testset "Integrality Errors" begin 
+        @test_throws ErrorException set_binary(dx)
+        @test_throws ErrorException set_integer(dx)
+    end
 end
 
 # Test Start Methods 

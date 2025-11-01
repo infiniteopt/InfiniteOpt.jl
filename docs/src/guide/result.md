@@ -38,11 +38,10 @@ julia> @constraint(model, c2, y(0) == 42);
 julia> print(model)
 Min 2 z
 Subject to
- y(t) ≥ 0.0, ∀ t ∈ [0, 10]
- z ≥ 0.0
- c1 : z - y(t) ≥ 0.0, ∀ t ∈ [0, 10]
- y(0) ≥ 0.0
- c2 : y(0) = 42.0
+ y(t) ≥ 0, ∀ t ∈ [0, 10]
+ z ≥ 0
+ c1 : z - y(t) ≥ 0, ∀ t ∈ [0, 10]
+ c2 : y(0) = 42
 
 julia> optimize!(model)
 

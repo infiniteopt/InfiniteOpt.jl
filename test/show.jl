@@ -485,6 +485,10 @@
         str = "pars2_{1} " * InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 2], " *
               "pars2_{2} " * InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 2]"
         @test InfiniteOpt._param_domain_string(MIME("text/latex"), m, idx) == str
+        # MultiDistributionDomain
+        idx = index(pars[1]).object_index
+        str = "pars " * InfiniteOpt._math_symbol(MIME("text/plain"), :prop) * " FullNormal(dim: (2))"
+        @test InfiniteOpt._param_domain_string(MIME("text/plain"), m, idx) == str
     end
     # test constraint_string (infinite constraint)
     @testset "JuMP.constraint_string (Infinite)" begin
