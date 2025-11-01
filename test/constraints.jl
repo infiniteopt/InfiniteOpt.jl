@@ -87,12 +87,13 @@
         @test name(cref) == "new"
     end
     # test has_domain_restrictions
-    @testset "has_domain_restrictions" begin
-        @test !has_domain_restrictions(cref)
+    @testset "has_domain_restriction" begin
+        @test !has_domain_restriction(cref)
+        @test_deprecated !has_domain_restrictions(cref)
     end
-    # test domain_restrictions
-    @testset "domain_restrictions" begin
-        @test domain_restrictions(cref) == DomainRestrictions()
+    # test domain_restriction
+    @testset "domain_restriction" begin
+        @test_throws ErrorException domain_restriction(cref)
     end
     # constraint_by_name
     @testset "JuMP.constraint_by_name" begin
@@ -130,54 +131,14 @@ end
     mindex = MeasureIndex(1)
     dinf = @deriv(inf, par)
     @finite_parameter(m, fin == 42)
-    # test _check_restrictions
-    @testset "_check_restrictions" begin
-        # test normal
-        rs = DomainRestrictions(par => [0, 1])
-        @test InfiniteOpt._check_restrictions(rs) isa Nothing
-        rs = DomainRestrictions(pars => [0, 1])
-        @test InfiniteOpt._check_restrictions(rs) isa Nothing
-        rs = DomainRestrictions(pars => 0)
-        @test InfiniteOpt._check_restrictions(rs) isa Nothing
-        rs = DomainRestrictions(pars[1] => [0, 1])
-        @test InfiniteOpt._check_restrictions(rs) isa Nothing
-        # test errors
-        rs = DomainRestrictions(fin => [0, 1])
-        @test_throws ErrorException InfiniteOpt._check_restrictions(rs)
-        rs = DomainRestrictions(par => [-1, 1])
-        @test_throws ErrorException InfiniteOpt._check_restrictions(rs)
-        rs = DomainRestrictions(par => [0, 2])
-        @test_throws ErrorException InfiniteOpt._check_restrictions(rs)
-        rs = DomainRestrictions(pars[1] => 0)
-        @test_throws ErrorException InfiniteOpt._check_restrictions(rs)
-        rs = DomainRestrictions(pars[1] => 0, pars[2] => [0, 3])
-        @test_throws ErrorException InfiniteOpt._check_restrictions(rs)
-    end
+    r = DomainRestriction((a) -> 0 <= a <= 0.5, par)
     # test build_constraint for DomainRestrictedConstraint
     @testset "build_constraint (DomainRestrictedConstraint)" begin 
-        c = JuMP.ScalarConstraint(inf + x, MOI.EqualTo(0.0))
-        rs = DomainRestrictions(par => [0, 1])
-        @test build_constraint(error, inf + x, MOI.EqualTo(0.0), rs).constraint isa ScalarConstraint
-        @test build_constraint(error, inf + x, MOI.EqualTo(0.0), rs).restrictions == rs
-    end
-    # test _validate_restrictions 
-    @testset "_validate_restrictions" begin 
-        # test normal
-        rs = DomainRestrictions(par => [0, 1])
-        @test InfiniteOpt._validate_restrictions(m, rs) isa Nothing
-        @test num_supports(par) == 1
-        # test error
-        @infinite_parameter(InfiniteModel(), par2 ~ Normal())
-        rs = DomainRestrictions(par2 => [0, 1])
-        err = VariableNotOwned{GeneralVariableRef} 
-        @test_throws err InfiniteOpt._validate_restrictions(m, rs)
-        # test support addition
-        rs = DomainRestrictions(par => 0)
-        @test InfiniteOpt._validate_restrictions(m, rs) isa Nothing
-        @test supports(par, label = UserDefined) == [0, 0.5]
-        rs = DomainRestrictions(pars => 0)
-        @test InfiniteOpt._validate_restrictions(m, rs) isa Nothing
-        @test supports(pars) == zeros(2, 1)
+        @test build_constraint(error, inf + x, MOI.EqualTo(0.0), r).constraint isa ScalarConstraint
+        @test build_constraint(error, inf + x, MOI.EqualTo(0.0), r).restriction isa ParameterFunction
+        @test_throws ErrorException build_constraint(error, x, MOI.LessThan(0.0), r)
+        bad_r = DomainRestriction((a) -> -1 <= a <= 2, par, pars)
+        @test_throws ErrorException build_constraint(error, inf + x, MOI.LessThan(0.0), bad_r)
     end
     # test _update_var_constr_mapping
     @testset "_update_var_constr_mapping" begin
@@ -224,22 +185,20 @@ end
         err = VariableNotOwned{GeneralVariableRef}
         @test_throws err add_constraint(m, con, "a")
         # test restricted constraint
-        rs = DomainRestrictions(par => [0, 1])
-        con = ScalarConstraint(inf + pt, MOI.EqualTo(42.0))
-        con = DomainRestrictedConstraint(con, rs)
+        con = build_constraint(error, inf + pt, MOI.EqualTo(42.0), r)
         idx = InfOptConstraintIndex(1)
         cref = InfOptConstraintRef(m, idx)
         @test add_constraint(m, con, "a") == cref
         @test name(cref) == "a"
-        @test domain_restrictions(cref) == rs
-        @test constraint_object(cref).set == MOI.EqualTo(42.0)
+        @test domain_restriction(cref)(0.2) == true
+        @test constraint_object(cref) == con
         # test infinite constraint
         con = ScalarConstraint(inf + pt, MOI.EqualTo(42.0))
         idx = InfOptConstraintIndex(2)
         cref = InfOptConstraintRef(m, idx)
         @test add_constraint(m, con, "b") == cref
         @test name(cref) == "b"
-        @test domain_restrictions(cref) == DomainRestrictions()
+        @test !has_domain_restriction(cref)
         @test constraint_object(cref).set == MOI.EqualTo(42.0)
         # test finite constraint
         con = ScalarConstraint(x + pt, MOI.EqualTo(42.0))
@@ -256,7 +215,7 @@ end
         cref = InfOptConstraintRef(m, idx)
         @test add_constraint(m, con, "e") == cref
         @test constraint_object(cref) isa VectorConstraint
-        @test !has_domain_restrictions(cref)
+        @test !has_domain_restriction(cref)
     end
     # test macro
     @testset "JuMP.@constraint" begin
@@ -266,12 +225,11 @@ end
         @test @constraint(m, f, x + pt -2 <= 2) == cref
         @test constraint_object(cref) isa ScalarConstraint
         # test restricted scalar constraint
-        rs = DomainRestrictions(par => [0, 1])
         idx = InfOptConstraintIndex(6)
         cref = InfOptConstraintRef(m, idx)
-        @test @constraint(m, g, inf + meas - dinf <= 2, rs) == cref
+        @test @constraint(m, g, inf + meas - dinf <= 2, r) == cref
         @test InfiniteOpt.parameter_group_int_indices(cref) == [1]
-        @test constraint_object(cref) isa ScalarConstraint
+        @test constraint_object(cref) isa DomainRestrictedConstraint
         @test used_by_constraint(dinf)
     end
 end
@@ -292,7 +250,7 @@ end
     end
 end
 
-# Test domain restrictions methods
+# Test domain restriction methods
 @testset "Domain Restrictions" begin
     # initialize model and references
     m = InfiniteModel()
@@ -301,71 +259,43 @@ end
     @variable(m, inf, Infinite(par))
     @variable(m, pt, Point(inf, 0.5))
     @variable(m, x >= 0, Int)
-    @constraint(m, c1, inf + x == 0, DomainRestrictions(par => [0, 1]))
+    @constraint(m, c1, inf + x == 0, DomainRestriction(a -> 0 <= a <= 1, par))
     @constraint(m, c2, x * pt + x == 2)
-    # test has_domain_restrictions
-    @testset "has_domain_restrictions" begin
-        @test has_domain_restrictions(c1)
-        @test !has_domain_restrictions(c2)
+    # test has_domain_restriction
+    @testset "has_domain_restriction" begin
+        @test has_domain_restriction(c1)
+        @test !has_domain_restriction(c2)
+        @test_deprecated has_domain_restrictions(c1)
     end
-    # test domain_restrictions
-    @testset "domain_restrictions" begin
-        @test domain_restrictions(c1) == DomainRestrictions(par => [0, 1])
-        @test domain_restrictions(c2) == DomainRestrictions()
+    # test domain_restriction
+    @testset "domain_restriction" begin
+        @test_deprecated domain_restrictions(c1) isa ParameterFunction
+        @test_throws ErrorException domain_restriction(c2)
+        @test domain_restriction(c1)(0.5) == true
+        @test domain_restriction(c1)(1.5) == false
     end
-    # test set_domain_restrictions
-    @testset "set_domain_restrictions" begin
-        # test force error
-        rs = DomainRestrictions(par => [0, 1])
-        @test_throws ErrorException set_domain_restrictions(c1, rs)
-        # test normal
-        @test set_domain_restrictions(c2, rs) isa Nothing
-        @test domain_restrictions(c2) == rs
-        @test !transformation_backend_ready(m)
-        # test test error with restrictions
-        rs2 = DomainRestrictions(par => [-1, 1])
-        @test_throws ErrorException set_domain_restrictions(c1, rs2, force = true)
-        # test deprecation
-        empty!(domain_restrictions(c1).intervals)
-    end
-    # test _update_restrictions
-    @testset "_update_restrictions" begin
-        # test normal
-        rs1 = DomainRestrictions(pars[1] => [0, 1], pars[2] => [-1, 2])
-        rs2 = DomainRestrictions(par => 0, pars[1] => [0.5, 1.5],
-                                 pars[2] => [0, 1])
-        @test isa(InfiniteOpt._update_restrictions(rs1, rs2), Nothing)
-        @test length(rs1) == 3
-        @test rs1[par] == IntervalDomain(0, 0)
-        @test rs1[pars[1]] == IntervalDomain(0.5, 1)
-        @test rs1[pars[2]] == IntervalDomain(0, 1)
+    # test set_domain_restriction
+    @testset "set_domain_restriction" begin
+        r = DomainRestriction(a -> 0.2 <= a <= 0.5, par)
         # test error
-        new_rs = DomainRestrictions(par => 1)
-        @test_throws ErrorException InfiniteOpt._update_restrictions(rs1, new_rs)
-        new_rs = DomainRestrictions(par => -1)
-        @test_throws ErrorException InfiniteOpt._update_restrictions(rs1, new_rs)
+        @test_throws ErrorException set_domain_restriction(c2, r)
+        # test normal
+        @test set_domain_restriction(c1, r) isa Nothing
+        @test domain_restriction(c1)(0.1) == false
+        @test domain_restriction(c1)(0.3) == true
+        @test !transformation_backend_ready(m)
+        # test deprecation
+        @test_deprecated set_domain_restrictions(c1, r) isa Nothing
+        @test_throws ErrorException DomainRestrictions(par => [0, 1])
     end
-    # test add_parameter_restrictions
-    @testset "add_domain_restrictions" begin
-        # test already has restrictions
-        rs = DomainRestrictions(par => [0, 1])
-        @test add_domain_restrictions(c1, copy(rs)) isa Nothing
-        @test domain_restrictions(c1) == rs
-        # test doesn't have restrictions
-        @constraint(m, c3, inf + pt == 0)
-        @test add_domain_restrictions(c3, copy(rs)) isa Nothing
-        @test domain_restrictions(c3) == rs
-    end
-    # test delete_domain_restrictions
-    @testset "delete_domain_restrictions" begin
-        # test partial deletion
-        rs = DomainRestrictions(pars[1] => [0, 1])
-        @test add_domain_restrictions(c1, rs) isa Nothing
-        @test delete_domain_restrictions(c1) isa Nothing
-        @test !has_domain_restrictions(c1)
+    # test delete_domain_restriction
+    @testset "delete_domain_restriction" begin
+        @test delete_domain_restriction(c1) isa Nothing
+        @test !has_domain_restriction(c1)
         # test already gone
-        @test delete_domain_restrictions(c1) isa Nothing
-        @test !has_domain_restrictions(c1)
+        @test delete_domain_restriction(c1) isa Nothing
+        @test !has_domain_restriction(c1)
+        @test_deprecated delete_domain_restrictions(c1) isa Nothing
     end
 end
 
@@ -377,7 +307,8 @@ end
     @variable(m, inf, Infinite(par))
     @variable(m, pt, Point(inf, 0.5))
     @variable(m, x >= 0., Int)
-    @constraint(m, c1, inf + x == 0., DomainRestrictions(par => [0, 1]))
+    r = DomainRestriction(a -> 0 <= a <= 0.5, par)
+    @constraint(m, c1, inf + x == 0., r)
     @constraint(m, c2, x * pt + x == 2.)
     @constraint(m, c3, [inf, x] in MOI.Zeros(2))
     # test set_normalized_coefficient
@@ -406,11 +337,11 @@ end
     # test set_normalized_rhs
     @testset "JuMP.set_normalized_rhs" begin
         @test isa(set_normalized_rhs(c1, 42.), Nothing)
-        @test constraint_object(c1).set == MOI.EqualTo(42.0)
+        @test moi_set(constraint_object(c1)) == MOI.EqualTo(42.0)
         @test isa(set_normalized_rhs(c2, 42.), Nothing)
-        @test constraint_object(c2).set == MOI.EqualTo(42.0)
+        @test moi_set(constraint_object(c2)) == MOI.EqualTo(42.0)
         @test isa(set_normalized_rhs(LowerBoundRef(x), 42.0), Nothing)
-        @test constraint_object(LowerBoundRef(x)).set == MOI.GreaterThan(42.0)
+        @test moi_set(constraint_object(LowerBoundRef(x))) == MOI.GreaterThan(42.0)
         @test_throws ErrorException set_normalized_rhs(c3, 42)
     end
     # test normalized_rhs
@@ -423,11 +354,11 @@ end
     # test add_to_function_constant
     @testset "JuMP.add_to_function_constant" begin
         @test isa(add_to_function_constant(c1, 4.), Nothing)
-        @test constraint_object(c1).set == MOI.EqualTo(38.0)
+        @test moi_set(constraint_object(c1)) == MOI.EqualTo(38.0)
         @test isa(add_to_function_constant(c2, 4.), Nothing)
-        @test constraint_object(c2).set == MOI.EqualTo(38.0)
+        @test moi_set(constraint_object(c2)) == MOI.EqualTo(38.0)
         @test isa(add_to_function_constant(LowerBoundRef(x), 4.0), Nothing)
-        @test constraint_object(LowerBoundRef(x)).set == MOI.GreaterThan(38.0)
+        @test moi_set(constraint_object(LowerBoundRef(x))) == MOI.GreaterThan(38.0)
         @test_throws ErrorException add_to_function_constant(c3, 42)
     end
 end
@@ -443,20 +374,20 @@ end
     # test search function type and set type
     @testset "Function and Set" begin
         @test num_constraints(m, GeneralVariableRef, MOI.LessThan) == 1
-        @test num_constraints(m, GeneralVariableRef, MOI.GreaterThan) == 3
+        @test num_constraints(m, GeneralVariableRef, MOI.GreaterThan) == 2
     end
     # test search function type
     @testset "Function" begin
-        @test num_constraints(m, GeneralVariableRef) == 5
+        @test num_constraints(m, GeneralVariableRef) == 4
     end
     # test search set type
     @testset "Set" begin
         @test num_constraints(m, MOI.LessThan) == 1
-        @test num_constraints(m, MOI.GreaterThan) == 3
+        @test num_constraints(m, MOI.GreaterThan) == 2
     end
     # test search total
     @testset "Total" begin
-        @test num_constraints(m) == 5
+        @test num_constraints(m) == 4
     end
 end
 
@@ -470,11 +401,10 @@ end
     @variable(m, 0 <= x <= 1, Int)
     # test search function type and set type
     @testset "Function and Set" begin
-        list = [InfOptConstraintRef(m, InfOptConstraintIndex(4))]
+        list = [InfOptConstraintRef(m, InfOptConstraintIndex(3))]
         @test all_constraints(m, GeneralVariableRef, MOI.LessThan) == list
         list = [InfOptConstraintRef(m, InfOptConstraintIndex(1)),
-                InfOptConstraintRef(m, InfOptConstraintIndex(2)),
-                InfOptConstraintRef(m, InfOptConstraintIndex(3))]
+                InfOptConstraintRef(m, InfOptConstraintIndex(2))]
         @test all_constraints(m, GeneralVariableRef, MOI.GreaterThan) == list
     end
     # test search function type
@@ -482,17 +412,15 @@ end
         list = [InfOptConstraintRef(m, InfOptConstraintIndex(1)),
                 InfOptConstraintRef(m, InfOptConstraintIndex(2)),
                 InfOptConstraintRef(m, InfOptConstraintIndex(3)),
-                InfOptConstraintRef(m, InfOptConstraintIndex(4)),
-                InfOptConstraintRef(m, InfOptConstraintIndex(5))]
+                InfOptConstraintRef(m, InfOptConstraintIndex(4))]
         @test all_constraints(m, GeneralVariableRef) == list
     end
     # test search set type
     @testset "Set" begin
-        list = [InfOptConstraintRef(m, InfOptConstraintIndex(4))]
+        list = [InfOptConstraintRef(m, InfOptConstraintIndex(3))]
         @test all_constraints(m, MOI.LessThan) == list
         list = [InfOptConstraintRef(m, InfOptConstraintIndex(1)),
-                InfOptConstraintRef(m, InfOptConstraintIndex(2)),
-                InfOptConstraintRef(m, InfOptConstraintIndex(3))]
+                InfOptConstraintRef(m, InfOptConstraintIndex(2))]
         @test all_constraints(m, MOI.GreaterThan) == list
     end
     # test search total
@@ -500,8 +428,7 @@ end
         list = [InfOptConstraintRef(m, InfOptConstraintIndex(1)),
                 InfOptConstraintRef(m, InfOptConstraintIndex(2)),
                 InfOptConstraintRef(m, InfOptConstraintIndex(3)),
-                InfOptConstraintRef(m, InfOptConstraintIndex(4)),
-                InfOptConstraintRef(m, InfOptConstraintIndex(5))]
+                InfOptConstraintRef(m, InfOptConstraintIndex(4))]
         @test all_constraints(m) == list
     end
 end

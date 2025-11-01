@@ -29,6 +29,7 @@ JuMP.build_variable(::Function, ::JuMP.VariableInfo, ::SemiInfinite)
 JuMP.build_variable(::Function, ::GeneralVariableRef, ::Vector{Float64})
 JuMP.add_variable(::InfiniteModel, ::SemiInfiniteVariable, ::String)
 SemiInfiniteVariable
+RestrictedDomainInfo
 SemiInfiniteVariableIndex
 SemiInfiniteVariableRef
 ```
@@ -97,20 +98,6 @@ core_object(::InfiniteVariableRef)
 
 ### Semi-Infinite
 ```@docs
-JuMP.has_lower_bound(::SemiInfiniteVariableRef)
-JuMP.lower_bound(::SemiInfiniteVariableRef)
-JuMP.LowerBoundRef(::SemiInfiniteVariableRef)
-JuMP.has_upper_bound(::SemiInfiniteVariableRef)
-JuMP.upper_bound(::SemiInfiniteVariableRef)
-JuMP.UpperBoundRef(::SemiInfiniteVariableRef)
-JuMP.is_fixed(::SemiInfiniteVariableRef)
-JuMP.fix_value(::SemiInfiniteVariableRef)
-JuMP.FixRef(::SemiInfiniteVariableRef)
-start_value_function(::SemiInfiniteVariableRef)
-JuMP.is_binary(::SemiInfiniteVariableRef)
-JuMP.BinaryRef(::SemiInfiniteVariableRef)
-JuMP.is_integer(::SemiInfiniteVariableRef)
-JuMP.IntegerRef(::SemiInfiniteVariableRef)
 infinite_variable_ref(::SemiInfiniteVariableRef)
 parameter_refs(::SemiInfiniteVariableRef)
 parameter_list(::SemiInfiniteVariableRef)
@@ -139,13 +126,13 @@ core_object(::FiniteVariableRef)
 ### General
 ```@docs
 JuMP.set_name(::DecisionVariableRef, ::String)
-JuMP.set_lower_bound(::UserDecisionVariableRef, ::Real)
+JuMP.set_lower_bound(::UserDecisionVariableRef, ::Union{<:Real, <:Function})
 JuMP.delete_lower_bound(::UserDecisionVariableRef)
-JuMP.set_upper_bound(::UserDecisionVariableRef, ::Real)
+JuMP.set_upper_bound(::UserDecisionVariableRef, ::Union{<:Real, <:Function})
 JuMP.delete_upper_bound(::UserDecisionVariableRef)
-JuMP.fix(::UserDecisionVariableRef, ::Real; ::Bool)
+JuMP.fix(::UserDecisionVariableRef, ::Union{<:Real, <:Function}; ::Bool)
 JuMP.unfix(::UserDecisionVariableRef)
-JuMP.set_start_value(::UserDecisionVariableRef, ::Real)
+JuMP.set_start_value(::UserDecisionVariableRef, ::Union{<:Real, <:Function})
 JuMP.set_binary(::UserDecisionVariableRef)
 JuMP.unset_binary(::UserDecisionVariableRef)
 JuMP.set_integer(::UserDecisionVariableRef)
@@ -156,8 +143,6 @@ JuMP.delete(::InfiniteModel, ::DecisionVariableRef)
 
 ### Infinite
 ```@docs
-set_start_value_function(::InfiniteVariableRef, ::Union{Real, Function})
-reset_start_value_function(::InfiniteVariableRef)
 constant_over_collocation(::InfiniteVariableRef, ::GeneralVariableRef)
 ```
 

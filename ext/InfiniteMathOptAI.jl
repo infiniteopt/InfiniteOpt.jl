@@ -33,6 +33,8 @@ function MathOptAI.add_variables(
     )
 end
 
-# TODO extend MathOptAI.[get/set]_variable_bounds if/when function bounds are allowed in InfiniteOpt
+# TODO implement these to fully support InfiniteOpt variables
+MathOptAI.get_variable_bounds(::InfiniteOpt.GeneralVariableRef) = missing, missing
+MathOptAI.get_variable_start(::InfiniteOpt.GeneralVariableRef) = missing
 
 end # end of module

@@ -36,7 +36,7 @@ function make_point_variable_ref(
     support, 
     ::Union{Type{InfiniteVariableIndex}, Type{DerivativeIndex}, Type{ParameterFunctionIndex}}
     )
-    var = _make_point_variable(ivref, support, parameter_list(ivref))
+    var = _build_point_variable(ivref, support, parameter_list(ivref))
     return JuMP.add_variable(write_model, var; add_support = false)
 end
 
@@ -54,7 +54,7 @@ is an transformation backend. This is useful for extensions that wish to expand
 measures, but without changing the original `InfiniteModel`. An error is thrown 
 for unextended backend types.
 """
-function add_point_variable(backend::AbstractTransformationBackend, ivref, supp)
+function add_point_variable(backend::AbstractTransformationBackend, var)
     error("`add_point_variable` not defined for transformation backends of type " *
           "`$(typeof(backend))`.")
 end
@@ -66,7 +66,7 @@ function make_point_variable_ref(
     ivref::GeneralVariableRef,
     support::Vector{Float64}
     )
-    var = _make_point_variable(ivref, support, parameter_list(ivref))
+    var = _build_point_variable(ivref, support, parameter_list(ivref))
     return add_point_variable(write_model, var)
 end
 
@@ -923,7 +923,13 @@ function expand_all_measures!(model::InfiniteModel)
             new_func = expand_measures(JuMP.jump_function(old_constr), model)
             vrefs = all_expression_variables(new_func)
             # make the new constraint object
-            new_constr = JuMP.build_constraint(error, new_func, set)
+            if old_constr isa DomainRestrictedConstraint
+                restrict = old_constr.restriction
+                con = JuMP.build_constraint(error, new_func, set)
+                new_constr = DomainRestrictedConstraint(con, restrict)
+            else
+                new_constr = JuMP.build_constraint(error, new_func, set)
+            end
             # update the constraint data
             cref = InfOptConstraintRef(model, cindex)
             _set_core_object(cref, new_constr)

@@ -209,7 +209,7 @@ function _format_infinite_info(
         info.has_fix,
         _process_info_arg(info.fixed_value, support),
         info.has_start, 
-        _process_info_arg(start, support),
+        _process_info_arg(info.start, support),
         info.binary, 
         info.integer
     )
@@ -332,9 +332,8 @@ function transcribe_derivative_variables!(
         if !InfiniteOpt.allows_high_order_derivatives(method) && d.order > 1
             for o in d.order-1:-1:1
                 if !haskey(model.deriv_lookup, (d.variable_ref, d.parameter_ref, o))
-                    info = JuMP.VariableInfo(false, NaN, false, NaN, false, NaN, false, 
-                                             s -> NaN, false, false)
-                    new_d = InfiniteOpt.Derivative(info, true, d.variable_ref, d.parameter_ref, o)
+                    info = InfiniteOpt._DefaultDerivativeInfo
+                    new_d = InfiniteOpt.Derivative(info, d.variable_ref, d.parameter_ref, o)
                     new_dref = InfiniteOpt.add_derivative(model, new_d)
                     _transcribe_derivative_variable(new_dref, d, backend)
                 end
@@ -353,6 +352,9 @@ function _update_variable_domain(
     )
     if info.active_lower_bound_info
         if !isnan(info.lower_bound)
+            if JuMP.is_fixed(vref)
+                JuMP.unfix(vref)
+            end
             JuMP.set_lower_bound(vref, info.lower_bound)
         elseif JuMP.has_lower_bound(vref)
             JuMP.delete_lower_bound(vref)
@@ -360,7 +362,10 @@ function _update_variable_domain(
     end
     if info.active_upper_bound_info
         if !isnan(info.upper_bound)
-            JuMP.set_lower_bound(vref, info.upper_bound)
+            if JuMP.is_fixed(vref)
+                JuMP.unfix(vref)
+            end
+            JuMP.set_upper_bound(vref, info.upper_bound)
         elseif JuMP.has_upper_bound(vref)
             JuMP.delete_upper_bound(vref)
         end
@@ -372,7 +377,7 @@ function _update_variable_domain(
             JuMP.unfix(vref)
         end
     end
-    if info.active_start_info
+    if info.active_start_info && !isnan(info.start_value)
         JuMP.set_start_value(vref, info.start_value)
     end
     return
@@ -733,7 +738,8 @@ function _support_in_restrictions(
     constr::InfiniteOpt.DomainRestrictedConstraint,
     support::Vector{Float64}
     )
-    return constr.restriction_func(support[restriction.parameter_nums])
+    restriction = constr.restriction
+    return restriction(support[restriction.parameter_nums])
 end
 function _support_in_restrictions(
     constr::JuMP.AbstractConstraint,

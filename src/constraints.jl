@@ -210,6 +210,24 @@ struct DomainRestriction{F}
     end
 end
 
+# Check and process restrictions use infinite parameters the constraint depends on
+function _process_restrictions(
+    _error::Function,
+    restriction::DomainRestriction,
+    constr_param_group_idxs::Vector{Int}
+    )
+    pfunc_restrict = build_parameter_function(
+        _error,
+        restriction.restriction_func,
+        restriction.parameter_refs
+    )
+    if !all(idx in constr_param_group_idxs for idx in pfunc_restrict.group_int_idxs)
+        _error("The `DomainRestriction` restricts infinite parameters that the " *
+               "constraint does not depend on.")
+    end
+    return pfunc_restrict
+end
+
 """
     JuMP.build_constraint(
         _error::Function,
@@ -243,16 +261,11 @@ function JuMP.build_constraint(
     )
     # make the constraint and check the domain restrictions
     constr = JuMP.build_constraint(_error, func, set)
-    pfunc_restrict = build_parameter_function(
+    pfunc_restrict = _process_restrictions(
         _error,
-        restriction.restriction_func,
-        restriction.parameter_refs
+        restriction,
+        parameter_group_int_indices(func)
     )
-    constr_group_idxs = parameter_group_int_indices(JuMP.jump_function(constr))
-    if !all(idx in constr_group_idxs for idx in pfunc_restrict.group_int_idxs)
-        _error("The `DomainRestriction` restricts infinite parameters that the " *
-               "does not depend on.")
-    end
     return DomainRestrictedConstraint(constr, pfunc_restrict)
 end
 
@@ -832,12 +845,12 @@ function set_domain_restriction(
     cref::InfOptConstraintRef,
     restriction::DomainRestriction
     )
-    pfunc = build_parameter_function(
-        error,
-        restriction.restriction_func,
-        restriction.parameter_refs
-    )
     constr = JuMP.constraint_object(cref)
+    pfunc = _process_restrictions(
+        error,
+        restriction,
+        parameter_group_int_indices(JuMP.jump_function(constr))
+    )
     jump_constr = _jump_constraint(constr)
     _set_core_object(cref, DomainRestrictedConstraint(jump_constr, pfunc))
     set_transformation_backend_ready(JuMP.owner_model(cref), false)
@@ -854,7 +867,7 @@ Delete the domain restriction of the constraint `cref`.
 julia> delete_domain_restriction(c1)
 ```
 """
-function delete_domain_restrictions(cref::InfOptConstraintRef)
+function delete_domain_restriction(cref::InfOptConstraintRef)
     constr = JuMP.constraint_object(cref)
     if has_domain_restriction(constr)
         _set_core_object(cref, constr.constraint)

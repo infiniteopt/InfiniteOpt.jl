@@ -7,8 +7,8 @@
     @parameter_function(m, pf == par -> sin(par))
     @variable(m, x, Infinite(par))
     @variable(m, y, Infinite(par, pars))
-    @variable(m, x0, Point(x, 0))
-    @variable(m, y0, SemiInfinite(y, 0, pars))
+    x0 = x(0)
+    y0 = y(0, pars)
     tb = m.backend
     @variable(tb.model, a)
     @variable(tb.model, b)
@@ -37,31 +37,34 @@
         @test isequal(pfref, testRef)
         @test IOTO.transcription_variable(pfref) == sin(1)
         # add a point var that was already added internally
-        @test isequal(InfiniteOpt.add_point_variable(tb, pf, Float64[1]), pfref)
+        var = PointVariable(RestrictedDomainInfo(), pf, [1.0])
+        @test isequal(InfiniteOpt.add_point_variable(tb, var), pfref)
         @test IOTO.transcription_variable(pfref) == sin(1)
 
     end
     # test add_point_variable
     @testset "add_point_variable" begin
         # add one that was already added to the infinite model 
-        @test isequal(InfiniteOpt.add_point_variable(tb, x, Float64[0]), x0)
+        var = PointVariable(RestrictedDomainInfo(), x, [0.0])
+        @test isequal(InfiniteOpt.add_point_variable(tb, var), x0)
         @test IOTO.transcription_variable(x0) == a
         # add one that hasn't been added
         vref = GeneralVariableRef(m, -2, PointVariableIndex)
-        @test isequal(InfiniteOpt.add_point_variable(tb, x, Float64[1]), vref)
+        var = PointVariable(RestrictedDomainInfo(), x, [1.0])
+        @test isequal(InfiniteOpt.add_point_variable(tb, var), vref)
         @test IOTO.transcription_variable(vref) == b
         # add one that has been added internally
-        @test isequal(InfiniteOpt.add_point_variable(tb, x, Float64[1]), vref)
+        @test isequal(InfiniteOpt.add_point_variable(tb, var), vref)
         @test IOTO.transcription_variable(vref) == b
     end
     # test add_semi_infinite_variable
     @testset "add_semi_infinite_variable" begin
         # add one that was already added to the infinite model
-        var = SemiInfiniteVariable(y, [0.0, NaN, NaN], [2, 3], [2])
+        var = SemiInfiniteVariable(RestrictedDomainInfo(), y, [0.0, NaN, NaN], [2, 3], [2])
         @test isequal(InfiniteOpt.add_semi_infinite_variable(tb, var), y0)
         @test IOTO.transcription_variable(y0) == [a, b]
         # add a new one
-        var = SemiInfiniteVariable(y, [1.0, NaN, NaN], [2, 3], [2])
+        var = SemiInfiniteVariable(RestrictedDomainInfo(), y, [1.0, NaN, NaN], [2, 3], [2])
         vref = GeneralVariableRef(m, -1, SemiInfiniteVariableIndex)
         @test isequal(InfiniteOpt.add_semi_infinite_variable(tb, var), vref)
         @test isequal(data.semi_infinite_vars, [var])

@@ -334,12 +334,21 @@ end
     vref = dispatch_variable_ref(gvref)
     gvref2 = @variable(m, var2)
     vref2 = dispatch_variable_ref(gvref2)
+    @infinite_parameter(m, t in [0, 1])
+    @infinite_parameter(m, x in [-1, 1])
+    f(a, b) = 42
+    @variable(m, y, Infinite(t, x), start = f)
+    y0 = y(0, x)
+    yb = y(0, -1)
     # start_value
     @testset "JuMP.start_value" begin
         @test start_value(vref) == 0
         @test start_value(gvref) == 0
         @test start_value(vref2) isa Nothing
         @test start_value(gvref2) isa Nothing
+        @test start_value(y)(0, 0) == 42
+        @test start_value(y0)(0) == 42
+        @test start_value(yb) == 42
     end
     # set_start_value
     @testset "JuMP.set_start_value" begin
@@ -347,6 +356,16 @@ end
         @test start_value(vref) == 1.5
         @test !transformation_backend_ready(m)
         @test isa(set_start_value(gvref, 1), Nothing)
+        @test set_start_value(y, 2) isa Nothing
+        @test start_value(y) == 2
+        @test start_value(y0) == 2
+        @test start_value(yb) == 2
+        @test isa(set_start_value(y, f), Nothing)
+        @test start_value(y)(0, 0) == 42
+        @test isa(set_start_value(y0, 3), Nothing)
+        @test start_value(y0) == 3
+        @test isa(set_start_value(yb, 4), Nothing)
+        @test start_value(yb) == 4
     end
 end
 
@@ -360,11 +379,19 @@ end
     vref1 = dispatch_variable_ref(gvref1)
     vref2 = dispatch_variable_ref(gvref2)
     vref3 = dispatch_variable_ref(gvref3)
+    @infinite_parameter(m, t in [0, 1])
+    @infinite_parameter(m, x in [-1, 1])
+    @variable(m, y, Infinite(t, x), Bin)
+    y0 = y(0, x)
+    yb = y(0, -1)
     # is_binary
     @testset "JuMP.is_binary" begin
         @test !is_binary(vref1)
         @test is_binary(vref2)
         @test is_binary(gvref2)
+        @test is_binary(y)
+        @test is_binary(y0)
+        @test is_binary(yb)
     end
     # _binary_index
     @testset "InfiniteOpt._binary_index" begin
@@ -383,14 +410,12 @@ end
     @testset "BinaryRef" begin
         # prepare constraint reference
         expected = InfOptConstraintRef(m, InfOptConstraintIndex(1))
-        # test for finite variable
+        # test
         @test BinaryRef(vref2) == expected
-        # prepare infinite variable
-        @infinite_parameter(m, t in [0, 1])
-        @variable(m, ivref, Infinite(t), Bin)
         expected = InfOptConstraintRef(m, InfOptConstraintIndex(3))
-        # test for infinite variable
-        @test BinaryRef(ivref) == expected
+        @test BinaryRef(y) == expected
+        @test BinaryRef(y0) == expected
+        @test BinaryRef(yb) == expected
     end
     # set_binary
     @testset "JuMP.set_binary" begin
@@ -410,6 +435,8 @@ end
         @test constraint_object(cref) == ScalarConstraint(gvref2, MOI.ZeroOne())
         # test integer variable error
         @test_throws ErrorException set_binary(vref3)
+        @test_throws ErrorException set_binary(y0)
+        @test_throws ErrorException set_binary(yb)
     end
 end
 
@@ -423,11 +450,19 @@ end
     vref1 = dispatch_variable_ref(gvref1)
     vref2 = dispatch_variable_ref(gvref2)
     vref3 = dispatch_variable_ref(gvref3)
+    @infinite_parameter(m, t in [0, 1])
+    @infinite_parameter(m, x in [-1, 1])
+    @variable(m, y, Infinite(t, x), Int)
+    y0 = y(0, x)
+    yb = y(0, -1)
     # is_integer
     @testset "JuMP.is_integer" begin
         @test !is_integer(vref1)
         @test is_integer(vref2)
         @test is_integer(gvref2)
+        @test is_integer(y)
+        @test is_integer(y0)
+        @test is_integer(yb)
     end
     # _integer_index
     @testset "InfiniteOpt._integer_index" begin
@@ -446,14 +481,12 @@ end
     @testset "IntegerRef" begin
         # prepare constraint reference
         expected = InfOptConstraintRef(m, InfOptConstraintIndex(1))
-        # test for finite variable
+        # test
         @test IntegerRef(vref2) == expected
-        # prepare infinite variable
-        @infinite_parameter(m, t in [0, 1])
-        @variable(m, ivref, Infinite(t), Int)
         expected = InfOptConstraintRef(m, InfOptConstraintIndex(3))
-        # test for infinite variable
-        @test IntegerRef(ivref) == expected
+        @test IntegerRef(y) == expected
+        @test IntegerRef(y0) == expected
+        @test IntegerRef(yb) == expected
     end
     # set_integer
     @testset "JuMP.set_integer" begin
@@ -473,6 +506,8 @@ end
         @test constraint_object(cref) == ScalarConstraint(gvref2, MOI.Integer())
         # test integer variable error
         @test_throws ErrorException set_integer(vref3)
+        @test_throws ErrorException set_integer(y0)
+        @test_throws ErrorException set_integer(yb)
     end
 end
 

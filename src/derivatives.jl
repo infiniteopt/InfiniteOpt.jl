@@ -252,6 +252,9 @@ function build_derivative(
     param_nums = _parameter_numbers(argument_ref)
     group_int_idxs = parameter_group_int_indices(argument_ref)
     new_info = _check_and_format_infinite_info(_error, info, prefs, param_nums, group_int_idxs)
+    if new_info.binary || new_info.integer
+        _error("Derivatives cannot be defined as binary or integer variables.")
+    end
     # make the derivative and return it 
     vref, order = _unnest_derivative(argument_ref, parameter_ref, order)
     return Derivative(new_info, vref, parameter_ref, order)
@@ -327,6 +330,20 @@ function JuMP.build_variable(
     return build_derivative(_error, info, ivref, pref, var_type.order)
 end
 
+# Default derivative info
+const _DefaultDerivativeInfo = VariableInfo(
+    false,
+    NaN,
+    false,
+    NaN,
+    false,
+    NaN,
+    false,
+    NaN,
+    false,
+    false
+)
+
 """
     add_derivative(
         model::InfiniteModel,
@@ -351,7 +368,12 @@ julia> dref = add_derivative(m, d)
 ∂²/∂t²[y(t)]
 ```
 """
-function add_derivative(model::InfiniteModel, d::Derivative, name::String = "")
+function add_derivative(
+    model::InfiniteModel,
+    d::Derivative, 
+    name::String = "";
+    macro_call::Bool = false
+    )
     # check the validity 
     vref = dispatch_variable_ref(d.variable_ref)
     pref = dispatch_variable_ref(d.parameter_ref)
@@ -371,9 +393,10 @@ function add_derivative(model::InfiniteModel, d::Derivative, name::String = "")
         model.deriv_lookup[(d.variable_ref, d.parameter_ref, d.order)] = dindex
     else
         dref = DerivativeRef(model, existing_index)
-        old_info = _variable_info(dref)
-        _delete_info_constraints(dref)
-        _set_core_object(dref, d)
+        if macro_call || d.info != _DefaultDerivativeInfo
+            _delete_info_constraints(dref)
+            _set_core_object(dref, d)
+        end
         if !isempty(name)
             set_name(dref, name)
         end
@@ -385,7 +408,7 @@ end
 
 # Extend JuMP.add_variable to enable macro definition 
 function JuMP.add_variable(model::InfiniteModel, d::Derivative, name::String = "")
-    return add_derivative(model, d, name)
+    return add_derivative(model, d, name, macro_call = true)
 end
 
 # Helper method to to quickly build and add derivatives internally
@@ -397,9 +420,7 @@ function _build_add_derivative(vref, pref, order)
     dindex = _existing_derivative_index(vref, pref, order)
     model = JuMP.owner_model(vref)
     if isnothing(dindex)
-        info = VariableInfo(false, NaN, false, NaN, false, NaN, false, 
-                            NaN, false, false)
-        d = Derivative(info, true, vref, pref, order)
+        d = Derivative(_DefaultDerivativeInfo, vref, pref, order)
         return add_derivative(model, d)
     else 
         return GeneralVariableRef(model, dindex)

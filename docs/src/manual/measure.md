@@ -122,7 +122,7 @@ InfiniteOpt.analytic_expansion
 InfiniteOpt.expand_measures
 make_point_variable_ref
 make_semi_infinite_variable_ref
-add_point_variable(::AbstractTransformationBackend, ::Any, ::Any)
+add_point_variable(::AbstractTransformationBackend, ::Any)
 add_semi_infinite_variable(::AbstractTransformationBackend, ::Any)
 internal_semi_infinite_variable
 ```

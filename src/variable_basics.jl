@@ -1138,7 +1138,7 @@ function JuMP.set_start_value(vref::DecisionVariableRef, value::Union{Real, Func
 end
 function JuMP.set_start_value(vref::RestrictedVariableRef, value::Real)
     info = _variable_info(vref)
-    _set_variable_info(vref, RestrictedDomainInfo(info, start_value = value))
+    _update_variable_info(vref, RestrictedDomainInfo(info, start_value = value))
     set_transformation_backend_ready(JuMP.owner_model(vref), false)
     return
 end
@@ -1239,7 +1239,7 @@ function JuMP.BinaryRef(vref::DecisionVariableRef)
     return InfOptConstraintRef(model, cindex)
 end
 function JuMP.BinaryRef(vref::RestrictedVariableRef)
-    return JuMP.BinaryRef(infinite_variable_ref(ivref))
+    return JuMP.BinaryRef(infinite_variable_ref(vref))
 end
 
 """

@@ -6,12 +6,10 @@
     @variable(m, x, Infinite(a))
     idx = DerivativeIndex(1)
     num = Float64(0)
-    func = (x) -> NaN
-    func2 = (a...) -> 1
-    info = VariableInfo(false, num, false, num, false, num, false, func, false, false)
-    new_info = VariableInfo(true, 0., true, 0., true, 0., true, func2, false, false)
-    deriv = Derivative(info, true, x, a, 1)
-    deriv2 = Derivative(new_info, true, x, a, 2)
+    info = VariableInfo(false, num, false, num, false, num, false, num, false, false)
+    new_info = VariableInfo(true, 0., true, 0., true, 0., true, num, false, false)
+    deriv = Derivative(info, x, a, 1)
+    deriv2 = Derivative(new_info, x, a, 2)
     object = VariableData(deriv, "var")
     dref = DerivativeRef(m, idx)
     gvref = GeneralVariableRef(m, 1, DerivativeIndex)
@@ -80,10 +78,6 @@
     # test _variable_info
     @testset "_variable_info" begin
         @test InfiniteOpt._variable_info(dref) == info
-    end
-    # test _is_vector_start
-    @testset "_is_vector_start" begin
-        @test InfiniteOpt._is_vector_start(dref)
     end
     # _update_variable_info
     @testset "_update_variable_info" begin
@@ -207,10 +201,10 @@ end
     num = Float64(0)
     func1 = (a, b) -> 2
     info = VariableInfo(false, num, false, num, false, num, false, NaN, false, false)
-    info2 = VariableInfo(true, num, true, num, true, num, true, func1, false, false)
+    info2 = VariableInfo(true, func1, true, num, true, func1, true, func1, false, false)
     info3 = VariableInfo(true, num, true, num, true, num, true, 42, false, true)
-    info4 = VariableInfo(true, num, false, num, false, num, true, s -> NaN, false, false)
-    info5 = VariableInfo(false, num, false, num, false, num, false, s -> NaN, false, false)
+    info4 = VariableInfo(true, num, false, num, false, num, true, num, false, false)
+    info5 = VariableInfo(false, num, false, num, false, num, false, NaN, false, false)
     # build_derivative
     @testset "build_derivative" begin 
         # test errors 
@@ -220,15 +214,16 @@ end
         @test_throws ErrorException build_derivative(error, info, y, pref2, -1)
         @test_throws ErrorException build_derivative(error, info, x, prefs[1])
         @test_throws ErrorException build_derivative(error, info, f, pref)
+        @test_throws ErrorException build_derivative(error, info3, x, pref)
         func = (a, b, c) -> a + sum(c)
         bad_info = VariableInfo(true, num, true, num, true, num, true, func, false, false)
         @test_throws ErrorException build_derivative(error, bad_info, x, pref)
         # test for expected output
         @test build_derivative(error, info, x, pref).info isa VariableInfo
-        @test build_derivative(error, info, x, pref).is_vector_start
         @test build_derivative(error, info, x, pref).order == 1
         @test isequal(build_derivative(error, info, x, pref).variable_ref, x)
         @test isequal(build_derivative(error, info, x, pref).parameter_ref, pref)
+        @test build_derivative(error, info2, x, pref, 2).order == 2
     end
     # Deriv{V, P}
     @testset "Deriv{V, P}" begin
@@ -281,8 +276,7 @@ end
         @test !transformation_backend_ready(m)
         @test InfiniteOpt._derivative_dependencies(pref) == [idx, idx2]
         @test InfiniteOpt._derivative_dependencies(x) == [DerivativeIndex(i) for i = 1:2]
-        @test !InfiniteOpt._is_vector_start(dref)
-        @test InfiniteOpt._variable_info(dref).start == func1
+        @test InfiniteOpt._variable_info(dref).start.func == func1
         @test InfiniteOpt._existing_derivative_index(x, pref, 2) == idx2
         # lower bound
         cindex = InfOptConstraintIndex(1)
@@ -290,7 +284,7 @@ end
         @test has_lower_bound(dref)
         @test InfiniteOpt._lower_bound_index(dref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
-                                                           MOI.GreaterThan{Float64}}
+                                                           <:MOI.GreaterThan{<:ParameterFunctionRealWrapper}}
         @test InfiniteOpt._data_object(cref).is_info_constraint
         # upper bound
         cindex = InfOptConstraintIndex(2)
@@ -306,30 +300,31 @@ end
         @test is_fixed(dref)
         @test InfiniteOpt._fix_index(dref) == cindex
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
-                                                           MOI.EqualTo{Float64}}
+                                                           <:MOI.EqualTo{<:ParameterFunctionRealWrapper}}
         @test InfiniteOpt._data_object(cref).is_info_constraint
         @test InfiniteOpt._constraint_dependencies(dref) == [InfOptConstraintIndex(i)
                                                              for i = 1:3]
         # test redundant build 
+        idx = DerivativeIndex(2)
+        dref = DerivativeRef(m, idx)
+        gvref = GeneralVariableRef(m, idx)
+        d = Derivative(InfiniteOpt._DefaultDerivativeInfo, x, pref, 2)
+        @test isequal(add_derivative(m, d, "name2"), gvref)
+        @test haskey(InfiniteOpt._data_dictionary(dref), idx)
+        @test name(dref) == "name2"
+        @test lower_bound(dref) isa ParameterFunction
+        # test redundant build with info changes
         idx = DerivativeIndex(1)
         dref = DerivativeRef(m, idx)
         gvref = GeneralVariableRef(m, idx)
-        d = Derivative(info4, false, x, pref, 1)
-        @test isequal(add_derivative(m, d, "name2"), gvref)
-        @test haskey(InfiniteOpt._data_dictionary(dref), idx)
-        @test core_object(dref) == d
-        @test name(dref) == "name2"
-        @test lower_bound(dref) == 0
-        # test redundant build with warning 
-        idx = DerivativeIndex(1)
-        dref = DerivativeRef(m, idx)
-        d = Derivative(info5, true, x, pref, 1)
-        warn = "Overwriting name2(pref, prefs), any previous properties (e.g., lower bound " * 
-               "or start value) will be lost/changed."
-        @test_logs (:warn, warn) add_derivative(m, d, "name3")
+        d = Derivative(info4, x, pref, 1)
+        @test add_derivative(m, d, "name3") == gvref
         @test haskey(InfiniteOpt._data_dictionary(dref), idx)
         @test core_object(dref) == d
         @test name(dref) == "name3"
+        @test lower_bound(dref) == 0
+        @test !has_upper_bound(dref)
+        @test start_value(dref) == 0
     end
     # test JuMP.add_variable 
     @testset "JuMP.add_variable" begin 
@@ -445,8 +440,7 @@ end
         @test @deriv(42, pref^1) == 0
         @test @deriv(w, pref^2, pref2) isa GeneralVariableRef
         # test with semi_infinite variables 
-        rv = build_variable(error, gvref, [NaN, 1.0, 0.0])
-        rvref = add_variable(m, rv)
+        rvref = gvref(pref, [1, 0])
         @test @deriv(rvref, pref) isa GeneralVariableRef    
         # test with measures 
         meas = Measure(w, TestData(pref, 0, 1), [2], [2], false)
@@ -484,14 +478,14 @@ end
         @test has_lower_bound(dx)
         @test lower_bound(dx) == 0 
         @test LowerBoundRef(dx) isa InfOptConstraintRef 
-        @test set_lower_bound(dx, 2) isa Nothing 
-        @test lower_bound(dx) == 2
+        @test set_lower_bound(dx, sin) isa Nothing 
+        @test lower_bound(dx)(0.5) == sin(0.5)
     end
     # test upper bound stuff 
     @testset "Upper Bound Methods" begin 
         @test !has_upper_bound(dx)
-        @test set_upper_bound(dx, 10) isa Nothing 
-        @test upper_bound(dx) == 10
+        @test set_upper_bound(dx, cos) isa Nothing 
+        @test upper_bound(dx)(0.5) == cos(0.5)
         @test UpperBoundRef(dx) isa InfOptConstraintRef 
     end
     # test fix stuff 
@@ -514,38 +508,18 @@ end
     dref = dispatch_variable_ref(d1)
     # start_value
     @testset "JuMP.start_value" begin
-        @test_throws ErrorException start_value(d1)
-        @test_throws ErrorException start_value(dref)
+        @test start_value(d1) == 0
+        @test start_value(dref) == 0
+        @test start_value(d2) isa Nothing
+        @test_deprecated start_value_function(d1) == 0
     end
     # set_start_value
     @testset "JuMP.set_start_value" begin
-        @test_throws ErrorException set_start_value(d1, 0)
-        @test_throws ErrorException set_start_value(dref, 0)
-    end
-    # start_value_function
-    @testset "start_value_function" begin
-        @test start_value_function(d1)([1]) == 0
-        @test start_value_function(dref)([1]) == 0
-        @test InfiniteOpt._is_vector_start(dref)
-        @test start_value_function(d2) isa Nothing
-    end
-    # set_start_value_function
-    @testset "set_start_value_function" begin
-        @test set_start_value_function(d1, 1.5) isa Nothing
-        @test start_value_function(d1)([0]) == 1.5
-        @test InfiniteOpt._is_vector_start(dref)
-        @test !transformation_backend_ready(m)
-        func = (a) -> 1
-        @test set_start_value_function(d1, func) isa Nothing
-        @test start_value_function(d1)(0) == 1
-        @test !InfiniteOpt._is_vector_start(dref)
-    end
-    # reset_start_value_function
-    @testset "reset_start_value_function" begin
-        @test reset_start_value_function(d1) isa Nothing
-        @test start_value_function(d1) isa Nothing
-        @test InfiniteOpt._is_vector_start(dref)
-        @test !transformation_backend_ready(m)
+        @test set_start_value(d1, sin)  isa Nothing
+        @test start_value(d1)(0.5) == sin(0.5)
+        @test set_start_value(d2, 42)  isa Nothing
+        @test start_value(d2) == 42
+        @test_deprecated set_start_value_function(d1, cos) isa Nothing
     end
 end
 
@@ -578,7 +552,7 @@ end
         @test isequal(derivative_order(dref), 3)
         @test lower_bound(dref) == -5
         @test upper_bound(dref) == 10
-        @test start_value_function(dref) isa Function 
+        @test start_value(dref) == 2
         # test regular with alias
         idx = DerivativeIndex(1)
         dref = DerivativeRef(m, idx)
@@ -614,10 +588,10 @@ end
         idxs = [DerivativeIndex(7), DerivativeIndex(8)]
         drefs = [DerivativeRef(m, idx) for idx in idxs]
         gvrefs = [GeneralVariableRef(m, idx) for idx in idxs]
-        @test isequal(@variable(m, [i = 1:2], Deriv(q[i], x[i]), lower_bound = -5), gvrefs)
+        @test isequal(@variable(m, [i = 1:2], Deriv(q[i], x[i]), lower_bound = (x...) -> 3), gvrefs)
         @test isequal(derivative_argument(drefs[2]), q[2])
         @test isequal(operator_parameter(drefs[1]), x[1])
-        @test lower_bound(drefs[2]) == -5
+        @test lower_bound(drefs[2])(0, [0, 0]) == 3
         @test name(drefs[1]) == ""
     end
     # test errors
@@ -691,36 +665,21 @@ end
         @test is_used(d)
         empty!(InfiniteOpt._constraint_dependencies(vref))
         # test used by point variable
-        num = Float64(0)
-        info = VariableInfo(false, num, false, num, false, num, false, num, false, false)
-        var = PointVariable(info, d, [0., 0., 0.])
-        object = VariableData(var, "var")
-        idx = PointVariableIndex(1)
-        pvref = PointVariableRef(m, idx)
-        @test InfiniteOpt._add_data_object(m, object) == idx
-        push!(InfiniteOpt._point_variable_dependencies(vref), idx)
+        pvref = dispatch_variable_ref(d(0, 0, 0))
         @test !is_used(vref)
         push!(InfiniteOpt._constraint_dependencies(pvref), InfOptConstraintIndex(2))
         @test is_used(vref)
         empty!(InfiniteOpt._point_variable_dependencies(vref))
         # test used by semi_infinite variable
-        var = SemiInfiniteVariable(d, [0.5, NaN, 1.0], [2], [2])
-        object = VariableData(var, "var")
-        idx = SemiInfiniteVariableIndex(1)
-        rvref = SemiInfiniteVariableRef(m, idx)
-        @test InfiniteOpt._add_data_object(m, object) == idx
-        push!(InfiniteOpt._semi_infinite_variable_dependencies(vref), idx)
+        rvref = dispatch_variable_ref(d(0.5, x[1], 1.0))
         @test !is_used(vref)
         push!(InfiniteOpt._constraint_dependencies(rvref), InfOptConstraintIndex(2))
         @test is_used(vref)
         empty!(InfiniteOpt._semi_infinite_variable_dependencies(vref))
         # test used by derivative
-        func = (x) -> NaN
-        num = 0.
-        info = VariableInfo(true, num, true, num, true, num, false, func, true, true)
-        d2 = @deriv(d, t)
+        d2 = deriv(d, x[1])
         dref = DerivativeRef(m, index(d2))
-        push!(InfiniteOpt._derivative_dependencies(vref), index(d2))
+        @test !isempty(InfiniteOpt._derivative_dependencies(vref))
         @test !is_used(vref)
         push!(InfiniteOpt._constraint_dependencies(dref), InfOptConstraintIndex(2))
         @test is_used(vref)

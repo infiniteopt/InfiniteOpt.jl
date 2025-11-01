@@ -84,59 +84,53 @@ infinite parameter must be in its own argument.
     must be an individual argument. This can be readily accomplished by splatting
     the infinite parameters (e.g., `Infinite(x...)`).
 
-Moreover, for infinite variables a function can be given to determine the start
-values over a range of support points (e.g., a guess trajectory). This is
+Moreover, infinite variables can uses functions to define the start values and bounds
+over a range of support points (e.g., a trajectory). This is
 discussed further below in the Macro Definition section.
 
 ### Semi-Infinite Variables
 Now let's restrict the above infinite variables `w[i](t, x)` to a particular 
 time via semi-infinite variables:
 ```jldoctest var_basic
-julia> @variable(model, w0[i = 1:3], SemiInfinite(w[i], 0, x...))
-3-element Vector{GeneralVariableRef}:
- w0[1]
- w0[2]
- w0[3]
-```
-Thus, we create a Julia array variable `w0` whose elements `w0[i]` point to their
-respective semi-infinite variables `w[i](0, x)` stored in `model`. Alternatively, 
-we can make a semi-infinite variable via our restriction syntax:
-```jldoctest var_basic
 julia> [w[i](0, x...) for i in 1:3]
 3-element Vector{GeneralVariableRef}:
+ w[1](0, x[1], x[2])
+ w[2](0, x[1], x[2])
+ w[3](0, x[1], x[2])
+```
+Thus, we create a Julia array of semi-infinite variables `w[i](0, x)` stored in 
+`model` that inherit all properties from the corresponding infinite variables. 
+This functional syntax is the recommended method for defining semi-infinite
+variables. See [Restricted Variables](@ref) to learn more. Alternatively, 
+we can make a semi-infinite variable via `@variable`:
+```jldoctest var_basic
+julia> @variable(model, w0[i = 1:3] <= 3, SemiInfinite(w[i], 0, x...))
+3-element Vector{GeneralVariableRef}:
  w0[1]
  w0[2]
  w0[3]
 ```
-These are often useful to define semi-infinite variables directly in constraint 
-expressions. See [Restricted Variables](@ref) to learn about symbolic inline 
-definition of semi-infinite variables.
+This syntax will always overwrite the lower bound, upper bound, fix value, and 
+start value (or lack their of), so it should be used carefully and purposefully.
 
 ### Point Variables
 Now let's add some point variables. These allow us to consider an infinite
 variable evaluated at a certain infinite parameter point. For example, let's
-define a point variable for `y(0)` with the alias `y0` that is fixed at a value
-of 0:
+define a point variable for `y(0)`:
+```jldoctest var_basic
+julia> y0 = y(0)
+y(0)
+```
+Here we create a Julia variable `y0` which points to the point variable `y(0)`.
+Again, this inherits all properties (e.g., bounds and start values) from `y(t)`. Again,
+this is the recommended syntax, see [Restricted Variables](@ref) to learn more.
+To overwrite all properties, we can instead define a point variable using `@variable`:
 ```jldoctest var_basic
 julia> @variable(model, y0 == 0, Point(y, 0))
 y0
 ```
-Here we create a Julia variable `y0` which points to the point variable `y(0)`.
-Notice that in the second argument we specify the infinite variable indexed at
-the appropriate parameter value(s). Point variables automatically inherit
-attributes of the infinite variable (e.g., bounds, start values, etc.), but
-these are overwritten with properties specified for the point variable. In this
-case the lower bound inherited from `y(t)` is overwritten by instead fixing
+In this case the lower bound inherited from `y(t)` is overwritten by instead fixing
 `y(0)` to a value of 0.  
-
-Alternatively, we can use the convenient restriction syntax:
-```jldoctest var_basic
-julia> y(0)
-y0
-```
-Again this is very useful when embedded directly in constraint expressions 
-(e.g., when defining boundary conditions). See [Restricted Variables](@ref) to 
-learn about symbolic inline definition of point variables.
 
 ### Finite Variables
 Finally, we can add finite variables to our model. These denote variables that
@@ -177,11 +171,11 @@ macros) principally involves the following steps:
 
 The `JuMP.VariableInfo` data structure stores the following variable information:
 - `has_lb::Bool`: Specifies a `Bool` it has a lower bound
-- `lower_bound::Real`: Specifies lower bound value
+- `lower_bound::Union{Real, Function}`: Specifies lower bound value
 - `has_ub::Bool`: Specifies a `Bool` it has a upper bound
-- `upper_bound::Real`: Specifies upper bound value
+- `upper_bound::Union{Real, Function}`: Specifies upper bound value
 - `has_fix::Bool`: Specifies a `Bool` it is fixed
-- `fixed_value::Real`: Specifies the fixed value
+- `fixed_value::Union{Real, Function}`: Specifies the fixed value
 - `has_start::Bool`: Specifies a `Bool` it has a start value
 - `start::Union{Real, Function}`: Specifies the start guess value, this can be a
                                   function for infinite variables that intakes a
@@ -325,9 +319,9 @@ how to query/modify variable names.
 
 ### Variable Bounds
 We can specify variable bounds in like manner to `JuMP` variables. Let's 
-demonstrate this with infinite variables: 
+demonstrate this with infinite variables (which accept scalars or functions): 
 ```jldoctest var_macro
-julia> @variable(model, y_lb >= 0, Infinite(t, x...)) # add w/ lower bound
+julia> @variable(model, y_lb >= (a, b, c) -> a + b + c, Infinite(t, x...)) # add w/ lower bound
 y_lb(t, x[1], x[2], x[3])
 
 julia> @variable(model, y_ub <= 10, Infinite(t, x...)) # add w/ upper bound
@@ -376,21 +370,11 @@ See the Queries and Modification sections further below for more information on
 how to query/modify variable bounds.
 
 !!! note 
-    Point variables inherit all the bounds of their respective infinite variables 
-    by default. This can be overwritten by specifying different ones at creation.
+    Semi-infinite and point variables defined via `@variable` overwrite the bounds 
+    of their respective infinite variables:
     ```julia
     @variable(model, y >= 0, Infinite(t, x...)) # has lower bound
     @variable(model, yp == 0, Point(w, 0, 0, 0, 0)) # forces the point to be fixed
-    ```
-
-!!! note 
-    Bounds cannot be specified on creation for semi-infinite variables. Note that 
-    they will inherit these from the infinite variable they depend on. Additional 
-    bound be created by directly adding constraints. For example:
-    ```julia
-    @variable(model, y >= 0, Infinite(t, x...)) # has lower bound
-    @variable(model, ys, SemiInfinite(w, 0, x...)) # inherits the lower bound
-    @constraint(model, ys <= 10) # add upper bound to ys
     ```
 
 ### Variable Integrality 
@@ -423,17 +407,7 @@ See the Queries and Modification sections further below for more information on
 how to query/modify variable integralities.
 
 !!! note 
-    Point variables inherit the integrality of their respective infinite variables 
-    by default. This can be overwritten by specifying different ones at creation.
-    ```julia
-    @variable(model, y, Infinite(t, x...), Bin) # is binary
-    @variable(model, yp, Point(w, 0, 0, 0, 0), Int) # is integer
-    ```
-
-!!! note 
-    Integrality cannot be specified for semi-infinite variables. Note that 
-    they will inherit these from the infinite variable they depend on.
-    ```
+    Semi-infinite and point variables inherit the integrality of their respective infinite variables and these cannot be overwritten.
 
 ### Variable Start Values
 Optimization solvers often benefit from giving initial guesses for the optimal 
@@ -458,10 +432,6 @@ y_sin(t)
 Note that such start functions must be able to accept parameter values as 
 arguments that exactly match the format of the infinite parameters given in 
 `Infinite(params...)`.
-
-!!! note 
-    Start values be specified for semi-infinite variables. Note that 
-    they will inherit these from the infinite variable they depend on.
 
 See the Queries and Modification sections further below for more information on 
 how to query/modify variable names.
@@ -761,13 +731,6 @@ julia> start_value(var_refs[1])
 julia> start_value(yp)
 ```
 
-For infinite and semi-infinite variables, the [`start_value_function`](@ref) 
-should be used instead:
-```jldoctest var_macro
-julia> start_value_function(y_sin)
-sin (generic function with 18 methods)
-```
-
 ### Variable Use
 `InfiniteOpt` defines a number of methods to track if and how variables are used
 in an infinite model. For example,
@@ -856,7 +819,7 @@ Other similar methods are
 
 ### Variable Constraints
 Another class of methods seek to add/modify variable constraints such as
-bounds. For example, [`set_lower_bound`](@ref JuMP.set_lower_bound(::UserDecisionVariableRef, ::Real))
+bounds. For example, [`set_lower_bound`](@ref JuMP.set_lower_bound(::UserDecisionVariableRef, ::Union{<:Real, <:Function}))
 specifies the lower bound of a
 variable. We can add a lower bound of 0 to `z` by:
 ```jldoctest var_macro
@@ -874,14 +837,14 @@ julia> lower_bound(z)
 -2.0
 ```
 Other similar methods are
-[`set_upper_bound`](@ref JuMP.set_upper_bound(::UserDecisionVariableRef, ::Real)),
-[`fix`](@ref JuMP.fix(::UserDecisionVariableRef, ::Real)),
+[`set_upper_bound`](@ref JuMP.set_upper_bound(::UserDecisionVariableRef, ::Union{<:Real, <:Function})),
+[`fix`](@ref JuMP.fix(::UserDecisionVariableRef, ::Union{<:Real, <:Function})),
 [`set_binary`](@ref JuMP.set_binary(::UserDecisionVariableRef)), and
 [`set_integer`](@ref JuMP.set_integer(::UserDecisionVariableRef)).
 
 ### Start Values
 We can update the start value of a variable using 
-[`set_start_value`](@ref JuMP.set_start_value(::UserDecisionVariableRef, ::Real)).
+[`set_start_value`](@ref JuMP.set_start_value(::UserDecisionVariableRef, ::Union{<:Real, <:Function})).
 For example:
 ```jldoctest var_macro
 julia> set_start_value(z, 0)
@@ -901,18 +864,6 @@ julia> start_value(z)
     set_parameter_value(p, 42)
     optimize!(model)
     ```
-
-For infinite variables, this should be done using 
-[`set_start_value_function`](@ref). FOr example:
-```jldoctest var_macro
-julia> set_start_value_function(myname, sin)
-
-julia> start_value_function(myname)
-sin (generic function with 18 methods)
-```
-Again note that such start functions must be able to accept parameter values as 
-arguments that exactly match the format of the infinite parameters given in 
-`Infinite(params...)`.
 
 A number of other techniques exist for the various variable types can be found in 
 the manual.

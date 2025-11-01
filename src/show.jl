@@ -617,7 +617,7 @@ function JuMP.constraint_string(
         bound_str = bound_str[1:end-2]
         if has_domain_restrictions(cref)
             restriction = domain_restriction(cref)
-            bound_str *= string("; if ", _object_string(print_mode, restriction), " = true")
+            bound_str *= string("; if ", _object_string(print_mode, restriction), " = True")
         end
     end
     # form the constraint string
@@ -687,6 +687,17 @@ end
 # Show ParameterFunction in IJuliaMode
 function Base.show(io::IO, ::MIME"text/latex", pfunc::ParameterFunction)
     print(io, _object_string(MIME("text/latex"), pfunc))
+end
+
+# Show ParameterFunctionRealWrapper in REPLMode
+function Base.show(io::IO, w::ParameterFunctionRealWrapper)
+    print(io, _object_string(MIME("text/plain"), w.parameter_function))
+    return
+end
+
+# Show ParameterFunctionRealWrapper in IJuliaMode
+function Base.show(io::IO, ::MIME"text/latex", w::ParameterFunctionRealWrapper)
+    print(io, _object_string(MIME("text/latex"), w.parameter_function))
 end
 
 # Show constraint in REPLMode
