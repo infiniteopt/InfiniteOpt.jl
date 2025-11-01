@@ -22,7 +22,7 @@ InfiniteOpt.TranscriptionOpt.transcribe_constraints!
 InfiniteOpt.TranscriptionOpt.transcribe_derivative_evaluations!
 InfiniteOpt.TranscriptionOpt.transcribe_variable_collocation_restictions!
 InfiniteOpt.TranscriptionOpt.build_transcription_backend!
-InfiniteOpt.add_point_variable(::InfiniteOpt.TranscriptionOpt.TranscriptionBackend,::InfiniteOpt.GeneralVariableRef,::Vector{Float64})
+InfiniteOpt.add_point_variable(::InfiniteOpt.TranscriptionOpt.TranscriptionBackend,::InfiniteOpt.PointVariable)
 InfiniteOpt.add_semi_infinite_variable(::InfiniteOpt.TranscriptionOpt.TranscriptionBackend,::InfiniteOpt.SemiInfiniteVariable)
 InfiniteOpt.build_transformation_backend!(::InfiniteOpt.InfiniteModel,::InfiniteOpt.TranscriptionOpt.TranscriptionBackend)
 ```

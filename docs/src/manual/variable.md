@@ -26,7 +26,7 @@ InfiniteOpt.Collections.VectorTuple
 ```@docs
 SemiInfinite
 JuMP.build_variable(::Function, ::JuMP.VariableInfo, ::SemiInfinite)
-JuMP.build_variable(::Function, ::GeneralVariableRef, ::Vector{Float64})
+JuMP.build_variable(::Function, ::GeneralVariableRef, ::Vector{Float64}, ::RestrictedDomainInfo)
 JuMP.add_variable(::InfiniteModel, ::SemiInfiniteVariable, ::String)
 SemiInfiniteVariable
 RestrictedDomainInfo
@@ -84,7 +84,6 @@ used_by_objective(::DecisionVariableRef)
 
 ### Infinite
 ```@docs
-start_value_function(::Union{InfiniteVariableRef, DerivativeRef})
 parameter_refs(::InfiniteVariableRef)
 parameter_list(::InfiniteVariableRef)
 raw_parameter_refs(::InfiniteVariableRef)

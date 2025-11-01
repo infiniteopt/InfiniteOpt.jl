@@ -41,6 +41,7 @@ is_variable_domain_constraint
 ## Modification
 ```@docs
 JuMP.set_name(::InfOptConstraintRef, ::String)
+set_domain_restriction
 delete_domain_restriction
 JuMP.set_normalized_rhs(::InfOptConstraintRef, ::Real)
 JuMP.add_to_function_constant(::InfOptConstraintRef, ::Real)

@@ -1039,7 +1039,7 @@ Subject to
 Note that better variable naming could be used with the reformulated infinite 
 variables. Moreover, in general extensions of [`build_transformation_backend!`](@ref) 
 should account for the possibility that `InfiniteModel` contains constraints with 
-[`DomainRestrictions`](@ref) as accessed via [`domain_restrictions`](@ref).
+[`DomainRestriction`](@ref) as accessed via [`domain_restriction`](@ref).
 
 Now that we have optimized our `InfiniteModel` via the use the of a 
 `DeterministicBackend`, we probably want to access the results. All queries 

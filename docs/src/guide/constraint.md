@@ -183,7 +183,7 @@ The constraint objects are specified via `JuMP.build_constraint` which requires
 that the user provides a function, set, and optionally include domain 
 restrictions. For example, let's build a scalar constraint 
 ``3y_a(t, x) - y_b^2(t) \leq 0, \ \forall t \in [0, 10], x \in [-2, 2]^2`` over 
-its full infinite domain (i.e., have no `DomainRestrictions`):
+its full infinite domain (i.e., have no `DomainRestriction`):
 ```jldoctest constrs
 julia> constr = build_constraint(error, 3ya - yb^2, MOI.LessThan(0.0));
 ```
@@ -206,7 +206,7 @@ macro automate the above steps.
 As mentioned above in the Basic Usage section, the 
 [`@constraint`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.@constraint) 
 macro should be used to define constraints with the syntax: 
-`@constraint(model::InfiniteModel, [container/name_expr], constr_expr, [rs::DomainRestrictions])`.
+`@constraint(model::InfiniteModel, [container/name_expr], constr_expr, [rs::DomainRestriction])`.
 
 The second argument is optional and is used to assign a name and/or define 
 indexing variables to be used in the constraint expression. When a name is provided it 
@@ -270,7 +270,7 @@ julia> @constraint(model, [i = 1:2], ya^2 + z[i] <= 1, DomainRestriction(restric
 
 !!! tip
     Where possible, using [Restricted Variables](@ref) will tend to be more 
-    performant than using `DomainRestrictions` instead.
+    performant than using `DomainRestriction` instead.
 
 ## Queries
 In this section, we describe a variety of methods to extract constraint
@@ -455,7 +455,7 @@ constr : 2.5 yb(t) - z[1] ≤ -1, ∀ t ∈ [0, 10]; if iszero(t) = True
 ```
 
 Finally, constraint restrictions can be deleted via 
-[`delete_domain_restrictios`](@ref). Now let's delete the domain restrictions 
+[`delete_domain_restriction`](@ref). Now let's delete the domain restrictions 
 associated with our example:
 ```jldoctest constrs
 julia> delete_domain_restriction(constr)
