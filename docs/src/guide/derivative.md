@@ -584,7 +584,7 @@ dydt2(t, x, ξ) ≥ 1, ∀ t ∈ [0, 10], ξ ~ Uniform, x ∈ [-1, 1]
 julia> has_upper_bound(dydt2)
 false 
 
-julia> func = start_value(ydt2);
+julia> func = start_value(dydt2);
 ```
 
 ### Model Queries 
