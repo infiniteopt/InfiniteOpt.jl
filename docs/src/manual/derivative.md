@@ -31,12 +31,6 @@ parameter_group_int_indices(::DerivativeRef)
 core_object(::DerivativeRef)
 ```
 
-## Modification
-```@docs
-set_start_value_function(::DerivativeRef,::Union{Real, Function})
-reset_start_value_function(::DerivativeRef)
-```
-
 ## Evaluation 
 ```@docs
 AbstractDerivativeMethod

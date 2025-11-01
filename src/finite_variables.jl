@@ -111,7 +111,5 @@ end
 ################################################################################
 # Extend _delete_variable_dependencies (for use with JuMP.delete)
 function _delete_variable_dependencies(vref::FiniteVariableRef)
-    # remove variable info constraints associated with vref
-    _delete_info_constraints(vref)
     return
 end

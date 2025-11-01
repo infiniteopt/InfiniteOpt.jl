@@ -56,7 +56,6 @@ Min 2 z + support_sum{t}[y(t)]
 Subject to
  y(t) ≥ 0, ∀ t ∈ [0, 10]
  z binary
- y(0) ≥ 0
  initial : y(0) = 1
  constr : y(t)² - z ≤ 42, ∀ t ∈ [0, 10]
 ```

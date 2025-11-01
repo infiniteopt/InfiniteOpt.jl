@@ -114,28 +114,28 @@
     end
     # parameter_value
     @testset "JuMP.parameter_value" begin
-        @test parameter_value(fref) == sin
-        @test parameter_value(gvref) == sin
+        @test parameter_value(fref).func == sin
+        @test parameter_value(gvref).func == sin
     end
     # set_parameter_value
     @testset "JuMP.set_parameter_value" begin
         @test isa(set_parameter_value(fref, cos), Nothing)
-        @test parameter_value(fref) == cos
+        @test parameter_value(fref).func == cos
         @test isa(set_parameter_value(gvref, tan), Nothing)
-        @test parameter_value(gvref) == tan
+        @test parameter_value(gvref).func  == tan
         @test_throws ErrorException set_parameter_value(fref, (a, b) -> 42)
         # test reset inducing change
         set_transformation_backend_ready(m, true)
         push!(InfiniteOpt._constraint_dependencies(fref), InfOptConstraintIndex(1))
         @test isa(set_parameter_value(fref, sin), Nothing)
-        @test parameter_value(fref) == sin
+        @test parameter_value(fref).func == sin
         @test !transformation_backend_ready(m)
         empty!(InfiniteOpt._constraint_dependencies(fref))
     end
     # call_function
     @testset "call_function" begin
         @test call_function(fref, 0) == 0
-        @test call_function(gvref, 0) == 0
+        @test call_function(gvref, [0]) == 0
     end
     # test used_by_semi_infinite_variable
     @testset "used_by_semi_infinite_variable" begin
@@ -244,6 +244,18 @@
     @testset "Model Queries" begin
         @test num_parameter_functions(m) == 6
         @test all_parameter_functions(m) isa Vector{GeneralVariableRef}
+    end
+    # test object overloading
+    @testset "Object Overloading" begin
+        g = parameter_function((a, b) -> 42, (t, x))
+        @test core_object(g)(0, [0, 0]) == 42
+        @test core_object(g)([0, 0, 0]) == 42
+        g = parameter_function((b) -> 24, x)
+        @test core_object(g)([0, 0]) == 24
+        @infinite_parameter(m, s in [0, 1])
+        g = parameter_function((a, b) -> a + b, (t, s))
+        @test core_object(g)(0, 1) == 1
+        @test core_object(g)([2, 1]) == 3
     end
 end
 

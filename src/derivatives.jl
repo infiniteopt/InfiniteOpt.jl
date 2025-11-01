@@ -45,11 +45,6 @@ function core_object(dref::DerivativeRef)
     return _data_object(dref).variable
 end
 
-# Define getter function for deriv.is_vector_start
-function _is_vector_start(dref::DerivativeRef)
-    return core_object(dref).is_vector_start
-end
-
 """
     derivative_argument(dref::DerivativeRef)::GeneralVariableRef
 
@@ -205,11 +200,13 @@ function _unnest_derivative(vref, pref, order)
 end
 
 """
-    build_derivative(_error::Function, info::JuMP.VariableInfo, 
-                     argument_ref::GeneralVariableRef, 
-                     parameter_ref::GeneralVariableRef,
-                     order::Int = 1
-                     )::Derivative
+    build_derivative(
+        _error::Function, 
+        info::JuMP.VariableInfo, 
+        argument_ref::GeneralVariableRef, 
+        parameter_ref::GeneralVariableRef,
+        order::Int = 1
+    )::Derivative
 
 Constructs and returns a [`Derivative`](@ref) with a differential operator that 
 depends on `parameter_ref` and operates on `argument_ref`. The order of the derivative 
@@ -225,7 +222,7 @@ julia> @infinite_parameter(m, t in [0, 1]); @variable(m, y, Infinite(t));
 julia> info = VariableInfo(false, 0, false, 0, false, 0, false, 0, false, false);
 
 julia> build_derivative(error, info, y, t)
-Derivative{GeneralVariableRef}(VariableInfo{Float64,Float64,Float64,Function}(false, 0.0, false, 0.0, false, 0.0, false, start_func, false, false), true, y(t), t, 1)
+Derivative{GeneralVariableRef}(VariableInfo{Float64,Float64,Float64,Float64}(false, 0.0, false, 0.0, false, 0.0, false, 0.0, false, false), true, y(t), t, 1)
 ````
 """
 function build_derivative(
@@ -252,10 +249,15 @@ function build_derivative(
     end
     # check and format the info correctly
     prefs = raw_parameter_refs(argument_ref)
-    new_info, is_vect_func = _check_and_format_infinite_info(_error, info, prefs)
+    param_nums = _parameter_numbers(argument_ref)
+    group_int_idxs = parameter_group_int_indices(argument_ref)
+    new_info = _check_and_format_infinite_info(_error, info, prefs, param_nums, group_int_idxs)
+    if new_info.binary || new_info.integer
+        _error("Derivatives cannot be defined as binary or integer variables.")
+    end
     # make the derivative and return it 
     vref, order = _unnest_derivative(argument_ref, parameter_ref, order)
-    return Derivative(new_info, is_vect_func, vref, parameter_ref, order)
+    return Derivative(new_info, vref, parameter_ref, order)
 end
 
 """
@@ -285,8 +287,11 @@ struct Deriv{V, P} <: InfOptVariableType
 end
 
 """
-    JuMP.build_variable(_error::Function, info::JuMP.VariableInfo, 
-                        var_type::Deriv)::InfiniteVariable{GeneralVariableRef}
+    JuMP.build_variable(
+        _error::Fu`nction,
+        info::JuMP.VariableInfo, 
+        var_type::Deriv`
+    )::InfiniteVariable{GeneralVariableRef}
 
 Build and return a first order derivative based on `info` and `var_type`. Errors 
 if the information in `var_type` is invalid. See [`Deriv`](@ref) for more 
@@ -306,8 +311,8 @@ function JuMP.build_variable(
     extra_kw_args...
     )
     # Error extra keyword arguments
-    for (kwarg, _) in extra_kw_args
-        _error("Keyword argument $kwarg is not for use with derivatives.")
+    if !isempty(extra_kw_args)
+        _error("Keyword argument $(first(keys(extra_kw_args))) is not for use with derivatives.")
     end
     # check for valid inputs
     ivref = var_type.argument
@@ -325,9 +330,26 @@ function JuMP.build_variable(
     return build_derivative(_error, info, ivref, pref, var_type.order)
 end
 
+# Default derivative info
+const _DefaultDerivativeInfo = VariableInfo(
+    false,
+    NaN,
+    false,
+    NaN,
+    false,
+    NaN,
+    false,
+    NaN,
+    false,
+    false
+)
+
 """
-    add_derivative(model::InfiniteModel, d::Derivative, 
-                   [name::String = ""])::GeneralVariableRef
+    add_derivative(
+        model::InfiniteModel,
+        d::Derivative, 
+        [name::String = ""]
+    )::GeneralVariableRef
 
 Adds a derivative `d` to `model` and returns a `GeneralVariableRef` that points 
 to it. Errors if the derivative dependencies do not belong to `model`. Note that 
@@ -346,7 +368,12 @@ julia> dref = add_derivative(m, d)
 ∂²/∂t²[y(t)]
 ```
 """
-function add_derivative(model::InfiniteModel, d::Derivative, name::String = "")
+function add_derivative(
+    model::InfiniteModel,
+    d::Derivative, 
+    name::String = "";
+    macro_call::Bool = false
+    )
     # check the validity 
     vref = dispatch_variable_ref(d.variable_ref)
     pref = dispatch_variable_ref(d.parameter_ref)
@@ -364,29 +391,24 @@ function add_derivative(model::InfiniteModel, d::Derivative, name::String = "")
         push!(_derivative_dependencies(pref), dindex)
         # update the derivative lookup dict
         model.deriv_lookup[(d.variable_ref, d.parameter_ref, d.order)] = dindex
-        # add the info constraints
-        gvref = GeneralVariableRef(model, dindex)
-        _set_info_constraints(d.info, gvref, dref)
     else
         dref = DerivativeRef(model, existing_index)
-        gvref = GeneralVariableRef(model, existing_index)
-        old_info = _variable_info(dref)
-        if old_info.has_lb || old_info.has_ub || old_info.has_fix || old_info.has_start
-            @warn "Overwriting $dref, any previous properties (e.g., lower bound " * 
-                  "or start value) will be lost/changed."
+        if macro_call || d.info != _DefaultDerivativeInfo
+            _delete_info_constraints(dref)
+            _set_core_object(dref, d)
         end
-        _update_info_constraints(d.info, gvref, dref)
-        _set_core_object(dref, d)
         if !isempty(name)
             set_name(dref, name)
         end
     end
+    gvref = GeneralVariableRef(dref)
+    _set_info_constraints(d.info, gvref, dref)
     return gvref
 end
 
 # Extend JuMP.add_variable to enable macro definition 
 function JuMP.add_variable(model::InfiniteModel, d::Derivative, name::String = "")
-    return add_derivative(model, d, name)
+    return add_derivative(model, d, name, macro_call = true)
 end
 
 # Helper method to to quickly build and add derivatives internally
@@ -398,9 +420,7 @@ function _build_add_derivative(vref, pref, order)
     dindex = _existing_derivative_index(vref, pref, order)
     model = JuMP.owner_model(vref)
     if isnothing(dindex)
-        info = VariableInfo(false, NaN, false, NaN, false, NaN, false, 
-                            s -> NaN, false, false)
-        d = Derivative(info, true, vref, pref, order)
+        d = Derivative(_DefaultDerivativeInfo, vref, pref, order)
         return add_derivative(model, d)
     else 
         return GeneralVariableRef(model, dindex)
@@ -647,74 +667,18 @@ function _update_variable_info(
     vref = derivative_argument(dref)
     pref = operator_parameter(dref)
     order = derivative_order(dref)
-    is_vect_func = _is_vector_start(dref)
-    new_deriv = Derivative(_format_infinite_info(info), is_vect_func, vref, pref, order)
+    new_deriv = Derivative(info, vref, pref, order)
     _set_core_object(dref, new_deriv)
     return
 end
 
-"""
-    set_start_value_function(dref::DerivativeRef,
-                             start::Union{Real, Function})::Nothing
-
-Set the start value function of `dref`. If `start::Real` then a function is
-generated to such that the start value will be `start` for the entire infinite
-domain. If `start::Function` then this function should map to a scalar start value
-given a support value arguments matching the format of the parameter elements in
-`parameter_refs(dref)`.
-
-**Example**
-```julia-repl
-julia> set_start_value_function(dref, 1) # all start values will be 1
-
-julia> set_start_value_function(dref, my_func) # each value will be made via my_func
-```
-"""
-function set_start_value_function(
-    dref::DerivativeRef,
-    start::Union{Real, Function}
-    )
-    info = _variable_info(dref)
-    set_transformation_backend_ready(JuMP.owner_model(dref), false)
-    prefs = raw_parameter_refs(dref)
-    temp_info = JuMP.VariableInfo(info.has_lb, info.lower_bound, info.has_ub,
-                                 info.upper_bound, info.has_fix, info.fixed_value,
-                                 true, start, info.binary, info.integer)
-    new_info, is_vect_func = _check_and_format_infinite_info(error, temp_info, prefs)
-    vref = derivative_argument(dref)
-    pref = operator_parameter(dref)
-    order = derivative_order(dref)
-    new_deriv = Derivative(new_info, is_vect_func, vref, pref, order)
-    _set_core_object(dref, new_deriv)
-    return
+# Throw errors for binary and integer
+function JuMP.set_integer(dref::DerivativeRef)
+    error("Cannot set derivative to be integer valued.")
 end
-
-"""
-    reset_start_value_function(dref::DerivativeRef)::Nothing
-
-Remove the existing start value function and return to the default. Generally,
-this is triggered by deleting an infinite parameter that `dref` depends on.
-
-**Example**
-```julia-repl
-julia> reset_start_value_function(dref)
-```
-"""
-function reset_start_value_function(dref::DerivativeRef)
-    info = _variable_info(dref)
-    set_transformation_backend_ready(JuMP.owner_model(dref), false)
-    new_info = JuMP.VariableInfo(info.has_lb, info.lower_bound, info.has_ub,
-                                 info.upper_bound, info.has_fix, info.fixed_value,
-                                 false, s -> NaN, info.binary, info.integer)
-    vref = derivative_argument(dref)
-    pref = operator_parameter(dref)
-    order = derivative_order(dref)
-    new_deriv = Derivative(new_info, true, vref, pref, order)
-    _set_core_object(dref, new_deriv)
-    return
+function JuMP.set_binary(dref::DerivativeRef)
+    error("Cannot set derivative to be a binary variable.")
 end
-
-# TODO maybe throw errors for binary and integer?
 
 ################################################################################
 #                              MODEL QUERIES
@@ -803,8 +767,6 @@ end
 ################################################################################
 # Extend _delete_variable_dependencies (for use with JuMP.delete)
 function _delete_variable_dependencies(dref::DerivativeRef)
-    # remove variable info constraints associated with dref
-    _delete_info_constraints(dref)
     # update variable and parameter mapping
     vref = derivative_argument(dref)
     pref = operator_parameter(dref)

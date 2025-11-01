@@ -33,7 +33,7 @@ include("point_variables.jl")
 include("finite_variables.jl")
 include("nlp.jl")
 include("macros.jl")
-include("parameter_function.jl")
+include("parameter_functions.jl")
 include("expressions.jl")
 include("measures.jl")
 
@@ -68,6 +68,15 @@ Base.@deprecate optimizer_model_expression(e; kwargs...) transformation_expressi
 Base.@deprecate optimizer_model_constraint(c; kwargs...) transformation_constraint(c; kwargs...)
 Base.@deprecate optimizer_model(m) transformation_model(m)
 Base.@deprecate set_value(v::GeneralVariableRef, val) set_parameter_value(v, val)
+Base.@deprecate has_domain_restrictions(cref) has_domain_restriction(cref)
+Base.@deprecate domain_restrictions(cref) domain_restriction(cref)
+Base.@deprecate set_domain_restrictions(cref, restrict) set_domain_restriction(cref, restrict)
+Base.@deprecate delete_domain_restrictions(cref) delete_domain_restriction(cref)
+function DomainRestrictions(args...)
+    error("`DomainRestrictions` is deprecated in favor of `DomainRestriction`, see docs for details.")
+end
+Base.@deprecate start_value_function(vref)  start_value(vref)
+Base.@deprecate set_start_value_function(vref, f)  set_start_value(vref, f)
 
 # Define additional stuff that should not be exported
 const _EXCLUDE_SYMBOLS = [

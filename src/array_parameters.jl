@@ -1606,8 +1606,7 @@ a measure since the measure becomes invalid otherwise. Thus, measures that
 contain this dependency must be deleted first. Note that
 [`parameter_refs`](@ref parameter_refs(::AbstractMeasureData)) needs to be
 extended to allow deletion of parameters when custom `AbstractMeasureData`
-datatypes are used. Note that any dependent infinite variables will have their
-start values reset to the default via [`reset_start_value_function`](@ref).
+datatypes are used.
 
 **Example**
 ```julia-repl

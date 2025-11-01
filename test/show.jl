@@ -21,8 +21,10 @@
     ac1 = @constraint(m, x + y - 2 <= 0)
     @constraint(m, c2, y^2 - 3 == 0)
     ac2 = @constraint(m, y^2 - 3 == 0)
-    @constraint(m, c3, x == 5, DomainRestrictions(par1 => [0, 0.5]))
-    ac3 = @constraint(m, x == 5, DomainRestrictions(par1 => [0, 0.5]))
+    restrict(a) = 0 <= a <= 0.5
+    r = DomainRestriction(restrict, par1)
+    @constraint(m, c3, x == 5, r)
+    ac3 = @constraint(m, x == 5, r)
     # test _math_symbol (REPL)
     @testset "_math_symbol (REPL)" begin
         if Sys.iswindows()
@@ -207,45 +209,6 @@
         in2 = InfiniteOpt._math_symbol(MIME("text/latex"), :in)
         @test in_domain_string(MIME("text/plain"), domain) == in1 * " BadDomain()"
         @test in_domain_string(MIME("text/latex"), domain) == in2 * " BadDomain()"
-    end
-    # test in_domain_string (IntervalDomain with Restrictions)
-    @testset "in_domain_string (IntervalDomain with Restrictions)" begin
-        # test in restrictions
-        rs = DomainRestrictions(par1 => 0)
-        domain = IntervalDomain(0, 1)
-        str = InfiniteOpt._math_symbol(MIME("text/plain"), :eq) * " 0"
-        @test in_domain_string(MIME("text/plain"), par1, domain, rs) == str
-        str = InfiniteOpt._math_symbol(MIME("text/latex"), :eq) * " 0"
-        @test in_domain_string(MIME("text/latex"), par1, domain, rs) == str
-        # test not in restrictions
-        str = InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 1]"
-        @test in_domain_string(MIME("text/plain"), pars[1], domain, rs) == str
-        str = InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 1]"
-        @test in_domain_string(MIME("text/latex"), pars[1], domain, rs) == str
-    end
-    # test in_domain_string (InfiniteScalarDomain with Restrictions)
-    @testset "in_domain_string (InfiniteScalarDomain with Restrictions)" begin
-        # test in restrictions
-        rs = DomainRestrictions(par1 => 0)
-        domain = UniDistributionDomain(Uniform())
-        str = InfiniteOpt._math_symbol(MIME("text/plain"), :eq) * " 0"
-        @test in_domain_string(MIME("text/plain"), par1, domain, rs) == str
-        str = InfiniteOpt._math_symbol(MIME("text/latex"), :eq) * " 0"
-        @test in_domain_string(MIME("text/latex"), par1, domain, rs) == str
-        # test in restrictions and not equality
-        rs = DomainRestrictions(par1 => [0, 1])
-        domain = UniDistributionDomain(Uniform())
-        str = InfiniteOpt._math_symbol(MIME("text/plain"), :prop) * " Uniform " *
-              InfiniteOpt._math_symbol(MIME("text/plain"), :intersect) * " [0, 1]"
-        @test in_domain_string(MIME("text/plain"), par1, domain, rs) == str
-        str = InfiniteOpt._math_symbol(MIME("text/latex"), :prop) * " Uniform " *
-              InfiniteOpt._math_symbol(MIME("text/latex"), :intersect) * " [0, 1]"
-        @test in_domain_string(MIME("text/latex"), par1, domain, rs) == str
-        # test not in restrictions
-        str = InfiniteOpt._math_symbol(MIME("text/plain"), :prop) * " Uniform"
-        @test in_domain_string(MIME("text/plain"), pars[1], domain, rs) == str
-        str = InfiniteOpt._math_symbol(MIME("text/latex"), :prop) * " Uniform"
-        @test in_domain_string(MIME("text/latex"), pars[1], domain, rs) == str
     end
     # test measure_data_string with 1-D DiscreteMeasureData/FunctionalDiscreteMeasureData
     @testset "measure_data_string (1-D)" begin
@@ -486,15 +449,6 @@
         @test JuMP.function_string(MIME("text/latex"), inf) == "inf(pars, par1, pars3[1], pars3[2])"
         @test JuMP.function_string(MIME("text/plain"), d1) == "d/dpar1[x(par1)]"
     end
-    # test restrict_string
-    @testset "restrict_string" begin
-        # test with single restriction
-        rs = DomainRestrictions(par1 => [0.5, 0.7])
-        str = "par1 " * InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0.5, 0.7]"
-        @test InfiniteOpt.restrict_string(MIME("text/plain"), rs) == str
-        str = "par1 " *  InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0.5, 0.7]"
-        @test InfiniteOpt.restrict_string(MIME("text/latex"), rs) == str
-    end
     # test constraint_string (Finite constraint)
     @testset "JuMP.constraint_string (Finite)" begin
         # test named
@@ -515,65 +469,26 @@
     end
     # test _param_domain_string (IndependentParameter)
     @testset "_param_domain_string (IndependentParameter)" begin
-        rs = DomainRestrictions(par1 => 0)
         idx = index(par1)
-        str = "par1 " * InfiniteOpt._math_symbol(MIME("text/plain"), :eq) * " 0"
-        @test InfiniteOpt._param_domain_string(MIME("text/plain"), m, idx, rs) == str
-        str = "par1 " * InfiniteOpt._math_symbol(MIME("text/latex"), :eq) * " 0"
-        @test InfiniteOpt._param_domain_string(MIME("text/latex"), m, idx, rs) == str
+        str = "par1 " * InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 1]"
+        @test InfiniteOpt._param_domain_string(MIME("text/plain"), m, idx) == str
+        str = "par1 " * InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 1]"
+        @test InfiniteOpt._param_domain_string(MIME("text/latex"), m, idx) == str
     end
     # test _param_domain_string (DependentParameters)
     @testset "_param_domain_string (DependentParameters)" begin
         # Collection set
-        rs = DomainRestrictions(pars2[1] => [0, 1])
         idx = index(pars2[1]).object_index
-        str = "pars2[1] " * InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 1], " *
+        str = "pars2[1] " * InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 2], " *
               "pars2[2] " * InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 2]"
-        @test InfiniteOpt._param_domain_string(MIME("text/plain"), m, idx, rs) == str
-        str = "pars2_{1} " * InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 1], " *
+        @test InfiniteOpt._param_domain_string(MIME("text/plain"), m, idx) == str
+        str = "pars2_{1} " * InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 2], " *
               "pars2_{2} " * InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 2]"
-        @test InfiniteOpt._param_domain_string(MIME("text/latex"), m, idx, rs) == str
-        # other set with equalities
-        rs = DomainRestrictions(pars[1] => 0, pars[2] => 1)
+        @test InfiniteOpt._param_domain_string(MIME("text/latex"), m, idx) == str
+        # MultiDistributionDomain
         idx = index(pars[1]).object_index
-        str = InfiniteOpt.restrict_string(MIME("text/plain"), rs)
-        str2 = string(split(str, ", ")[2], ", ", split(str, ", ")[1])
-        @test InfiniteOpt._param_domain_string(MIME("text/plain"), m, idx, rs) in [str, str2]
-        str = InfiniteOpt.restrict_string(MIME("text/latex"), rs)
-        str2 = string(split(str, ", ")[2], ", ", split(str, ", ")[1])
-        @test InfiniteOpt._param_domain_string(MIME("text/latex"), m, idx, rs) in [str, str2]
-        # other set without equalities and including in the restrictions
-        rs = DomainRestrictions(pars[1] => [0, 1])
-        str = "pars " * InfiniteOpt._math_symbol(MIME("text/plain"), :prop) *
-              " MvNormal(dim: (2)) " *
-              InfiniteOpt._math_symbol(MIME("text/plain"), :intersect) *
-              " (pars[1] " * InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 1])"
-        str2 = "pars " * InfiniteOpt._math_symbol(MIME("text/plain"), :prop) *
-              " FullNormal(dim: (2)) " *
-              InfiniteOpt._math_symbol(MIME("text/plain"), :intersect) *
-              " (pars[1] " * InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 1])"
-        @test InfiniteOpt._param_domain_string(MIME("text/plain"), m, idx, rs) in [str, str2]
-        str = "pars " * InfiniteOpt._math_symbol(MIME("text/latex"), :prop) *
-              " MvNormal(dim: (2)) " *
-              InfiniteOpt._math_symbol(MIME("text/latex"), :intersect) *
-              " (pars_{1} " * InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 1])"
-        str2 = "pars " * InfiniteOpt._math_symbol(MIME("text/latex"), :prop) *
-              " FullNormal(dim: (2)) " *
-              InfiniteOpt._math_symbol(MIME("text/latex"), :intersect) *
-              " (pars_{1} " * InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 1])"
-        @test InfiniteOpt._param_domain_string(MIME("text/latex"), m, idx, rs) in [str, str2]
-        # other set without equalities and not included in restrictions
-        rs = DomainRestrictions(par1 => [0, 1])
-        str = "pars " * InfiniteOpt._math_symbol(MIME("text/plain"), :prop) *
-              " MvNormal(dim: (2))"
-        str2 = "pars " * InfiniteOpt._math_symbol(MIME("text/plain"), :prop) *
-              " FullNormal(dim: (2))"
-        @test InfiniteOpt._param_domain_string(MIME("text/plain"), m, idx, rs) in [str, str2]
-        str = "pars " * InfiniteOpt._math_symbol(MIME("text/latex"), :prop) *
-              " MvNormal(dim: (2))"
-        str2 = "pars " * InfiniteOpt._math_symbol(MIME("text/latex"), :prop) *
-              " FullNormal(dim: (2))"
-        @test InfiniteOpt._param_domain_string(MIME("text/latex"), m, idx, rs) in [str, str2]
+        str = "pars " * InfiniteOpt._math_symbol(MIME("text/plain"), :prop) * " FullNormal(dim: (2))"
+        @test InfiniteOpt._param_domain_string(MIME("text/plain"), m, idx) == str
     end
     # test constraint_string (infinite constraint)
     @testset "JuMP.constraint_string (Infinite)" begin
@@ -607,20 +522,20 @@
         # test c3 with name
         str = "c3 : x(par1) " * in_set_string(MIME("text/plain"), MOI.EqualTo(5.0)) * ", " *
               InfiniteOpt._math_symbol(MIME("text/plain"), :for_all) * " par1 " *
-              InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 0.5]"
+              InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 1]; if restrict(par1) = True"
         @test constraint_string(MIME("text/plain"), c3) == str
         str =  "c3 : \$ x(par1) " * in_set_string(MIME("text/latex"), MOI.EqualTo(5.0)) * ", " *
                InfiniteOpt._math_symbol(MIME("text/latex"), :for_all) * " par1 " *
-               InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 0.5] \$"
+               InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 1]; if restrict(par1) = True \$"
         @test constraint_string(MIME("text/latex"), c3) == str
         # test c3 without name
         str = "x(par1) " * in_set_string(MIME("text/plain"), MOI.EqualTo(5.0)) * ", " *
               InfiniteOpt._math_symbol(MIME("text/plain"), :for_all) * " par1 " *
-              InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 0.5]"
+              InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 1]; if restrict(par1) = True"
         @test constraint_string(MIME("text/plain"), ac3) == str
         str =  "\$ x(par1) " * in_set_string(MIME("text/latex"), MOI.EqualTo(5.0)) * ", " *
                InfiniteOpt._math_symbol(MIME("text/latex"), :for_all) * " par1 " *
-               InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 0.5] \$"
+               InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 1]; if restrict(par1) = True \$"
         @test constraint_string(MIME("text/latex"), ac3) == str
     end
     # test constraints_string
@@ -637,10 +552,10 @@
         strings[4] = "y² " * in_set_string(MIME("text/plain"), MOI.EqualTo(3.0))
         strings[5] = "c3 : x(par1) " * in_set_string(MIME("text/plain"), MOI.EqualTo(5.0)) * ", " *
                      InfiniteOpt._math_symbol(MIME("text/plain"), :for_all) * " par1 " *
-                     InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 0.5]"
+                     InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 1]; if restrict(par1) = True"
         strings[6] = "x(par1) " * in_set_string(MIME("text/plain"), MOI.EqualTo(5.0)) * ", " *
                      InfiniteOpt._math_symbol(MIME("text/plain"), :for_all) * " par1 " *
-                     InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 0.5]"
+                     InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 1]; if restrict(par1) = True"
         @test constraints_string(MIME("text/plain"), m) == strings
         # test MIME("text/latex")
         strings = Vector{String}(undef, 6)
@@ -654,10 +569,10 @@
         strings[4] = "y^2 " * in_set_string(MIME("text/latex"), MOI.EqualTo(3.0))
         strings[5] = "x(par1) " * in_set_string(MIME("text/latex"), MOI.EqualTo(5.0)) * ", " *
                      InfiniteOpt._math_symbol(MIME("text/latex"), :for_all) * " par1 " *
-                     InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 0.5]"
+                     InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 1]; if restrict(par1) = True"
         strings[6] = "x(par1) " * in_set_string(MIME("text/latex"), MOI.EqualTo(5.0)) * ", " *
                      InfiniteOpt._math_symbol(MIME("text/latex"), :for_all) * " par1 " *
-                     InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 0.5]"
+                     InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 1]; if restrict(par1) = True"
         @test constraints_string(MIME("text/latex"), m) == strings
     end
     # test objective_function_string
@@ -676,10 +591,13 @@ end
     @variable(m, x, Infinite(par1))
     @variable(m, z, Infinite(pars))
     @variable(m, y)
+    f = parameter_function(sin, par1)
+    pf = core_object(f)
     @objective(m, Min, 2 + y)
     @constraint(m, c1, x + y -2 <= 0)
-    rs = DomainRestrictions(par1 => [0.1, 1])
-    @constraint(m, c3, x <= 5, DomainRestrictions(par1 => [0, 0.5]))
+    restrict(a) = 0 <= a <= 1
+    r = DomainRestriction(restrict, par1)
+    @constraint(m, c3, x <= 5, r)
     mockoptimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
                                              eval_objective_value=false)
     # test Base.show (IntervalDomain in REPL)
@@ -689,6 +607,16 @@ end
     # test Base.show (IntervalDomain in IJulia)
     @testset "Base.show (IJulia IntervalDomain)" begin
         show_test(MIME("text/latex"), IntervalDomain(0, 1), "[0, 1]")
+    end
+    # test Base.show (ParameterFunction in REPL)
+    @testset "Base.show (REPL ParameterFunction)" begin
+        show_test(MIME("text/plain"), pf, "sin(par1)")
+        show_test(MIME("text/plain"), ParameterFunctionRealWrapper(pf), "sin(par1)")
+    end
+    # test Base.show (ParameterFunction in IJulia)
+    @testset "Base.show (IJulia ParameterFunction)" begin
+        show_test(MIME("text/latex"), pf, "sin(par1)")
+        show_test(MIME("text/latex"), ParameterFunctionRealWrapper(pf), "sin(par1)")
     end
     # test Base.show (DistributionDomain in REPL)
     @testset "Base.show (REPL DistributionDomain)" begin
@@ -708,18 +636,6 @@ end
         show_test(MIME("text/latex"), CollectionDomain([IntervalDomain(0, 0), IntervalDomain(0, 2)]),
                   "CollectionDomain with 2 domains:\n [0, 0]\n [0, 2]")
     end
-    # test Base.show (DomainRestrictions in REPL)
-    @testset "Base.show (REPL DomainRestrictions)" begin
-        str = "Subdomain restrictions (1): par1 " * InfiniteOpt._math_symbol(MIME("text/plain"), :in) *
-              " [0.1, 1]"
-        show_test(MIME("text/plain"), rs, str)
-    end
-    # test Base.show (DomainRestrictions in IJulia)
-    @testset "Base.show (IJulia DomainRestrictions)" begin
-        str = "Subdomain restrictions (1): par1 " * InfiniteOpt._math_symbol(MIME("text/latex"), :in) *
-              " [0.1, 1]"
-        show_test(MIME("text/latex"), rs, str)
-    end
     # test Base.show (GeneralVariableRef in IJulia)
     @testset "Base.show (IJulia GeneralVariableRef)" begin
         show_test(MIME("text/latex"), y, "\$ y \$")
@@ -738,7 +654,7 @@ end
         # test restricted
         str = "c3 : x(par1) " * in_set_string(MIME("text/plain"), MOI.LessThan(5.0)) * ", " *
               InfiniteOpt._math_symbol(MIME("text/plain"), :for_all) * " par1 " *
-              InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 0.5]"
+              InfiniteOpt._math_symbol(MIME("text/plain"), :in) * " [0, 1]; if restrict(par1) = True"
         show_test(MIME("text/plain"), c3, str)
     end
     # test Base.show (constraint in IJulia)
@@ -751,7 +667,7 @@ end
         # test restricted
         str =  "c3 : \$ x(par1) " * in_set_string(MIME("text/latex"), MOI.LessThan(5.0)) * ", " *
                InfiniteOpt._math_symbol(MIME("text/latex"), :for_all) * " par1 " *
-               InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 0.5] \$"
+               InfiniteOpt._math_symbol(MIME("text/latex"), :in) * " [0, 1]; if restrict(par1) = True \$"
         show_test(MIME("text/latex"), c3, str)
     end
     # test show_backend_summary

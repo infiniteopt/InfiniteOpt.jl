@@ -109,11 +109,11 @@ parameters they explicitly/implicitly depend on) that is restricted to a certain
 sub-domain. Such constraints are common for enforcing initial/boundary conditions 
 and for enforcing path constraints over a certain sub-domain.
 
-These types of constraints are defined adding [`DomainRestrictions`](@ref). For 
+These types of constraints are defined adding [`DomainRestriction`](@ref). For 
 example, let's add the initial condition ``y_b(0) = 0``:
 ```jldoctest constrs
-julia> @constraint(model, initial, yb == 0, DomainRestrictions(t => 0))
-initial : yb(t) = 0, ∀ t = 0
+julia> @constraint(model, initial, yb == 0, DomainRestriction(iszero, t))
+initial : yb(t) = 0, ∀ t ∈ [0, 10]; if iszero(t) = True
 ```
 Thus, we have added a constraint to `model` defined over the sub-domain ``t = 0`` 
 in accordance with the initial condition.
@@ -127,12 +127,15 @@ in accordance with the initial condition.
     yb(0) = 0
     ```
 
-More complex sub-domains can be specified by simply adding more restrictions. To 
+This syntax is quite general since any function can be defined for more 
+complex sub-domains can be specified by simply adding more restrictions. To 
 illustrate this, let's define the constraint 
 ``2y_b^2(t, x) + z_1 \geq 3, \ \forall t = 0, \ x \in [-1, 1]^2``:
 ```jldoctest constrs
-julia> @constraint(model, 2ya^2 + z[1] >= 3, DomainRestrictions(t => 0, x => [-1, 1]))
-2 ya(t, x)² + z[1] ≥ 3, ∀ t = 0, x[1] ∈ [-1, 1], x[2] ∈ [-1, 1]
+julia> restrict(t_s, x_s) = iszero(t_s) && -1 <= x_s <= 1;
+
+julia> @constraint(model, 2ya^2 + z[1] >= 3, DomainRestriction(restrict, t, x))
+2 ya(t, x)² + z[1] ≥ 3, ∀ t ∈ [0, 10], x[1] ∈ [-2, 2], x[2] ∈ [-2, 2]; if restrict(t, x) = True
 ```
 
 Now we have added constraints to our model, and it is ready to be solved!
@@ -155,7 +158,7 @@ and [`JuMP.VectorConstraint](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.VectorCo
 
 Restricted constraints are built upon this data structure where the underlying 
 constraint is created in the same manner. Then the specified 
-[`DomainRestrictions`](@ref) are added by creating a 
+[`DomainRestriction`](@ref) are added by creating a 
 [`DomainRestrictedConstraint`](@ref) which stores the `JuMP.AbstractConstraint` 
 and the restrictions.
 
@@ -180,7 +183,7 @@ The constraint objects are specified via `JuMP.build_constraint` which requires
 that the user provides a function, set, and optionally include domain 
 restrictions. For example, let's build a scalar constraint 
 ``3y_a(t, x) - y_b^2(t) \leq 0, \ \forall t \in [0, 10], x \in [-2, 2]^2`` over 
-its full infinite domain (i.e., have no `DomainRestrictions`):
+its full infinite domain (i.e., have no `DomainRestriction`):
 ```jldoctest constrs
 julia> constr = build_constraint(error, 3ya - yb^2, MOI.LessThan(0.0));
 ```
@@ -203,7 +206,7 @@ macro automate the above steps.
 As mentioned above in the Basic Usage section, the 
 [`@constraint`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.@constraint) 
 macro should be used to define constraints with the syntax: 
-`@constraint(model::InfiniteModel, [container/name_expr], constr_expr, [rs::DomainRestrictions])`.
+`@constraint(model::InfiniteModel, [container/name_expr], constr_expr, [rs::DomainRestriction])`.
 
 The second argument is optional and is used to assign a name and/or define 
 indexing variables to be used in the constraint expression. When a name is provided it 
@@ -249,29 +252,25 @@ See [`JuMP`'s constraint documentation](https://jump.dev/JuMP.jl/v1/manual/const
 for a thorough tutorial on the accepted syntax and constraint types.
 
 Finally, restrictions on the inherent infinite domain of a constraint can be 
-specified via [`DomainRestrictions`](@ref) with the `rs` argument. The accepted 
-syntax is `DomainRestrictions(restricts...)` where each argument of `restricts` 
-can be any of the following forms:
-- `pref => value`
-- `pref => [lb, ub]`
-- `pref => IntervalDomain(lb, ub)`
-- `prefs => value`
-- `prefs => [lb, ub]`
-- `prefs => IntervalDomain(lb, ub)`.
-Note that `pref` and `prefs` must correspond to infinite parameters.
+specified via [`DomainRestriction`](@ref) with the `rs` argument. The accepted 
+syntax is `DomainRestriction(restrict_func, prefs...)` where `restrict_func` takes
+a support in the form of `prefs...` and returns a `Bool` that indicates if the support
+is in the domain of interest. Note that `prefs` must correspond to infinite parameters.
 
 For example, we can define the constraint ``y_a^2(t, x) + z_i \leq 1`` and 
-restrict the infinite domain of ``x_i`` to be ``[0, 1]``:
+restrict the infinite domain of ``x`` to be ``[0, 1]^2``:
  ```jldoctest constrs
-julia> @constraint(model, [i = 1:2], ya^2 + z[i] <= 1, DomainRestrictions(x[i] => [0, 1]))
+julia> restrict2(x_s) = all(0 .<= x_s .<= 1);
+
+julia> @constraint(model, [i = 1:2], ya^2 + z[i] <= 1, DomainRestriction(restrict2, x))
 2-element Vector{InfOptConstraintRef}:
- ya(t, x)² + z[1] ≤ 1, ∀ t ∈ [0, 10], x[1] ∈ [0, 1], x[2] ∈ [-2, 2]
- ya(t, x)² + z[2] ≤ 1, ∀ t ∈ [0, 10], x[1] ∈ [-2, 2], x[2] ∈ [0, 1]
+ ya(t, x)² + z[1] ≤ 1, ∀ t ∈ [0, 10], x[1] ∈ [-2, 2], x[2] ∈ [-2, 2]; if restrict2(x) = True
+ ya(t, x)² + z[2] ≤ 1, ∀ t ∈ [0, 10], x[1] ∈ [-2, 2], x[2] ∈ [-2, 2]; if restrict2(x) = True
 ```
 
 !!! tip
     Where possible, using [Restricted Variables](@ref) will tend to be more 
-    performant than using `DomainRestrictions` instead.
+    performant than using `DomainRestriction` instead.
 
 ## Queries
 In this section, we describe a variety of methods to extract constraint
@@ -313,18 +312,18 @@ c1 : z[1]² + z[2]² + 2 ya(t, x) ≤ 0, ∀ t ∈ [0, 10], x[1] ∈ [-2, 2], x[
 ### Domain Restrictions
 As explained above, restricted constraints serve as a key capability of 
 `InfiniteOpt`. Information about domain restrictions can be obtained via 
-[`has_domain_restrictions`](@ref) and [`domain_restrictions`](@ref) which indicate 
-if a constraint is restricted and what its [`DomainRestrictions`](@ref) are, 
+[`has_domain_restriction`](@ref) and [`domain_restriction`](@ref) which indicate 
+if a constraint is restricted and what its [`DomainRestriction`](@ref) are, 
 respectively. These are exemplified below:
 ```jldoctest constrs
-julia> has_domain_restrictions(c1) # check if constraint is bounded
+julia> has_domain_restriction(c1) # check if constraint is bounded
 false
 
-julia> has_domain_restrictions(initial)
+julia> has_domain_restriction(initial)
 true
 
-julia> domain_restrictions(initial)
-Subdomain restrictions (1): t = 0
+julia> domain_restriction(initial)
+iszero(t)
 ```
 
 ### General
@@ -412,7 +411,7 @@ let's update the name of `initial` to `"init_cond"`:
 julia> set_name(initial, "init_cond")
 
 julia> initial
-init_cond : yb(t) = 0, ∀ t = 0
+init_cond : yb(t) = 0, ∀ t ∈ [0, 10]; if iszero(t) = True
 ```
 
 We can also update the normalized right hand side constant value or normalized 
@@ -435,42 +434,31 @@ constr : 2.5 yb(t) - z[1] ≤ -1, ∀ t ∈ [0, 10]
     to update parameters without having to be concerned about the normalized form. 
     For more information, see the [Finite Parameters](@ref finite_param_docs) page. 
 
-### Domain Restrictions
-Domain Restrictions can be added to, modified, or removed from any constraint in 
+### Domain Restriction
+Domain Restrictions can be modified or removed from any constraint in 
 `InfiniteOpt`. Principally, this is accomplished via  
-[`add_domain_restrictions`](@ref), [`set_domain_restrictions`](@ref), 
-and [`delete_domain_restrictions`](@ref).
+[`set_domain_restriction`](@ref) and [`delete_domain_restriction`](@ref).
 
 !!! note 
-    Previous versions of `InfiniteOpt` used `@[set/add]_parameter_bounds` which 
-    have been deprecated in favor of using [`DomainRestrictions`](@ref) with the 
-    methods described used in this section.
+    Previous versions of `InfiniteOpt` used `DomainRestrictions` with a more
+    limited syntax. Now [`DomainRestriction`](@ref) has been introduced to
+    provide a more flexible syntax.
 
-First, domain restrictions can be added to a constraint via 
-[`add_domain_restrictions`](@ref). For example, let's add the bound 
-``t \in [0, 1]`` to `constr`:
-```jldoctest constrs
-julia> add_domain_restrictions(constr, DomainRestrictions(t => [0, 1]))
-
-julia> constr
-constr : 2.5 yb(t) - z[1] ≤ -1, ∀ t ∈ [0, 1]
-```
-
-In similar manner, [`set_domain_restrictions`](@ref) can be employed to specify 
+[`set_domain_restriction`](@ref) can be employed to specify 
 what restrictions a constraint has (overwriting any existing ones if forced). It  
 follows the same syntax, so let's use it to change the bounds on `t` to ``t = 0``:
 ```jldoctest constrs
-julia> set_domain_restrictions(constr, DomainRestrictions(t => 0), force = true)
+julia> set_domain_restriction(constr, DomainRestriction(iszero, t))
 
 julia> constr
-constr : 2.5 yb(t) - z[1] ≤ -1, ∀ t = 0
+constr : 2.5 yb(t) - z[1] ≤ -1, ∀ t ∈ [0, 10]; if iszero(t) = True
 ```
 
 Finally, constraint restrictions can be deleted via 
-[`delete_domain_restrictions`](@ref). Now let's delete the domain restrictions 
+[`delete_domain_restriction`](@ref). Now let's delete the domain restrictions 
 associated with our example:
 ```jldoctest constrs
-julia> delete_domain_restrictions(constr)
+julia> delete_domain_restriction(constr)
 
 julia> constr
 constr : 2.5 yb(t) - z[1] ≤ -1, ∀ t ∈ [0, 10]

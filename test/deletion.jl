@@ -11,7 +11,7 @@
     meas = measure(inf + par - x, data)
     d1 = @deriv(inf, par)
     @constraint(m, c1, par - inf + pt + 2x - rv + meas - d1 <= 1)
-    @constraint(m, c2, inf <= 9, DomainRestrictions(par => 0))
+    @constraint(m, c2, inf <= 9, DomainRestriction(iszero, par))
     @constraint(m, c3, [inf, x] in MOI.Zeros(2))
     # test normal deletion
     @test isa(delete(m, c1), Nothing)
@@ -31,7 +31,6 @@
     @test !is_valid(m, c2)
     @test !(index(c2) in InfiniteOpt._constraint_dependencies(inf))
     @test length(InfiniteOpt._data_dictionary(c2)) == 1
-    @test isempty(m.constraint_restrictions)
     # test vector constraint deletion 
     @test isa(delete(m, c3), Nothing)
     @test !is_valid(m, c3)
@@ -47,80 +46,59 @@ end
     @infinite_parameter(m, par in [0, 1])
     @variable(m, 0 <= inf1 <= 1, Infinite(par), Bin)
     @variable(m, inf2 == 1, Infinite(par), Int)
-    @variable(m, pt1, Point(inf1, 0.5))
-    @variable(m, pt2, Point(inf2, 0.5))
+    pt1 = inf1(0.5)
+    pt2 = inf2(0.5)
     @variable(m, 0 <= gb1 <= 1, Bin)
     @variable(m, gb2 == 1, Int)
-    @variable(m, 0 <= d1 <= 1, Deriv(inf1, par))
-    @variable(m, d2 == 1, Deriv(inf2, par))
     # test delete_lower_bound
     @testset "JuMP.delete_lower_bound" begin
-        # test with infinite variable
+        # test with infinite and point variables
         @test has_lower_bound(inf1)
+        @test has_lower_bound(pt1)
         @test isa(delete_lower_bound(inf1), Nothing)
         @test !has_lower_bound(inf1)
-        @test_throws ErrorException delete_lower_bound(inf2)
-        # test with point variable
-        @test has_lower_bound(pt1)
-        @test isa(delete_lower_bound(pt1), Nothing)
         @test !has_lower_bound(pt1)
-        @test_throws ErrorException delete_lower_bound(pt2)
+        @test_throws ErrorException delete_lower_bound(inf2)
+        @test delete_lower_bound(pt1) isa Nothing
+        @test !has_lower_bound(pt1)
         # test with finite variable
         @test has_lower_bound(gb1)
         @test isa(delete_lower_bound(gb1), Nothing)
         @test !has_lower_bound(gb1)
         @test_throws ErrorException delete_lower_bound(gb2)
-        # test with derivative
-        @test has_lower_bound(d1)
-        @test isa(delete_lower_bound(d1), Nothing)
-        @test !has_lower_bound(d1)
-        @test_throws ErrorException delete_lower_bound(d2)
     end
     # test delete_upper_bound
     @testset "JuMP.delete_upper_bound" begin
-        # test with infinite variable
+        # test with infinite and point variables
         @test has_upper_bound(inf1)
+        @test has_upper_bound(pt1)
         @test isa(delete_upper_bound(inf1), Nothing)
         @test !has_upper_bound(inf1)
-        @test_throws ErrorException delete_upper_bound(inf2)
-        # test with point variable
-        @test has_upper_bound(pt1)
-        @test isa(delete_upper_bound(pt1), Nothing)
         @test !has_upper_bound(pt1)
-        @test_throws ErrorException delete_upper_bound(pt2)
+        @test_throws ErrorException delete_upper_bound(inf2)
+        @test delete_upper_bound(pt1) isa Nothing
+        @test !has_upper_bound(pt1)
         # test with finite variable
         @test has_upper_bound(gb1)
         @test isa(delete_upper_bound(gb1), Nothing)
         @test !has_upper_bound(gb1)
         @test_throws ErrorException delete_upper_bound(gb2)
-        # test with derivative
-        @test has_upper_bound(d1)
-        @test isa(delete_upper_bound(d1), Nothing)
-        @test !has_upper_bound(d1)
-        @test_throws ErrorException delete_upper_bound(d2)
     end
     # test unfix
     @testset "JuMP.unfix" begin
-        # test with infinite variable
+        # test with infinite and point variables
         @test is_fixed(inf2)
-        @test isa(unfix(inf2), Nothing)
-        @test !is_fixed(inf2)
-        @test_throws ErrorException unfix(inf1)
-        # test with point variable
         @test is_fixed(pt2)
         @test isa(unfix(pt2), Nothing)
         @test !is_fixed(pt2)
-        @test_throws ErrorException unfix(pt1)
+        @test isa(unfix(inf2), Nothing)
+        @test !is_fixed(inf2)
+        @test_throws ErrorException unfix(inf1)
         # test with finite variable
         @test is_fixed(gb2)
         @test isa(unfix(gb2), Nothing)
         @test !is_fixed(gb2)
         @test_throws ErrorException unfix(gb1)
-        # test with derivative
-        @test is_fixed(d2)
-        @test isa(unfix(d2), Nothing)
-        @test !is_fixed(d2)
-        @test_throws ErrorException unfix(d1)
     end
     # test unset_binary
     @testset "JuMP.unset_binary" begin
@@ -130,10 +108,8 @@ end
         @test !is_binary(inf1)
         @test_throws ErrorException unset_binary(inf2)
         # test with point variable
-        @test is_binary(pt1)
-        @test isa(unset_binary(pt1), Nothing)
         @test !is_binary(pt1)
-        @test_throws ErrorException unset_binary(pt2)
+        @test_throws ErrorException unset_binary(pt1)
         # test with finite variable
         @test is_binary(gb1)
         @test isa(unset_binary(gb1), Nothing)
@@ -148,10 +124,8 @@ end
         @test !is_integer(inf2)
         @test_throws ErrorException unset_integer(inf1)
         # test with point variable
-        @test is_integer(pt2)
-        @test isa(unset_integer(pt2), Nothing)
         @test !is_integer(pt2)
-        @test_throws ErrorException unset_integer(pt1)
+        @test_throws ErrorException unset_integer(pt2)
         # test with finite variable
         @test is_integer(gb2)
         @test isa(unset_integer(gb2), Nothing)
@@ -503,8 +477,8 @@ end
     m = InfiniteModel()
     @infinite_parameter(m, par in [0, 1])
     @variable(m, inf, Infinite(par))
-    @variable(m, 0 <= x <= 1, Point(inf, 0), Bin)
-    @variable(m, y == 1, Point(inf, 1), Int)
+    @variable(m, 0 <= x <= 1, Point(inf, 0))
+    @variable(m, y == 1, Point(inf, 1))
     data = TestData(par, 0, 1)
     meas1 = measure(x + y + par, data)
     meas2 = measure(y, data)
@@ -514,7 +488,7 @@ end
     @objective(m, Min, x + y)
     # test deletion of x
     @test isa(delete(m, x), Nothing)
-    @test num_constraints(m) == 4
+    @test num_constraints(m) == 3
     @test isequal_canonical(measure_function(meas1), y + par)
     @test InfiniteOpt.parameter_group_int_indices(meas1) == []
     @test isequal_canonical(jump_function(constraint_object(con1)), y + par)

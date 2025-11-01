@@ -6,10 +6,7 @@
     @infinite_parameter(m, b[1:2] in [0, 1], independent = true)
     @infinite_parameter(m, c[1:2] in [0, 1])
     @variable(m, ivref, Infinite(a, b..., c))
-    num = Float64(0)
-    info = VariableInfo(false, num, false, num, false, num, false, num, false, false)
-    new_info = VariableInfo(true, 0., true, 0., true, 0., true, 0., true, false)
-    var = PointVariable(info, ivref, [0., 0., 1., 1., 0.])
+    var = PointVariable(RestrictedDomainInfo(), ivref, [0., 0., 1., 1., 0.])
     object = VariableData(var, "var")
     idx = PointVariableIndex(1)
     vref = PointVariableRef(m, idx)
@@ -59,10 +56,11 @@
         @test InfiniteOpt._set_core_object(vref, var) isa Nothing
     end
     @testset "_variable_info" begin
-        @test InfiniteOpt._variable_info(vref) == info
+        @test InfiniteOpt._variable_info(vref) isa RestrictedDomainInfo
     end
     # _update_variable_info
     @testset "_update_variable_info" begin
+        new_info = InfiniteOpt.RestrictedDomainInfo(true, 42., false, 0., false, 3, false, 0.)
         @test isa(InfiniteOpt._update_variable_info(vref, new_info), Nothing)
         @test InfiniteOpt._variable_info(vref) == new_info
     end
@@ -165,15 +163,16 @@ end
     @infinite_parameter(m, prefs[1:2] in [0, 1])
     num = Float64(0)
     info = VariableInfo(false, num, false, num, false, num, false, num, false, false)
-    info2 = VariableInfo(true, num, true, num, true, num, true, num, true, false)
+    info2 = VariableInfo(true, num, true, num, true, num, true, num, false, false)
     info3 = VariableInfo(true, num, true, num, true, num, true, num, false, true)
-    info4 = VariableInfo(true, num, true, num, true, num, true, num, true, true)
     num = Float64(1)
-    info5 = VariableInfo(true, num, true, num, true, num, true, num, true, true)
+    info4 = VariableInfo(true, num, true, num, true, num, true, num, false, false)
     @variable(m, ivref, Infinite(pref, pref2))
     @variable(m, ivref2, Infinite(pref, prefs))
     divref = dispatch_variable_ref(ivref)
     divref2 = dispatch_variable_ref(ivref2)
+    ivref_prefs = raw_parameter_refs(divref)
+    ivref2_prefs = raw_parameter_refs(divref2)
     # test Point
     @testset "Point" begin 
         @test isequal(Point(ivref, [0, 0]).infinite_variable_ref, ivref)
@@ -182,21 +181,21 @@ end
     # _check_tuple_shape
     @testset "_check_tuple_shape" begin
         # test normal
-        @test isa(InfiniteOpt._check_tuple_shape(error, divref, IC.VectorTuple(0.5, 0.5)),
+        @test isa(InfiniteOpt._check_tuple_shape(error, ivref_prefs, IC.VectorTuple(0.5, 0.5)),
                   Nothing)
         # prepare param value tuple
         tuple = IC.VectorTuple(0.5, [0.5, 0.5])
         # test normal with array
-        @test isa(InfiniteOpt._check_tuple_shape(error, divref2, tuple), Nothing)
+        @test isa(InfiniteOpt._check_tuple_shape(error, ivref2_prefs, tuple), Nothing)
         # test for errors in shape
-        @test_throws ErrorException InfiniteOpt._check_tuple_shape(error, divref,
+        @test_throws ErrorException InfiniteOpt._check_tuple_shape(error, ivref_prefs,
                                                               IC.VectorTuple(0.5,))
-        @test_throws ErrorException InfiniteOpt._check_tuple_shape(error, divref,
+        @test_throws ErrorException InfiniteOpt._check_tuple_shape(error, ivref_prefs,
                                                         IC.VectorTuple(0.5, [0.5]))
-        @test_throws ErrorException InfiniteOpt._check_tuple_shape(error, divref2,
+        @test_throws ErrorException InfiniteOpt._check_tuple_shape(error, ivref2_prefs,
                                                           IC.VectorTuple(0.5, 0.5))
         tuple = IC.VectorTuple(0.5, [0.5, 0.5, 0.5])
-        @test_throws ErrorException InfiniteOpt._check_tuple_shape(error, divref2,
+        @test_throws ErrorException InfiniteOpt._check_tuple_shape(error, ivref2_prefs,
                                                                    tuple)
     end
     # _check_element_support
@@ -222,54 +221,17 @@ end
     # _check_tuple_values
     @testset "_check_tuple_values" begin
         # test normal
-        @test isa(InfiniteOpt._check_tuple_values(error, divref, Float64[0.5, 0.5]),
+        @test isa(InfiniteOpt._check_tuple_values(error, ivref_prefs, Float64[0.5, 0.5]),
                   Nothing)
         # test normal with array
         vals = Float64[0, 0.5, 1]
-        @test isa(InfiniteOpt._check_tuple_values(error, divref2, vals), Nothing)
+        @test isa(InfiniteOpt._check_tuple_values(error, ivref2_prefs, vals), Nothing)
         # test for out of bound errors
-        @test_throws ErrorException InfiniteOpt._check_tuple_values(error, divref,
+        @test_throws ErrorException InfiniteOpt._check_tuple_values(error, ivref_prefs,
                                                                     Float64[0, 2])
         vals = Float64[0, 2, 1]
-        @test_throws ErrorException InfiniteOpt._check_tuple_values(error, divref2,
+        @test_throws ErrorException InfiniteOpt._check_tuple_values(error, ivref2_prefs,
                                                                     vals)
-    end
-    # _update_point_info
-    @testset "_update_point_info" begin
-        basic_func = (a::Vector) -> 1
-        # prepare info for test
-        new_info = VariableInfo(true, 0., true, 0., false, 0., false, basic_func,
-                                 true, false)
-        InfiniteOpt._update_variable_info(divref, new_info)
-        expected = VariableInfo(true, 0., true, 0., false, 0., false, 0., true, false)
-        # test with current info
-        @test InfiniteOpt._update_point_info(info, divref, Float64[0, 0]) == expected
-        # prepare info for test
-        new_info = VariableInfo(false, 0., false, 0., true, 0., true, basic_func,
-                                false, true)
-        InfiniteOpt._update_variable_info(divref, new_info)
-        expected = VariableInfo(false, 0., false, 0., true, 0., true, 1, false, true)
-        # test with current info
-        @test InfiniteOpt._update_point_info(info, divref, Float64[0, 0]) == expected
-        # prepare info for test
-        curr_info = VariableInfo(true, 0., true, 0., false, 0., true, 0.,
-                                 true, false)
-        # test with current info
-        @test InfiniteOpt._update_point_info(curr_info, divref, Float64[0, 0]) == curr_info
-        # undo info changes
-        basic_func = (a::Vector) -> NaN
-        old_info = VariableInfo(false, NaN, false, NaN, false, NaN, false, basic_func,
-                            false, false)
-        InfiniteOpt._update_variable_info(divref, old_info)
-        # test with user defined start function
-        @test set_start_value_function(divref, (a, b) -> a + b) isa Nothing
-        expected = VariableInfo(false, 0., false, 0., false, 0., true, 3, false, false)
-        @test InfiniteOpt._update_point_info(info, divref, Float64[1, 2]) == expected
-        @test reset_start_value_function(divref) isa Nothing
-        # test parameter function
-        pfref = ParameterFunctionRef(m, ParameterFunctionIndex(1))
-        @test InfiniteOpt._update_point_info(info, pfref, [0.]) == info
-        @test_throws ErrorException InfiniteOpt._update_point_info(info2, pfref, [0.])
     end
     # build_variable
     @testset "JuMP.build_variable" begin
@@ -279,14 +241,17 @@ end
         @test_throws ErrorException build_variable(error, info, Point(ivref, "d"))
         @test_throws ErrorException build_variable(error, info, Point(ivref, 0.5, 0.5), 
                                                    bad = 42)
+        @test_throws ErrorException build_variable(error, info, Point(ivref, 0.5, 2))
+        @test_throws ErrorException build_variable(error, info, Point(ivref2, 0.5, [0, 0, 0]))
+        @test_throws ErrorException build_variable(error, info3, Point(ivref, 0.5, 0.7))
+        bad_info = VariableInfo(true, 0., true, 0., true, "b", false, 0., false, false)
+        @test_throws ErrorException build_variable(error, bad_info, Point(ivref, 0.5, 0.5))
         # test a variety of builds
         @test isequal(build_variable(error, info, Point(ivref, 0.5, 0.5)).infinite_variable_ref, ivref)
         @test build_variable(error, info, Point(ivref, 0.5, 0.5)).parameter_values == [0.5, 0.5]
-        @test build_variable(error, info, Point(ivref, 0.5, 0.5)).info == info
-        @test_throws ErrorException build_variable(error, info, Point(ivref, 0.5, 2))
+        @test build_variable(error, info, Point(ivref, 0.5, 0.5)).info isa RestrictedDomainInfo
         @test isequal(build_variable(error, info, Point(ivref2, 0.5, [0, 0])).infinite_variable_ref, ivref2)
         @test build_variable(error, info, Point(ivref2, 0.5, [0, 0])).parameter_values == [0.5, 0, 0]
-        @test_throws ErrorException build_variable(error, info, Point(ivref2, 0.5, [0, 0, 0]))
     end
     # _add_point_support
     @testset "_add_point_support (IndependentParameterRef)" begin
@@ -349,7 +314,7 @@ end
         @variable(m2, ivref3, Infinite(pref3))
         v = build_variable(error, info, Point(ivref3, 0.5))
         # test for invalid variable error
-        @test_throws VariableNotOwned{InfiniteVariableRef} add_variable(m, v)
+        @test_throws VariableNotOwned{GeneralVariableRef} add_variable(m, v)
         # test normal
         v = build_variable(error, info, Point(ivref, 0, 1))
         idx = PointVariableIndex(1)
@@ -394,35 +359,6 @@ end
         @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
                                                  MOI.EqualTo{Float64}}
         @test InfiniteOpt._data_object(cref).is_info_constraint
-        # binary
-        cindex = InfOptConstraintIndex(4)
-        cref = InfOptConstraintRef(m, cindex)
-        @test has_upper_bound(vref)
-        @test is_binary(vref)
-        @test InfiniteOpt._binary_index(vref) == cindex
-        @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
-                                                 MOI.ZeroOne}
-        @test InfiniteOpt._data_object(cref).is_info_constraint
-        @test InfiniteOpt._constraint_dependencies(vref) == [InfOptConstraintIndex(i)
-                                                             for i = 1:4]
-        # prepare infinite variable with integer info addition
-        v = build_variable(error, info3, Point(ivref, 1, 1))
-        # test integer addition functions
-        idx = PointVariableIndex(3)
-        vref = PointVariableRef(m, idx)
-        gvref = InfiniteOpt.GeneralVariableRef(m, idx)
-        @test isequal(add_variable(m, v, "name"), gvref)
-        @test !transformation_backend_ready(m)
-        cindex = InfOptConstraintIndex(8)
-        cref = InfOptConstraintRef(m, cindex)
-        @test has_upper_bound(vref)
-        @test is_integer(vref)
-        @test InfiniteOpt._integer_index(vref) == cindex
-        @test constraint_object(cref) isa ScalarConstraint{GeneralVariableRef,
-                                                 MOI.Integer}
-        @test InfiniteOpt._data_object(cref).is_info_constraint
-        @test InfiniteOpt._constraint_dependencies(vref) == [InfOptConstraintIndex(i)
-                                                             for i = 5:8]
         # test redundant add with same info 
         v = build_variable(error, info, Point(ivref, 0, 1))
         idx = PointVariableIndex(1)
@@ -430,52 +366,44 @@ end
         gvref = InfiniteOpt.GeneralVariableRef(m, idx)
         @test isequal(add_variable(m, v, "name2"), gvref)
         @test haskey(InfiniteOpt._data_dictionary(vref), idx)
-        @test supports(pref) == [0, 1]
+        @test supports(pref) == [0]
         @test supports(pref2) == [0, 1]
         @test name(vref) == "name2"
         @test !has_upper_bound(vref)
         # test redundant add with all new info 
-        v = build_variable(error, info4, Point(ivref, 0, 1))
+        v = build_variable(error, info2, Point(ivref, 0, 1))
         idx = PointVariableIndex(1)
         vref = PointVariableRef(m, idx)
         gvref = InfiniteOpt.GeneralVariableRef(m, idx)
         @test isequal(add_variable(m, v), gvref)
         @test haskey(InfiniteOpt._data_dictionary(vref), idx)
-        @test supports(pref) == [0, 1]
+        @test supports(pref) == [0]
         @test supports(pref2) == [0, 1]
         @test name(vref) == "name2"
         @test lower_bound(vref) == 0
         @test upper_bound(vref) == 0
         @test fix_value(vref) == 0
         @test start_value(vref) == 0
-        @test is_binary(vref)
-        @test is_integer(vref)
-        @test LowerBoundRef(vref) == InfOptConstraintRef(m, InfOptConstraintIndex(9))
-        @test UpperBoundRef(vref) == InfOptConstraintRef(m, InfOptConstraintIndex(10))
-        @test FixRef(vref) == InfOptConstraintRef(m, InfOptConstraintIndex(11))
-        @test BinaryRef(vref) == InfOptConstraintRef(m, InfOptConstraintIndex(12))
-        @test IntegerRef(vref) == InfOptConstraintRef(m, InfOptConstraintIndex(13))
+        @test LowerBoundRef(vref) == InfOptConstraintRef(m, InfOptConstraintIndex(4))
+        @test UpperBoundRef(vref) == InfOptConstraintRef(m, InfOptConstraintIndex(5))
+        @test FixRef(vref) == InfOptConstraintRef(m, InfOptConstraintIndex(6))
         # test redundant add with all new values info 
-        v = build_variable(error, info5, Point(ivref, 0, 1))
+        v = build_variable(error, info4, Point(ivref, 0, 1))
         idx = PointVariableIndex(1)
         vref = PointVariableRef(m, idx)
         gvref = InfiniteOpt.GeneralVariableRef(m, idx)
         @test isequal(add_variable(m, v, "name4"), gvref)
         @test haskey(InfiniteOpt._data_dictionary(vref), idx)
-        @test supports(pref) == [0, 1]
+        @test supports(pref) == [0]
         @test supports(pref2) == [0, 1]
         @test name(vref) == "name4"
         @test lower_bound(vref) == 1
         @test upper_bound(vref) == 1
         @test fix_value(vref) == 1
         @test start_value(vref) == 1
-        @test is_binary(vref)
-        @test is_integer(vref)
-        @test LowerBoundRef(vref) == InfOptConstraintRef(m, InfOptConstraintIndex(9))
-        @test UpperBoundRef(vref) == InfOptConstraintRef(m, InfOptConstraintIndex(10))
-        @test FixRef(vref) == InfOptConstraintRef(m, InfOptConstraintIndex(11))
-        @test BinaryRef(vref) == InfOptConstraintRef(m, InfOptConstraintIndex(12))
-        @test IntegerRef(vref) == InfOptConstraintRef(m, InfOptConstraintIndex(13))
+        @test LowerBoundRef(vref) == InfOptConstraintRef(m, InfOptConstraintIndex(7))
+        @test UpperBoundRef(vref) == InfOptConstraintRef(m, InfOptConstraintIndex(8))
+        @test FixRef(vref) == InfOptConstraintRef(m, InfOptConstraintIndex(9))
         # test redundant add with new info that deletes 
         v = build_variable(error, info, Point(ivref, 0, 1))
         idx = PointVariableIndex(1)
@@ -483,7 +411,7 @@ end
         gvref = InfiniteOpt.GeneralVariableRef(m, idx)
         @test isequal(add_variable(m, v, "name5"), gvref)
         @test haskey(InfiniteOpt._data_dictionary(vref), idx)
-        @test supports(pref) == [0, 1]
+        @test supports(pref) == [0]
         @test supports(pref2) == [0, 1]
         @test name(vref) == "name5"
         @test !has_lower_bound(vref)
@@ -494,12 +422,12 @@ end
         @test !is_integer(vref)
         # test add with dependent parameters 
         v = build_variable(error, info, Point(ivref2, 0, [1, 1]))
-        idx = PointVariableIndex(4)
+        idx = PointVariableIndex(3)
         vref = PointVariableRef(m, idx)
         gvref = InfiniteOpt.GeneralVariableRef(m, idx)
         @test isequal(add_variable(m, v, "name"), gvref)
         @test haskey(InfiniteOpt._data_dictionary(vref), idx)
-        @test supports(pref) == [0, 1]
+        @test supports(pref) == [0]
         @test supports(prefs) == ones(2, 1)
         @test name(vref) == "name"
     end
@@ -523,39 +451,35 @@ end
         @test isequal(infinite_variable_ref(vref), z)
         @test parameter_values(vref) == (0, [0, 0])
         @test is_integer(vref)
-        @test lower_bound(vref) == 0
-        @test start_value(vref) == 0
+        @test !has_lower_bound(vref)
+        @test !has_start_value(vref)
         # test anon with changes to fixed
         idx = PointVariableIndex(2)
         vref = PointVariableRef(m, idx)
         gvref = InfiniteOpt.GeneralVariableRef(m, idx)
         @test isequal(@variable(m, variable_type = Point(z, 0, [1, 1]), 
-                        lower_bound = -5, binary = true), gvref)
+                        lower_bound = -5), gvref)
         @test isequal(infinite_variable_ref(vref), z)
         @test parameter_values(vref) == (0, [1, 1])
-        @test !is_integer(vref)
-        @test is_binary(vref)
         @test lower_bound(vref) == -5
         # test regular with alias
         idx = PointVariableIndex(1)
         vref = PointVariableRef(m, idx)
         gvref = InfiniteOpt.GeneralVariableRef(m, idx)
-        @test isequal(@variable(m, z0, Point(z, 0, [0, 0]), Bin), gvref)
+        @test isequal(@variable(m, z0, Point(z, 0, [0, 0])), gvref)
         @test isequal(infinite_variable_ref(vref), z)
         @test parameter_values(vref) == (0, [0, 0])
-        @test is_binary(vref)
-        @test lower_bound(vref) == 0
+        @test !has_lower_bound(vref)
         @test name(vref) == "z0"
         # test regular with semi anon
         idx = PointVariableIndex(1)
         vref = PointVariableRef(m, idx)
         gvref = InfiniteOpt.GeneralVariableRef(m, idx)
         @test isequal(@variable(m, variable_type = Point(z, 0, [0, 0]), base_name = "z0",
-                        binary = true), gvref)
+                        upper_bound = 0), gvref)
         @test isequal(infinite_variable_ref(vref), z)
         @test parameter_values(vref) == (0, [0, 0])
-        @test is_binary(vref)
-        @test lower_bound(vref) == 0
+        @test upper_bound(vref) == 0
         @test name(vref) == "z0"
     end
     # test array variable definition
@@ -568,7 +492,7 @@ end
         @test isequal(infinite_variable_ref(vrefs[1]), z)
         @test parameter_values(vrefs[2]) == (0, [0, 0])
         @test is_integer(vrefs[1])
-        @test lower_bound(vrefs[2]) == 0
+        @test !has_lower_bound(vrefs[2])
         # test anon array with different inf vars
         idxs = [PointVariableIndex(3), PointVariableIndex(4)]
         vrefs = [PointVariableRef(m, idx) for idx in idxs]
@@ -577,17 +501,15 @@ end
         @test isequal(infinite_variable_ref(vrefs[1]), z2[1])
         @test isequal(infinite_variable_ref(vrefs[2]), z2[2])
         @test parameter_values(vrefs[2]) == (0,)
-        @test fix_value(vrefs[2]) == 3
+        @test !is_fixed(vrefs[2])
         @test name(vrefs[1]) == ""
         # test array with same infvar
         idxs = [PointVariableIndex(1), PointVariableIndex(5)]
         vrefs = [PointVariableRef(m, idx) for idx in idxs]
         gvrefs = [InfiniteOpt.GeneralVariableRef(m, idx) for idx in idxs]
-        @test isequal(@variable(m, a[i = 1:2], Point(z, -1 + i, [0, 0]), Bin), gvrefs)
+        @test isequal(@variable(m, a[i = 1:2], Point(z, -1 + i, [0, 0])), gvrefs)
         @test isequal(infinite_variable_ref(vrefs[1]), z)
         @test parameter_values(vrefs[2]) == (1, [0, 0])
-        @test is_binary(vrefs[1])
-        @test lower_bound(vrefs[2]) == 0
         @test name(vrefs[1]) == "a[1]"
         # test test array with differnt infvars
         idxs = [PointVariableIndex(3), PointVariableIndex(4)]

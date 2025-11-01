@@ -178,7 +178,7 @@ end
     @finite_parameter(m, fin == 42)
     @parameter_function(m, a == sin(par))
     @variable(m, g <=3)
-    d1 = @deriv(inf, par)
+    d1 = deriv(inf, par)
     rv = inf2(par2, 0)
     @objective(m, Min, g^2)
     @constraint(m, c1, 2 * g <= 1)

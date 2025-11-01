@@ -154,10 +154,8 @@ That does it for this example, but other problems might also employ the followin
 - Finite variables: variables that do not depend on infinite parameters 
   (defined using `@variable`)
 - Semi-infinite variables: infinite variables where 1 or more parameters are 
-  set a particular point (defined using `@variable` with the [`SemiInfinite`](@ref) 
-  variable type argument) 
-- Point variables: infinite variables at a particular point (defined using 
-  `@variable` with the [`Point`](@ref) variable type argument).
+  set a particular point (defined via [Restricted Variables](@ref)).
+- Point variables: infinite variables at a particular point (defined via [Restricted Variables](@ref)).
 
 ### Objective & Constraints 
 Now that the variables and parameters are ready to go, let's define our problem. 

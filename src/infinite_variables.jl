@@ -67,11 +67,6 @@ function _parameter_numbers(vref::InfiniteVariableRef)
     return core_object(vref).parameter_nums
 end
 
-# Define getter function for var.is_vector_start
-function _is_vector_start(vref::InfiniteVariableRef)
-    return core_object(vref).is_vector_start
-end
-
 ## Set helper methods for adapting data_objects with parametric changes 
 # No change needed 
 function _adaptive_data_update(
@@ -202,66 +197,72 @@ function _check_parameter_tuple(
     return
 end
 
+# Helper methods to process raw VariableInfo arguments
+function _process_info_arg(
+    _error::Function,
+    value::Real,
+    prefs::Collections.VectorTuple,
+    param_nums::Vector{Int},
+    group_idxs::Vector{Int},
+    ) 
+    return convert(Float64, value)
+end
+function _process_info_arg(
+    _error::Function,
+    func::Function,
+    prefs::Collections.VectorTuple,
+    param_nums::Vector{Int},
+    group_idxs::Vector{Int},
+    )
+    _check_param_func_method(_error, func, prefs)
+    return ParameterFunction(func, prefs, group_idxs, param_nums)
+end
+
 ## Check and format the variable info considering functional start values
-# Just a number given for the start value
+# Normal input
 function _check_and_format_infinite_info(
     _error::Function,
-    info::JuMP.VariableInfo{<:Real, <:Real, <:Real, <:Real},
-    prefs::Collections.VectorTuple
+    info::JuMP.VariableInfo{
+        <:Union{Real, Function},
+        <:Union{Real, Function},
+        <:Union{Real, Function},
+        <:Union{Real, Function}
+        },
+    prefs::Collections.VectorTuple,
+    param_nums::Vector{Int},
+    group_int_idxs::Vector{Int},
     )
-    # prepare the start value function and return the info
-    start_func = (s::Vector{<:Real}) -> info.start
-    return JuMP.VariableInfo(info.has_lb, convert(Float64, info.lower_bound), 
-                             info.has_ub, convert(Float64, info.upper_bound),
-                             info.has_fix, convert(Float64, info.fixed_value), 
-                             !isnan(info.start), start_func, info.binary, 
-                             info.integer), 
-           true
-end
-
-# make function for checking start value function properties 
-function _check_valid_function(
-    _error::Function, 
-    func::Function, 
-    prefs::Collections.VectorTuple
+    return JuMP.VariableInfo(
+        info.has_lb,
+        _process_info_arg(_error, info.lower_bound, prefs, param_nums, group_int_idxs), 
+        info.has_ub,
+        _process_info_arg(_error, info.upper_bound, prefs, param_nums, group_int_idxs),
+        info.has_fix,
+        _process_info_arg(_error, info.fixed_value, prefs, param_nums, group_int_idxs),
+        info.has_start,
+        _process_info_arg(_error, info.start, prefs, param_nums, group_int_idxs),
+        info.binary, 
+        info.integer
     )
-    input_format = typeof(Tuple(Vector{Float64}(undef, length(prefs)), prefs))
-    if !hasmethod(func, input_format)
-        _error("Specified function `$func` must be able to accept a `Float64` " * 
-               "support realization of the infinite parameter tuple $(prefs).")
-    end
-    return 
-end
-
-# A function is given for the start value generation
-function _check_and_format_infinite_info(
-    _error::Function,
-    info::JuMP.VariableInfo{<:Real, <:Real, <:Real, F},
-    prefs::Collections.VectorTuple
-    ) where {F <: Function}
-    # check the function properties
-    _check_valid_function(_error, info.start, prefs)
-    # make the info and return
-    return JuMP.VariableInfo(info.has_lb, convert(Float64, info.lower_bound), 
-                             info.has_ub, convert(Float64, info.upper_bound),
-                             info.has_fix, convert(Float64, info.fixed_value), 
-                             info.has_start, info.start, info.binary, 
-                             info.integer), 
-           false
 end
 
 # Fallback
 function _check_and_format_infinite_info(
     _error::Function,
     info::JuMP.VariableInfo,
-    prefs::Collections.VectorTuple
+    prefs::Collections.VectorTuple,
+    param_nums::Vector{Int},
+    group_int_idxs::Vector{Int},
     )
-    _error("Unrecognized formatting for the variable information.")
+    _error("Unrecognized formatting for the variable domain information.")
 end
 
 """
-    JuMP.build_variable(_error::Function, info::JuMP.VariableInfo, 
-                        var_type::Infinite)::InfiniteVariable{GeneralVariableRef}
+    JuMP.build_variable(
+        _error::Function,
+        info::JuMP.VariableInfo, 
+        var_type::Infinite
+    )::InfiniteVariable
 
 Build and return an infinite variable based on `info` and `var_type`. Errors if 
 the infinite parameter references included in `var_type` are invalid. See 
@@ -284,21 +285,19 @@ function JuMP.build_variable(
     for (kwarg, _) in extra_kwargs
         _error("Keyword argument $kwarg is not for use with infinite variables.")
     end
-    # get the parameter_refs
+    # get the parameter_refs and check
     prefs = var_type.parameter_refs
-    # check the VectorTuple for validity and format
     _check_parameter_tuple(_error, prefs)
-    # check and format the info (accounting for start value functions)
-    new_info, is_vect_func = _check_and_format_infinite_info(_error, info, prefs)
     # get the parameter group integer indices
     group_int_idxs = Int[]
     for pref in prefs 
         union!(group_int_idxs, parameter_group_int_index(pref))
     end
+    param_nums = [_parameter_number(pref) for pref in prefs]
+    # check and format the info
+    new_info = _check_and_format_infinite_info(_error, info, prefs, param_nums, group_int_idxs)
     # make the variable and return
-    return InfiniteVariable(new_info, prefs,
-                            [_parameter_number(pref) for pref in prefs],
-                            group_int_idxs, is_vect_func)
+    return InfiniteVariable(new_info, prefs, param_nums, group_int_idxs)
 end
 
 # check the pref tuple contains only valid parameters
@@ -374,11 +373,8 @@ function _restrict_infinite_variable(
     ivref::GeneralVariableRef, 
     vt::Collections.VectorTuple{<:Real}
     )
-    info = JuMP.VariableInfo(false, NaN, false, NaN, false, NaN, false, NaN, 
-                             false, false)
-    new_var = JuMP.build_variable(error, info, Point(ivref, vt))
-    return JuMP.add_variable(JuMP.owner_model(ivref), new_var, 
-                             update_info = false)
+    new_var = JuMP.build_variable(error, ivref, vt, RestrictedDomainInfo())
+    return JuMP.add_variable(JuMP.owner_model(ivref), new_var)
 end
 
 # Infinite variable
@@ -401,9 +397,7 @@ function _restrict_infinite_variable(
     ivref::GeneralVariableRef, 
     vt::Collections.VectorTuple
     )
-    info = JuMP.VariableInfo(false, NaN, false, NaN, false, NaN, false, NaN, 
-                             false, false)
-    new_var = JuMP.build_variable(error, info, SemiInfinite(ivref, vt))
+    new_var = JuMP.build_variable(error, ivref, vt, RestrictedDomainInfo())
     return JuMP.add_variable(JuMP.owner_model(ivref), new_var)
 end
 
@@ -624,25 +618,6 @@ end
 ################################################################################
 #                           VARIABLE INFO METHODS
 ################################################################################
-## format infinite info 
-# Good to go
-function _format_infinite_info(
-    info::JuMP.VariableInfo{Float64, Float64, Float64, <:Function}
-    )
-    return info
-end
-
-# Convert as needed 
-function _format_infinite_info(
-    info::JuMP.VariableInfo{V, W, T, F}
-    ) where {V, W, T, F <: Function}
-    return JuMP.VariableInfo(info.has_lb, convert(Float64, info.lower_bound), 
-                             info.has_ub, convert(Float64, info.upper_bound), 
-                             info.has_fix, convert(Float64, info.fixed_value),
-                             info.has_start, info.start, info.binary, 
-                             info.integer)
-end
-
 # Set info for infinite variables
 function _update_variable_info(
     vref::InfiniteVariableRef,
@@ -651,112 +626,20 @@ function _update_variable_info(
     prefs = raw_parameter_refs(vref)
     param_nums = _parameter_numbers(vref)
     group_int_idxs = parameter_group_int_indices(vref)
-    is_vect_func = _is_vector_start(vref)
-    new_var = InfiniteVariable(_format_infinite_info(info), prefs, param_nums, 
-                               group_int_idxs, is_vect_func)
+    new_var = InfiniteVariable(info, prefs, param_nums, group_int_idxs)
     _set_core_object(vref, new_var)
     return
 end
 
-# Specify start_value fallback for infinite variables
-function JuMP.start_value(vref::Union{InfiniteVariableRef, DerivativeRef})
-    error("`start_value` not defined for infinite variables, consider calling " *
-          "`start_value_function` instead.")
-end
-
-# Specify set_start_value fallback for infinite variables
-function JuMP.set_start_value(
-    vref::Union{InfiniteVariableRef, DerivativeRef}, 
-    value::Real
+# Extend _process_info_arg for infinite variables and derivatives
+function _process_info_arg(
+    vref::Union{InfiniteVariableRef, DerivativeRef},
+    func::Function
     )
-    error("`set_start_value` not defined for infinite variables, consider calling " *
-          "`set_start_value_function` instead.")
-end
-
-"""
-    start_value_function(vref::Union{InfiniteVariableRef, DerivativeRef})::Union{Nothing, Function}
-
-Return the function that is used to generate the start values of `vref` for
-particular support values. Returns `nothing` if no start behavior has been
-specified.
-
-**Example**
-```julia-repl
-julia> start_value_function(vref)
-my_start_func
-```
-"""
-function start_value_function(
-    vref::Union{InfiniteVariableRef, DerivativeRef}
-    )
-    if _variable_info(vref).has_start
-        return _variable_info(vref).start
-    else
-        return
-    end
-end
-
-"""
-    set_start_value_function(vref::InfiniteVariableRef,
-                             start::Union{Real, Function})::Nothing
-
-Set the start value function of `vref`. If `start::Real` then a function is
-generated to such that the start value will be `start` for the entire infinite
-domain. If `start::Function` then this function should map to a scalar start value
-given a support value arguments matching the format of the parameter elements in
-`parameter_refs(vref)`.
-
-**Example**
-```julia-repl
-julia> set_start_value_function(vref, 1) # all start values will be 1
-
-julia> set_start_value_function(vref, my_func) # each value will be made via my_func
-```
-"""
-function set_start_value_function(
-    vref::InfiniteVariableRef,
-    start::Union{Real, Function}
-    )
-    info = _variable_info(vref)
-    set_transformation_backend_ready(JuMP.owner_model(vref), false)
     prefs = raw_parameter_refs(vref)
-    temp_info = JuMP.VariableInfo(info.has_lb, info.lower_bound, info.has_ub,
-                                  info.upper_bound, info.has_fix, info.fixed_value,
-                                  true, start, info.binary, info.integer)
-    new_info, is_vect_func = _check_and_format_infinite_info(error, temp_info, prefs)
-    group_int_idxs = parameter_group_int_indices(vref)
     param_nums = _parameter_numbers(vref)
-    new_var = InfiniteVariable(new_info, prefs, param_nums, group_int_idxs, is_vect_func)
-    _set_core_object(vref, new_var)
-    # TODO update point variable start values as appropriate
-    return
-end
-
-"""
-    reset_start_value_function(vref::InfiniteVariableRef)::Nothing
-
-Remove the existing start value function and return to the default. Generally,
-this is triggered by deleting an infinite parameter that `vref` depends on.
-
-**Example**
-```julia-repl
-julia> reset_start_value_function(vref)
-```
-"""
-function reset_start_value_function(vref::InfiniteVariableRef)
-    info = _variable_info(vref)
-    set_transformation_backend_ready(JuMP.owner_model(vref), false)
-    start_func = (s::Vector{<:Real}) -> NaN
-    new_info = JuMP.VariableInfo(info.has_lb, info.lower_bound, info.has_ub,
-                                 info.upper_bound, info.has_fix, info.fixed_value,
-                                 false, start_func, info.binary, info.integer)
-    prefs = raw_parameter_refs(vref)
     group_int_idxs = parameter_group_int_indices(vref)
-    param_nums = _parameter_numbers(vref)
-    new_var = InfiniteVariable(new_info, prefs, param_nums, group_int_idxs, true)
-    _set_core_object(vref, new_var)
-    # TODO update point variable start values as appropriate
-    return
+    return _process_info_arg(error, func, prefs, param_nums, group_int_idxs)
 end
 
 ################################################################################
@@ -803,8 +686,6 @@ end
 ################################################################################
 # Extend _delete_variable_dependencies (for use with JuMP.delete)
 function _delete_variable_dependencies(vref::InfiniteVariableRef)
-    # remove variable info constraints associated with vref
-    _delete_info_constraints(vref)
     # update parameter mapping and remove piecewise settings
     all_prefs = parameter_list(vref)
     model = JuMP.owner_model(vref)

@@ -40,10 +40,6 @@
         f = parameter_function(sin, par1)
         @test make_point_variable_ref(m, f, [0.]) == f(0)
     end
-    # test add_point_variable
-    @testset "add_point_variable" begin
-        @test_throws ErrorException add_point_variable(TestBackend(), d1, [0.])
-    end
     # test make_point_variable_ref (backend)
     @testset "make_point_variable_ref (backend)" begin
         @test_throws ErrorException make_point_variable_ref(TestBackend(), inf1, Float64[0])
@@ -670,9 +666,8 @@ end
         @constraint(m, c2, 2x - measure(measure(inf1 * x + par1 + inf2, data1),
                                         data3) == 0.)
         @constraint(m, c3, measure(inf2, data1) + inf1 >= 0., 
-                    DomainRestrictions(par2 => [1, 1.5]))
-        @constraint(m, c4, measure(inf4 + y, data2) <= 3., 
-                    DomainRestrictions(par2 => 1))
+                    DomainRestriction(p -> 1 <= p <= 1.5, par2))
+        @constraint(m, c4, measure(inf4 + y, data2) <= 3.)
         @constraint(m, c5, [measure(inf2, data1), x] in MOI.Zeros(2))
         # prepare comparison expressions
         obj = x + 0.5inf1(1) + inf1(2) + 3
@@ -695,18 +690,18 @@ end
         @test name(c5) == "c5"
         @test isequal_canonical(constraint_object(c1).func, inf1 + x)
         @test isequal_canonical(constraint_object(c2).func, c2_expected)
-        @test isequal_canonical(constraint_object(c3).func, c3_expected)
+        @test isequal_canonical(jump_function(constraint_object(c3)), c3_expected)
         @test isequal_canonical(constraint_object(c4).func, c4_expected)
         @test isequal_canonical(constraint_object(c5).func, c5_expected)
         @test constraint_object(c1).set == MOI.GreaterThan(42.)
         @test constraint_object(c2).set == MOI.EqualTo(6.)
-        @test constraint_object(c3).set == MOI.GreaterThan(0.)
+        @test moi_set(constraint_object(c3)) == MOI.GreaterThan(0.)
         @test constraint_object(c4).set == MOI.LessThan(3.)
         @test constraint_object(c5).set == MOI.Zeros(2)
-        @test domain_restrictions(c1) == DomainRestrictions()
-        @test domain_restrictions(c2) == DomainRestrictions()
-        @test domain_restrictions(c3) == DomainRestrictions(par2 => [1, 1.5])
-        @test domain_restrictions(c4) == DomainRestrictions(par2 => 1)
-        @test domain_restrictions(c5) == DomainRestrictions()
+        @test !has_domain_restriction(c1)
+        @test !has_domain_restriction(c2)
+        @test has_domain_restriction(c3)
+        @test !has_domain_restriction(c4)
+        @test !has_domain_restriction(c5)
     end
 end

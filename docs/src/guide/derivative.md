@@ -79,7 +79,7 @@ julia> deriv(3t^2 - 2t, t)
 Conveniently, `@deriv` can be called within any measure and constraint. However, 
 in certain cases we may need to define an initial guess (initial guess trajectory). 
 This can be accomplished in 2 ways:
- - Call [`set_start_value_function`](@ref set_start_value_function(::DerivativeRef,::Union{Real, Function})) 
+ - Call [`set_start_value`](@ref) 
    using the individual derivative (e.g., `d1` above)
  - Define the derivative using `@variable` with the [`Deriv`](@ref) variable type 
    object and use the `start` keyword argument.
@@ -88,7 +88,7 @@ generate a value in accordance with the support values (i.e., following the same
 syntax as infinite variables). For example, we can specify the starting value of 
 `d1` to `0` via the following:
 ```jldoctest deriv_basic 
-julia> set_start_value_function(d1, 0)
+julia> set_start_value(d1, 0)
 ```
 
 Now let's return to our discussion on derivative evaluation methods. These are the 
@@ -584,7 +584,7 @@ dydt2(t, x, ξ) ≥ 1, ∀ t ∈ [0, 10], ξ ~ Uniform, x ∈ [-1, 1]
 julia> has_upper_bound(dydt2)
 false 
 
-julia> func = start_value_function(dydt2);
+julia> func = start_value(dydt2);
 ```
 
 ### Model Queries 
@@ -629,7 +629,7 @@ julia> fix(dydt2, 42, force = true)
 julia> fix_value(dydt2) 
 42.0
 
-julia> set_start_value_function(dydt2, (t, x, xi) -> t + x+ xi)
+julia> set_start_value(dydt2, (t, x, xi) -> t + x+ xi)
 
 julia> unfix(dydt2)
 

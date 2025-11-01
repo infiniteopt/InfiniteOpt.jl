@@ -68,7 +68,9 @@ function _check_param_func_method(_error::Function, func::Function, prefs)
                "If you get this message specifying a function for the ",
                "bounds/fix-value/start of a variable, then the function arguments ",
                "do not properly accomodate the format of the variable's infinite ",
-               "parameters.")
+               "parameters. Or if you got this message from specifying ",
+               "`DomainRestrictions` the function inputs do not match the ",
+               "input format specied for the infinite parameters.")
     end
     return
 end
@@ -112,8 +114,16 @@ function build_parameter_function(
         _error("Keyword argument $(first(keys(extra_kwargs))) is not " * 
                "for use with parameter functions.")
     end
-    # process the parameter reference inputs and make checks
     prefs = Collections.VectorTuple(parameter_refs)
+    return build_parameter_function(_error, func, prefs)
+end 
+function build_parameter_function(
+    _error::Function, 
+    func::Function, 
+    prefs::Collections.VectorTuple{GeneralVariableRef};
+    extra_kwargs...
+    )
+    # Make checks
     _check_parameter_tuple(_error, prefs)
     _check_param_func_method(_error, func, prefs)
     # get the parameter group integer indices
@@ -125,7 +135,7 @@ function build_parameter_function(
     param_nums = [_parameter_number(pref) for pref in prefs]
     # make the variable and return
     return ParameterFunction(func, prefs, group_int_idxs, param_nums)
-end 
+end
 
 # Fallback for weird macro inputs
 function build_parameter_function(_error::Function, func, prefs; kwargs...)
@@ -312,25 +322,25 @@ function parameter_list(fref::ParameterFunctionRef)
     return raw_parameter_refs(fref).values
 end
 
+# raw_function of ParameterFunction
+raw_function(pfunc::ParameterFunction) = pfunc.func
+
 """
     raw_function(fref::ParameterFunctionRef)::Function
+    raw_function(pfunc::ParameterFunction)::Function
 
 Returns the raw function behind `fref` that takes a particular support of `fref`'s 
 infinite parameters as input. 
 """
-function raw_function(fref::ParameterFunctionRef)
-    return core_object(fref).func
-end
+raw_function(fref::ParameterFunctionRef) = raw_function(core_object(fref))
 
 """
-    JuMP.parameter_value(fref::ParameterFunctionRef)::Function
+    JuMP.parameter_value(fref::ParameterFunctionRef)::ParameterFunction
 
 Return the current function assigned to `fref`. See also
 [`raw_function`](@ref).
 """
-function JuMP.parameter_value(fref::ParameterFunctionRef)
-    return raw_function(fref)
-end
+JuMP.parameter_value(fref::ParameterFunctionRef) = core_object(fref)
 
 """
     JuMP.set_parameter_value(
@@ -381,6 +391,25 @@ function JuMP.set_parameter_value(
     return
 end
 
+## Make ParameterFunction callable based on the infinite parameter supports
+# User-defined tuple inputs
+(pfunc::ParameterFunction)(args...) = pfunc.func(args...)
+
+# Vectorized input (or a user-defined input that is a single vector)
+function (pfunc::ParameterFunction)(supp::Vector{<:Real})
+    prefs = pfunc.parameter_refs
+    if all(iszero(d) for d in prefs.dimensions)
+        # all scalar inputs
+        return pfunc.func(supp...)
+    elseif isone(length(prefs.dimensions)) && isone(only(prefs.dimensions))
+        # a single vector input
+        return pfunc.func(supp)
+    else
+        # some other more complex input tuple format
+        return pfunc.func(Tuple(supp, prefs)...)
+    end
+end
+
 """
     call_function(fref::ParameterFunctionRef, support...)::Float64
 
@@ -388,10 +417,7 @@ Safely evaluates the [`raw_function`](@ref) of `fref` at a particular support `s
 point that matches the format of the infinite parameter tuple given when the `fref` 
 was defined. This is essentially equivalent to `raw_function(fref)(supps...)`. 
 """
-function call_function(fref::ParameterFunctionRef, supps...)
-    pfunc = core_object(fref)
-    return pfunc.func(supps...)
-end
+call_function(fref::ParameterFunctionRef, supps...) = core_object(fref)(supps...)
 
 # Extend _semi_infinite_variable_dependencies
 function _semi_infinite_variable_dependencies(fref::ParameterFunctionRef)
@@ -522,11 +548,7 @@ julia> all_parameter_functions(model)
 ```
 """
 function all_parameter_functions(model::InfiniteModel)
-    vrefs_list = Vector{GeneralVariableRef}(undef, num_parameter_functions(model))
-    for (i, (index, _)) in enumerate(model.param_functions)
-        vrefs_list[i] = GeneralVariableRef(model, index)
-    end
-    return vrefs_list
+    return [GeneralVariableRef(model, idx) for (idx, _) in model.param_functions]
 end
 
 ################################################################################

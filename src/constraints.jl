@@ -180,118 +180,100 @@ end
 ################################################################################
 #                             DEFINITION METHODS
 ################################################################################
-# Check that domain_restrictions argument is valid
-function _check_restrictions(
-    restrictions::DomainRestrictions{GeneralVariableRef};
-    _error = error
+"""
+    DomainRestriction{F <: Function}
+
+Tag for specifiying restricted domains for constraints. These are created via
+```julia
+DomainRestriction(restriction_func::Function, parameter_refs...)
+```
+where `restrict_func` is a function that accepts a support that follows the
+formatting of `parameter_refs` and returns `Bool` on whether that support should
+be included in the domain of the constraint.
+
+**Example**
+```julia
+@infinite_parameter(model, t in [0, 1])
+@infinite_parameter(model, x in [-1, 1])
+@variable(model, y, Infinite(t, x))
+
+restrict_func(t_s, x_s) = (0 <= t_s <= 0.5) && (x_s < 0)
+restriction = DomainRestriction(restrict_func, t, x)
+@constraint(model, y^2 >= 42, restriction)
+```
+"""
+struct DomainRestriction{F}
+    restriction_func::F
+    parameter_refs::Collections.VectorTuple{GeneralVariableRef}
+    function DomainRestriction(restrict_func::F, prefs...) where {F}
+        return new{F}(restrict_func, Collections.VectorTuple(prefs))
+    end
+end
+
+# Check and process restrictions use infinite parameters the constraint depends on
+function _process_restrictions(
+    _error::Function,
+    restriction::DomainRestriction,
+    constr_param_group_idxs::Vector{Int}
     )
-    depend_counter = Dict{DependentParameterRef, Int}()
-    for (pref, domain) in restrictions
-        # check that pref is an infinite parameter
-        if !(_index_type(pref) <: InfiniteParameterIndex)
-            _error("Can only specify infinite parameters for domain restrictions.")
-        end
-        # check that respects lower bound
-        if JuMP.has_lower_bound(pref) && (JuMP.lower_bound(domain) < JuMP.lower_bound(pref))
-                _error("Specified parameter lower bound exceeds that defined " *
-                       "for $pref.")
-        end
-        # check that respects upper bound
-        if JuMP.has_upper_bound(pref) && (JuMP.upper_bound(domain) > JuMP.upper_bound(pref))
-                _error("Specified parameter upper bound exceeds that defined " *
-                       "for $pref.")
-        end
-        # keep track of dependent parameters with equality restrictions to ensure completeness
-        if (_index_type(pref) == DependentParameterIndex) &&
-           (JuMP.lower_bound(domain) == JuMP.upper_bound(domain))
-            idx = DependentParameterIndex(DependentParametersIndex(_raw_index(pref)), 1)
-            dumby_pref = dispatch_variable_ref(pref.model, idx)
-            if haskey(depend_counter, dumby_pref)
-                depend_counter[dumby_pref] += 1
-            else
-                depend_counter[dumby_pref] = 1
-            end
-        end
+    pfunc_restrict = build_parameter_function(
+        _error,
+        restriction.restriction_func,
+        restriction.parameter_refs
+    )
+    if !all(idx in constr_param_group_idxs for idx in pfunc_restrict.group_int_idxs)
+        _error("The `DomainRestriction` restricts infinite parameters that the " *
+               "constraint does not depend on.")
     end
-    # check dimensions of dependent parameter equalities (if any are provided)
-    for (pref, amt) in depend_counter
-        if _num_parameters(pref) != amt
-            _error("Cannot specify equality domain restrictions for a subset of ",
-                   "dependent infinite parameters.")
-        end
-    end
-    return
+    return pfunc_restrict
 end
 
 """
-    JuMP.build_constraint(_error::Function, func, set,
-                          restrictions::DomainRestrictions{GeneralVariableRef}
-                          )::DomainRestrictedConstraint
+    JuMP.build_constraint(
+        _error::Function,
+        func,
+        set::MOI.AbstractSet,
+        restriction::DomainRestriction
+    )::DomainRestrictedConstraint
 
-Extend `JuMP.buid_constraint` to handle including `restrictions` to its inherit 
-infinite parameter domains in addition to the traditional `func` in `set` setup. 
+Extend `JuMP.buid_constraint` to handle including a `restriction` to its inherit 
+infinite parameter domain in addition to the traditional `func` in `set` setup. 
 This returns a `DomainRestrictedConstraint` that can then 
-be added via `JuMP.add_constraint`. Errors if the restrictions are incompadible 
+be added via `JuMP.add_constraint`. Errors if the restriction is not compatible 
 with infinite parameter domains. 
 
 **Example**
-```julia-repl
-julia> restrictions = DomainRestrictions(t => 0)
-Subdomain restrictions (1): t = 0
+```julia
+@infinite_parameter(model, t in [0, 1])
+@infinite_parameter(model, x in [-1, 1])
+@variable(model, y, Infinite(t, x))
 
-julia> con = build_constraint(error, y + 2, MOI.LessThan(0.0), restrictions);
+restrict_func(t_s, x_s) = (0 <= t_s <= 0.5) && (x_s < 0)
+restriction = DomainRestriction(restrict_func, t, x)
+con = build_constraint(error, y + 2, MOI.LessThan(0.0), restriction);
 ```
 """
 function JuMP.build_constraint(
     _error::Function,
     func,
     set::MOI.AbstractSet,
-    restrictions::DomainRestrictions
+    restriction::DomainRestriction
     )
     # make the constraint and check the domain restrictions
     constr = JuMP.build_constraint(_error, func, set)
-    _check_restrictions(restrictions, _error = _error)
-    return DomainRestrictedConstraint(constr, restrictions)
-end
-
-# Validate domain restrictions and add support(s) if needed
-function _validate_restrictions(
-    model::InfiniteModel,
-    restrictions::DomainRestrictions
+    pfunc_restrict = _process_restrictions(
+        _error,
+        restriction,
+        parameter_group_int_indices(func)
     )
-    depend_supps = Dict{DependentParametersIndex, Matrix{Float64}}()
-    for (pref, domain) in restrictions
-        # check validity
-        JuMP.check_belongs_to_model(pref, model)
-        # ensure has a support if a point constraint was given
-        if (JuMP.lower_bound(domain) == JuMP.upper_bound(domain))
-            if _index_type(pref) == IndependentParameterIndex
-                # label will be UserDefined
-                add_supports(pref, JuMP.lower_bound(domain), check = false)
-            else
-                idx = DependentParametersIndex(_raw_index(pref))
-                if !haskey(depend_supps, idx)
-                    dumby_pref = dispatch_variable_ref(model, DependentParameterIndex(idx, 1))
-                    depend_supps[idx] = Matrix{Float64}(undef, _num_parameters(dumby_pref), 1)
-                end
-                depend_supps[idx][_param_index(pref)] = JuMP.lower_bound(domain)
-            end
-        end
-    end
-    # add dependent supports if any are given
-    for (idx, supp) in depend_supps
-        prefs = [dispatch_variable_ref(model, DependentParameterIndex(idx, i))
-                 for i in 1:length(supp)]
-        add_supports(prefs, supp, check = false) # label will be UserDefined
-    end
-    return
+    return DomainRestrictedConstraint(constr, pfunc_restrict)
 end
 
 # Used to update the model.var_to_constrs field
 function _update_var_constr_mapping(
     vrefs::Vector{GeneralVariableRef},
     cref::InfOptConstraintRef
-    )::Nothing
+    )
     for vref in vrefs
         dvref = dispatch_variable_ref(vref)
         push!(_constraint_dependencies(dvref), JuMP.index(cref))
@@ -304,8 +286,11 @@ function _update_var_constr_mapping(
 end
 
 """
-    JuMP.add_constraint(model::InfiniteModel, c::JuMP.AbstractConstraint,
-                        [name::String = ""])::InfOptConstraintRef
+    JuMP.add_constraint(
+        model::InfiniteModel,
+        c::JuMP.AbstractConstraint,
+        [name::String = ""]
+    )::InfOptConstraintRef
 
 Extend `JuMP.add_constraint` to add a constraint `c` to an infinite model
 `model` with name `name`. Returns an appropriate constraint reference whose type
@@ -356,22 +341,6 @@ function JuMP.add_constraint(
     set_transformation_backend_ready(model, false)
     # clear out the name dictionary 
     model.name_to_constr = nothing
-    # return the constraint reference
-    return cref
-end
-
-# Domain restricted constraints
-function JuMP.add_constraint(
-    model::InfiniteModel,
-    c::DomainRestrictedConstraint,
-    name::String = ""
-    )
-    # test domain restrictions and add needed supports
-    _validate_restrictions(model, c.restrictions)
-    # add the underlying constraint 
-    cref = JuMP.add_constraint(model, c.constraint, name)
-    # add the domain restrictions 
-    model.constraint_restrictions[JuMP.index(cref)] = c.restrictions
     # return the constraint reference
     return cref
 end
@@ -437,6 +406,22 @@ function JuMP.set_name(
     return
 end
 
+# Extend basic access methods for DomainRestrictedConstraint
+function JuMP.jump_function(c::DomainRestrictedConstraint) 
+    return JuMP.jump_function(c.constraint)
+end
+JuMP.moi_set(c::DomainRestrictedConstraint)= JuMP.moi_set(c.constraint)
+JuMP.shape(c::DomainRestrictedConstraint) = JuMP.shape(c.constraint)
+function _update_constraint(old_c::JuMP.ScalarConstraint, func, set)
+    return JuMP.ScalarConstraint(func, set)
+end
+function _update_constraint(old_c::DomainRestrictedConstraint, func, set)
+    return DomainRestrictedConstraint(
+        JuMP.ScalarConstraint(func, set),
+        old_c.restriction
+    )
+end
+
 # Return a constraint set with an updated value
 function _set_set_value(
     set::S, 
@@ -480,9 +465,11 @@ function JuMP.set_normalized_rhs(
     value::Real
     )
     old_constr = JuMP.constraint_object(cref)
-    _enforce_rhs_set(JuMP.moi_set(old_constr))
-    new_set = _set_set_value(JuMP.moi_set(old_constr), value)
-    new_constr = JuMP.ScalarConstraint(JuMP.jump_function(old_constr), new_set)
+    set = JuMP.moi_set(old_constr)
+    func = JuMP.jump_function(old_constr)
+    _enforce_rhs_set(set)
+    new_set = _set_set_value(set, value)
+    new_constr = _update_constraint(old_constr, func, new_set)
     _set_core_object(cref, new_constr)
     return
 end
@@ -546,9 +533,10 @@ function JuMP.set_normalized_coefficient(
     )
     # update the constraint expression and update the constraint
     old_constr = JuMP.constraint_object(cref)
-    new_func = _set_variable_coefficient!(JuMP.jump_function(old_constr),
-                                          variable, value) # checks valid
-    new_constr = JuMP.ScalarConstraint(new_func, JuMP.moi_set(old_constr))
+    func = JuMP.jump_function(old_constr)
+    set = JuMP.moi_set(old_constr)
+    new_func = _set_variable_coefficient!(func, variable, value) # checks valid
+    new_constr = _update_constraint(old_constr, new_func, set)
     _set_core_object(cref, new_constr)
     return
 end
@@ -570,8 +558,10 @@ function JuMP.normalized_coefficient(
 end
 
 """
-    JuMP.constraint_by_name(model::InfiniteModel,
-                            name::String)::Union{InfOptConstraintRef, Nothing}
+    JuMP.constraint_by_name(
+        model::InfiniteModel,
+        name::String
+    )::Union{InfOptConstraintRef, Nothing}
 
 Extend `JuMP.constraint_by_name` to return the constraint reference
 associated with `name` if one exists or returns nothing. Errors if more than
@@ -662,12 +652,14 @@ function JuMP.num_constraints(
 end
 
 # All the constraints
-function JuMP.num_constraints(model::InfiniteModel)
-    return length(model.constraints)
-end
+JuMP.num_constraints(model::InfiniteModel) = length(model.constraints)
 
 """
-    JuMP.all_constraints(model::InfiniteModel, [function_type], [set_type])::Vector{InfOptConstraintRef}
+    JuMP.all_constraints(
+        model::InfiniteModel,
+        [function_type], 
+        [set_type]
+    )::Vector{InfOptConstraintRef}
 
 Extend `JuMP.all_constraints` to return a list of all the constraints with a 
 particular function type and set type.
@@ -704,8 +696,8 @@ function JuMP.all_constraints(
     function_type,
     set_type
     )
-    constr_list = Vector{InfOptConstraintRef}(undef,
-                           JuMP.num_constraints(model, function_type, set_type))
+    num_constrs = JuMP.num_constraints(model, function_type, set_type)
+    constr_list = Vector{InfOptConstraintRef}(undef, num_constrs)
     counter = 1
     for (index, object) in model.constraints
         if isa(JuMP.jump_function(object.constraint), function_type) &&
@@ -785,165 +777,102 @@ end
 ################################################################################
 #                         DOMAIN RESTRICTION METHODS
 ################################################################################
+# Check if domains have domain restriction
+has_domain_restriction(::DomainRestrictedConstraint) = true
+has_domain_restriction(::JuMP.AbstractConstraint) = false
+
 """
-    has_domain_restrictions(cref::InfOptConstraintRef)::Bool
+    has_domain_restriction(cref::InfOptConstraintRef)::Bool
 
 Return a `Bool` indicating if `cref` is limited to a sub-domain as defined
-by a [`DomainRestrictions`](@ref) object.
+by a [`DomainRestriction`](@ref) object.
 
 **Example**
 ```julia-repl
-julia> has_domain_restrictions(cref)
+julia> has_domain_restriction(cref)
 true
 ```
 """
-function has_domain_restrictions(cref::InfOptConstraintRef)
-    return !isempty(domain_restrictions(cref))
+function has_domain_restriction(cref::InfOptConstraintRef)
+    return has_domain_restriction(JuMP.constraint_object(cref))
 end
 
 """
-    domain_restrictions(cref::InfOptConstraintRef)::DomainRestrictions{GeneralVariableRef}
+    domain_restriction(cref::InfOptConstraintRef)::ParameterFunction
 
-Return the [`DomainRestrictions`](@ref) object associated with the constraint
-`cref`.
+Return the domain restriction formated as a [`ParameterFunction`](@ref) 
+associated with the constraint`cref`. Errors if it does not have a
+domain restriction.
 
 **Example**
 ```julia-repl
-julia> domain_restrictions(cref)
-Subdomain restrictions (1): t ∈ [0, 2]
+julia> domain_restriction(cref)
+restrict_func(t)
 ```
 """
-function domain_restrictions(cref::InfOptConstraintRef)
-    return get(JuMP.owner_model(cref).constraint_restrictions, JuMP.index(cref), 
-               DomainRestrictions())
+function domain_restriction(cref::InfOptConstraintRef)
+    constr = JuMP.constraint_object(cref)
+    if !has_domain_restriction(constr) 
+        return error("`$cref` doesn't have a domain restriction.")
+    end
+    return constr.restriction
 end
 
-"""
-    set_domain_restrictions(cref::InfOptConstraintRef,
-                         restrictions:DomainRestrictions{GeneralVariableRef};
-                         [force::Bool = false])::Nothing
+# jump constraint object getter
+_jump_constraint(c::JuMP.AbstractConstraint) = c
+_jump_constraint(c::DomainRestrictedConstraint) = c.constraint 
 
-Specify a new [`DomainRestrictions`](@ref) object `restrictions` for the 
-constraint `cref`. Errors if `cref` already has restrictions and `force = false`. 
-Where possible it is recommended to use [`add_domain_restrictions`](@ref) instead.  
+"""
+    set_domain_restriction(
+        cref::InfOptConstraintRef,
+        restriction:DomainRestriction
+    )::Nothing
+
+Specify a new [`DomainRestriction`](@ref) object `restriction` for the 
+constraint `cref`
 
 **Example**
 ```julia-repl
-julia> set_domain_restrictions(cref, DomainRestrictions(t => [0, 2]))
+julia> restrict_func(t_s) = 0 <= t_s <= 0.5;
 
-julia> domain_restrictions(cref)
-Subdomain restrictions (1): t ∈ [0, 2]
+julia> set_domain_restriction(cref, DomainRestrictions(restrict_func, t))
+
+julia> domain_restriction(cref)
+restrict_func(t)
 ```
 """
-function set_domain_restrictions(
+function set_domain_restriction(
     cref::InfOptConstraintRef,
-    restrictions::DomainRestrictions{GeneralVariableRef};
-    force::Bool = false
+    restriction::DomainRestriction
     )
-    if has_domain_restrictions(cref) && !force
-        error("$cref already has domain restrictions. Consider adding more using " *
-               "`add_domain_restrictions` or overwriting them by setting " *
-               "the keyword argument `force = true`")
-    end
-    # check that restrictions are valid and add support(s) if necessary
-    _check_restrictions(restrictions)
-    model = JuMP.owner_model(cref)
-    _validate_restrictions(model, restrictions)
-    # set the new restrictions
-    model.constraint_restrictions[JuMP.index(cref)] = restrictions
-    # update status
-    set_transformation_backend_ready(JuMP.owner_model(cref), false)
-    return
-end
-
-# Update the current restrictions to overlap with the new ones if possible
-function _update_restrictions(
-    old::DomainRestrictions{GeneralVariableRef},
-    new::DomainRestrictions{GeneralVariableRef}
+    constr = JuMP.constraint_object(cref)
+    pfunc = _process_restrictions(
+        error,
+        restriction,
+        parameter_group_int_indices(JuMP.jump_function(constr))
     )
-    # check each new restriction
-    for (pref, domain) in new
-        # we have a new restriction
-        if !haskey(old, pref)
-            old[pref] = domain
-        # the previous domain and the new one do not overlap
-        elseif (JuMP.lower_bound(domain) > JuMP.upper_bound(old[pref])) ||
-               (JuMP.upper_bound(domain) < JuMP.lower_bound(old[pref]))
-            error("The new domain restrictions are incompatible with the ", 
-                  "existing ones.")
-        # we have an existing restriction
-        else
-            # we have a new stricter lower bound to update with
-            if JuMP.lower_bound(domain) > JuMP.lower_bound(old[pref])
-                old[pref] = IntervalDomain(JuMP.lower_bound(domain),
-                                            JuMP.upper_bound(old[pref]))
-            end
-            # we have a new stricter upper bound to update with
-            if JuMP.upper_bound(domain) < JuMP.upper_bound(old[pref])
-                old[pref] = IntervalDomain(JuMP.lower_bound(old[pref]),
-                                            JuMP.upper_bound(domain))
-            end
-        end
-    end
-    return
-end
-
-"""
-    add_domain_restrictions(cref::InfOptConstraintRef,
-                         new_restrictions::DomainRestrictions{GeneralVariableRef}
-                         )::Nothing
-
-Add additional domain restrictions to `cref` such that it is defined over the
-sub-domain based on `pref` from `lower` to `upper`.
-
-```julia-repl
-julia> add_domain_restrictions(cref, DomainRestrictions(t => [0, 2]))
-
-julia> domain_restrictions(cref)
-Subdomain restrictions (1): t ∈ [0, 2]
-```
-"""
-function add_domain_restrictions(
-    cref::InfOptConstraintRef,
-    new_restrictions::DomainRestrictions{GeneralVariableRef}
-    )
-    # check the new restrictions
-    _check_restrictions(new_restrictions)
-    model = JuMP.owner_model(cref)
-    _validate_restrictions(model, new_restrictions)
-    # add the restrictions
-    if has_domain_restrictions(cref)
-        _update_restrictions(domain_restrictions(cref), new_restrictions)
-    else 
-        model.constraint_restrictions[JuMP.index(cref)] = new_restrictions
-    end
-    # update the backend status
+    jump_constr = _jump_constraint(constr)
+    _set_core_object(cref, DomainRestrictedConstraint(jump_constr, pfunc))
     set_transformation_backend_ready(JuMP.owner_model(cref), false)
     return
 end
 
 """
-    delete_domain_restrictions(cref::InfOptConstraintRef)::Nothing
+    delete_domain_restriction(cref::InfOptConstraintRef)::Nothing
 
-Delete all the domain restrictions of the constraint `cref`. Note any restrictions that
-are needed for finite variables inside in `cref` will be unaffected.
+Delete the domain restriction of the constraint `cref`.
 
 **Example**
 ```julia-repl
-julia> @constraint(model, c1, y <= 42, DomainRestrictions(x => 0))
-c1 : y(x) ≤ 42, ∀ x[1] = 0, x[2] = 0
-
-julia> delete_domain_restrictions(c1)
-
-julia> c1
-c1 : y(x) ≤ 42, ∀ x[1] ∈ [-1, 1], x[2] ∈ [-1, 1]
+julia> delete_domain_restriction(c1)
 ```
 """
-function delete_domain_restrictions(cref::InfOptConstraintRef)
-    # delete the restrictions if there are any
-    delete!(JuMP.owner_model(cref).constraint_restrictions, JuMP.index(cref))
-    # update status
-    set_transformation_backend_ready(JuMP.owner_model(cref), false)
+function delete_domain_restriction(cref::InfOptConstraintRef)
+    constr = JuMP.constraint_object(cref)
+    if has_domain_restriction(constr)
+        _set_core_object(cref, constr.constraint)
+        set_transformation_backend_ready(JuMP.owner_model(cref), false)
+    end
     return
 end
 
@@ -981,8 +910,6 @@ function JuMP.delete(model::InfiniteModel, cref::InfOptConstraintRef)
     for vref in all_vrefs
         filter!(e -> e != JuMP.index(cref), _constraint_dependencies(vref))
     end
-    # delete any restrictions there are 
-    delete_domain_restrictions(cref)
     # delete constraint information
     _delete_data_object(cref)
     # reset transformation backend status
