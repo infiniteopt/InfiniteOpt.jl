@@ -784,7 +784,7 @@ end
 # Define measure queries and their fallbacks
 for op = (:derivative_argument, :operator_parameter, :evaluate, 
           :derivative_constraints, :delete_derivative_constraints,
-          :derivative_order)
+          :derivative_order, :reformulate_high_order_derivatives)
     @eval begin
         # define the fallback method
         function $op(dref::DispatchVariableRef)

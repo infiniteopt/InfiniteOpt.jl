@@ -564,6 +564,37 @@ end
 #                              EVALUATION METHODS
 ################################################################################
 """
+    reformulate_high_order_derivatives(dref::DerivativeRef)::Nothing
+
+Convert higher-order derivatives into first-order derivatives and add them to the
+model if the derivative method employed by `dref` does not support higher-order
+derivatives. This is intended as an internal method and is automatically called 
+when evaluating derivatives. For convenience, this method can also be called for
+an entire model via `reformulate_high_order_derivatives(model::InfiniteModel)`.
+"""
+function reformulate_high_order_derivatives(dref::DerivativeRef)
+    method = derivative_method(dref)
+    d = core_object(dref)
+    if !InfiniteOpt.allows_high_order_derivatives(method) && d.order > 1
+        model = JuMP.owner_model(dref)
+        for o in d.order-1:-1:1
+            if !haskey(model.deriv_lookup, (d.variable_ref, d.parameter_ref, o))
+                info = _DefaultDerivativeInfo
+                new_d = Derivative(info, d.variable_ref, d.parameter_ref, o)
+                add_derivative(model, new_d)
+            end
+        end
+    end
+    return
+end
+function reformulate_high_order_derivatives(model::InfiniteModel)
+    for dref in all_derivatives(model)
+        reformulate_high_order_derivatives(dref)
+    end
+    return
+end
+
+"""
     evaluate(dref::DerivativeRef)::Nothing
 
 Numerically evaluate `dref` by computing its auxiliary derivative constraints 
@@ -602,13 +633,9 @@ function evaluate(dref::DerivativeRef)
         constr_list = _derivative_constraint_dependencies(dref)
         gvref = GeneralVariableRef(dref)
         # recursively build 1st order derivatives if necessary
-        vref = derivative_argument(dref)
-        if !allows_high_order_derivatives(method) && derivative_order(dref) > 1 
-            pref = operator_parameter(dref)
-            vref = _build_add_derivative(vref, pref, derivative_order(dref) - 1)
-            evaluate(vref)
-        end
+        reformulate_high_order_derivatives(dref)
         # get the expressions 
+        vref = derivative_argument(dref)
         exprs = evaluate_derivative(gvref, vref, method, model)
         # add the constraints
         for expr in exprs
