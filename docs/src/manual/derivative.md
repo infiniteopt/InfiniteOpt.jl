@@ -54,7 +54,7 @@ InfiniteOpt.make_indexed_derivative_expr
 InfiniteOpt.derivative_expr_data
 evaluate_derivative
 InfiniteOpt.allows_high_order_derivatives
-reformulate_high_order_derivatives(::DerivativeRef)
+reformulate_high_order_derivatives!(::DerivativeRef)
 generative_support_info(::AbstractDerivativeMethod)
 support_label(::AbstractDerivativeMethod)
 InfiniteOpt.make_reduced_expr

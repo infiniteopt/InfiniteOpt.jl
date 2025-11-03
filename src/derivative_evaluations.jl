@@ -572,26 +572,28 @@ derivatives. This is intended as an internal method and is automatically called
 when evaluating derivatives. For convenience, this method can also be called for
 an entire model via `reformulate_high_order_derivatives(model::InfiniteModel)`.
 """
-function reformulate_high_order_derivatives(dref::DerivativeRef)
+function reformulate_high_order_derivatives!(dref::DerivativeRef)
     method = derivative_method(dref)
     d = core_object(dref)
-    new_derivs = GeneralVariableRef[]
+    new_drefs = GeneralVariableRef[]
     if !InfiniteOpt.allows_high_order_derivatives(method) && d.order > 1
         model = JuMP.owner_model(dref)
-        for o in d.order-1:-1:1
-            if !haskey(model.deriv_lookup, (d.variable_ref, d.parameter_ref, o))
-                info = _DefaultDerivativeInfo
-                new_d = Derivative(info, d.variable_ref, d.parameter_ref, o)
-                new_dref = add_derivative(model, new_d)
-                push!(new_derivs, new_dref)
-            end
+        ivref = d.variable_ref
+        for _ in 1:d.order-1
+            info = _DefaultDerivativeInfo
+            new_d = Derivative(info, ivref, d.parameter_ref, 1)
+            new_dref = add_derivative(model, new_d)
+            push!(new_drefs, new_dref)
+            ivref = new_dref
         end
+        new_d = Derivative(d.info, ivref, d.parameter_ref, 1)
+        _set_core_object(dref, new_d)
     end
-    return new_derivs
+    return new_drefs
 end
-function reformulate_high_order_derivatives(model::InfiniteModel)
+function reformulate_high_order_derivatives!(model::InfiniteModel)
     for dref in all_derivatives(model)
-        reformulate_high_order_derivatives(dref)
+        reformulate_high_order_derivatives!(dref)
     end
     return
 end
@@ -636,7 +638,7 @@ function evaluate(dref::DerivativeRef; _init_call::Bool = true)
         gvref = GeneralVariableRef(dref)
         # recursively build 1st order derivatives if necessary
         if _init_call
-            new_drefs = reformulate_high_order_derivatives(dref)
+            new_drefs = reformulate_high_order_derivatives!(dref)
             for new_dref in new_drefs
                 evaluate(dispatch_variable_ref(new_dref); _init_call = false)
             end

@@ -297,7 +297,7 @@ function transcribe_derivative_variables!(
     model::InfiniteOpt.InfiniteModel
     )
     # convert any high order derivatives into 1st order ones if required by method
-    InfiniteOpt.reformulate_high_order_derivatives(model)
+    InfiniteOpt.reformulate_high_order_derivatives!(model)
     # transcribe all the derivatives
     for (idx, object) in InfiniteOpt._data_dictionary(model, InfiniteOpt.Derivative)
         # get the basic derivative information
@@ -891,10 +891,6 @@ function transcribe_derivative_evaluations!(
         if !InfiniteOpt.has_derivative_constraints(dref)
             # generate the evaluation expressions
             vref = object.variable.variable_ref
-            if !InfiniteOpt.allows_high_order_derivatives(method) && order > 1
-                d_idx = model.deriv_lookup[vref, object.variable.parameter_ref, order - 1]
-                vref = InfiniteOpt.GeneralVariableRef(model, d_idx)
-            end
             exprs = InfiniteOpt.evaluate_derivative(dref, vref, method, backend)
             # prepare the iteration helpers
             param_group_int_idx = InfiniteOpt.parameter_group_int_index(pref)

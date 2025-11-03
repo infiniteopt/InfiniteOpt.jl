@@ -167,7 +167,7 @@ core_object(::GeneralVariableRef)
 parameter_group_int_indices(::GeneralVariableRef)
 InfiniteOpt.parameter_group_int_index
 InfiniteOpt.parameter_group_int_index(::GeneralVariableRef)
-reformulate_high_order_derivatives(::GeneralVariableRef)
+reformulate_high_order_derivatives!(::GeneralVariableRef)
 ```
 
 ## Developer Internal Methods
