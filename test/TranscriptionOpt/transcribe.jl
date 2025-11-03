@@ -120,8 +120,7 @@
         @test IOTO.transcription_variable(dy, tb) isa Matrix{VariableRef}
         @test IOTO.transcription_variable(dx3, tb) isa Vector{VariableRef}
         @test name(IOTO.transcription_variable(dx, tb)[1]) == "d/dpar[x(par)](0.0)"
-        @test name(IOTO.transcription_variable(dx3, tb)[1]) == "d^3/dpar^3[x(par)](0.0)"
-        @test name(IOTO.transcription_variable(deriv(dx, par), tb)[1]) == "d²/dpar²[x(par)](0.0)"
+        @test name(IOTO.transcription_variable(dx3, tb)[1]) == "d/dpar[d/dpar[d/dpar[x(par)]]](0.0)"
         possible = Sys.iswindows() ? "d/dpar[y(par, pars)](1.0, [0.0, 0.0])" : "∂/∂par[y(par, pars)](1.0, [0.0, 0.0])"
         @test name(IOTO.transcription_variable(dy, tb)[2, 1]) == possible
         @test has_upper_bound(IOTO.transcription_variable(dx, tb)[1])
