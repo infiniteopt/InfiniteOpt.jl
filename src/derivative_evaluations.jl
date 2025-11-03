@@ -638,7 +638,7 @@ function evaluate(dref::DerivativeRef; _init_call::Bool = true)
         if _init_call
             new_drefs = reformulate_high_order_derivatives(dref)
             for new_dref in new_drefs
-                evaluate(new_dref; _init_call = false)
+                evaluate(dispatch_variable_ref(new_dref); _init_call = false)
             end
         end
         # get the expressions
