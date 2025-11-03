@@ -576,6 +576,7 @@ function reformulate_high_order_derivatives!(dref::DerivativeRef)
     method = derivative_method(dref)
     d = core_object(dref)
     new_drefs = GeneralVariableRef[]
+    # TODO: is there a way to do this without modifying the model?
     if !InfiniteOpt.allows_high_order_derivatives(method) && d.order > 1
         model = JuMP.owner_model(dref)
         ivref = d.variable_ref

@@ -297,6 +297,7 @@ function transcribe_derivative_variables!(
     model::InfiniteOpt.InfiniteModel
     )
     # convert any high order derivatives into 1st order ones if required by method
+    # TODO find way of doing this without modifying `model`
     InfiniteOpt.reformulate_high_order_derivatives!(model)
     # transcribe all the derivatives
     for (idx, object) in InfiniteOpt._data_dictionary(model, InfiniteOpt.Derivative)
