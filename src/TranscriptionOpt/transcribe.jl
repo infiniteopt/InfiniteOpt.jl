@@ -215,6 +215,40 @@ function _format_infinite_info(
     )
 end
 
+# Helper function for transcribing infinite variables/derivatives
+function _transcribe_infinite_variable(backend, vref, base_name, info)
+    param_nums = InfiniteOpt._parameter_numbers(vref)
+    group_idxs = InfiniteOpt.parameter_group_int_indices(vref)
+    prefs = InfiniteOpt.raw_parameter_refs(vref)
+    # prepare for iterating over its supports
+    supp_indices = support_index_iterator(backend, group_idxs)
+    dims = size(supp_indices)[group_idxs]
+    vrefs = Array{JuMP.VariableRef, length(dims)}(undef, dims...)
+    supp_type = typeof(Tuple(ones(length(prefs)), prefs))
+    supps = Array{supp_type, length(dims)}(undef, dims...)
+    lookup_dict = sizehint!(Dict{Vector{Float64}, JuMP.VariableRef}(), length(vrefs))
+    # create a variable for each support
+    for i in supp_indices
+        supp = index_to_support(backend, i)[param_nums]
+        new_info = _format_infinite_info(info, supp)
+        var_idx = i.I[group_idxs]
+        tuple_supp = Tuple(supp, prefs)
+        name = _make_var_name(base_name, param_nums, tuple_supp, var_idx)
+        var = JuMP.ScalarVariable(new_info)
+        jump_vref = JuMP.add_variable(backend.model, var, name)
+        @inbounds vrefs[var_idx...] = jump_vref
+        lookup_dict[supp] = jump_vref
+        @inbounds supps[var_idx...] = tuple_supp
+    end
+    # save the transcription information
+    data = transcription_data(backend)
+    gvref = InfiniteOpt.GeneralVariableRef(vref)
+    data.infvar_lookup[gvref] = lookup_dict
+    data.infvar_mappings[gvref] = vrefs
+    data.infvar_supports[gvref] = supps
+    return
+end
+
 """
     transcribe_infinite_variables!(
         backend::TranscriptionBackend,
@@ -234,72 +268,11 @@ function transcribe_infinite_variables!(
     model::InfiniteOpt.InfiniteModel
     )
     for (idx, object) in InfiniteOpt._data_dictionary(model, InfiniteOpt.InfiniteVariable)
-        # get the basic variable information
-        var = object.variable
+        info = object.variable.info
         base_name = object.name
-        param_nums = var.parameter_nums
-        group_idxs = var.group_int_idxs
-        prefs = var.parameter_refs
-        # prepare for iterating over its supports
-        supp_indices = support_index_iterator(backend, group_idxs)
-        dims = size(supp_indices)[group_idxs]
-        vrefs = Array{JuMP.VariableRef, length(dims)}(undef, dims...)
-        supp_type = typeof(Tuple(ones(length(prefs)), prefs))
-        supps = Array{supp_type, length(dims)}(undef, dims...)
-        lookup_dict = sizehint!(Dict{Vector{Float64}, JuMP.VariableRef}(), length(vrefs))
-        # create a variable for each support
-        for i in supp_indices
-            supp = index_to_support(backend, i)[param_nums]
-            info = _format_infinite_info(var.info, supp)
-            var_idx = i.I[group_idxs]
-            tuple_supp = Tuple(supp, prefs)
-            v_name = _make_var_name(base_name, param_nums, tuple_supp, var_idx)
-            v = JuMP.ScalarVariable(info)
-            jump_vref = JuMP.add_variable(backend.model, v, v_name)
-            @inbounds vrefs[var_idx...] = jump_vref
-            lookup_dict[supp] = jump_vref
-            @inbounds supps[var_idx...] = tuple_supp
-        end
-        # save the transcription information
-        ivref = InfiniteOpt.GeneralVariableRef(model, idx)
-        data = transcription_data(backend)
-        data.infvar_lookup[ivref] = lookup_dict
-        data.infvar_mappings[ivref] = vrefs
-        data.infvar_supports[ivref] = supps
+        vref = InfiniteOpt.InfiniteVariableRef(model, idx)
+        _transcribe_infinite_variable(backend, vref, base_name, info)
     end
-    return
-end
-
-function _transcribe_derivative_variable(dref, d, backend)
-    base_name = InfiniteOpt.variable_string(MIME("text/plain"), dispatch_variable_ref(dref))
-    param_nums = InfiniteOpt._parameter_numbers(d.variable_ref)
-    group_idxs = InfiniteOpt.parameter_group_int_indices(d.variable_ref)
-    prefs = InfiniteOpt.raw_parameter_refs(dref)
-    # prepare for iterating over its supports
-    supp_indices = support_index_iterator(backend, group_idxs)
-    dims = size(supp_indices)[group_idxs]
-    vrefs = Array{JuMP.VariableRef, length(dims)}(undef, dims...)
-    supp_type = typeof(Tuple(ones(length(prefs)), prefs))
-    supps = Array{supp_type, length(dims)}(undef, dims...)
-    lookup_dict = sizehint!(Dict{Vector{Float64}, JuMP.VariableRef}(), length(vrefs))
-    # create a variable for each support
-    for i in supp_indices
-        supp = index_to_support(backend, i)[param_nums]
-        info = _format_infinite_info(d.info, supp)
-        var_idx = i.I[group_idxs]
-        tuple_supp = Tuple(supp, prefs)
-        d_name = _make_var_name(base_name, param_nums, tuple_supp, var_idx)
-        d_var = JuMP.ScalarVariable(info)
-        jump_vref = JuMP.add_variable(backend.model, d_var, d_name)
-        @inbounds vrefs[var_idx...] = jump_vref
-        lookup_dict[supp] = jump_vref
-        @inbounds supps[var_idx...] = tuple_supp
-    end
-    # save the transcription information
-    data = transcription_data(backend)
-    data.infvar_lookup[dref] = lookup_dict
-    data.infvar_mappings[dref] = vrefs
-    data.infvar_supports[dref] = supps
     return
 end
 
@@ -323,24 +296,16 @@ function transcribe_derivative_variables!(
     backend::TranscriptionBackend,
     model::InfiniteOpt.InfiniteModel
     )
+    # convert any high order derivatives into 1st order ones if required by method
+    # TODO find way of doing this without modifying `model`
+    InfiniteOpt.reformulate_high_order_derivatives!(model)
+    # transcribe all the derivatives
     for (idx, object) in InfiniteOpt._data_dictionary(model, InfiniteOpt.Derivative)
         # get the basic derivative information
-        dref = InfiniteOpt.GeneralVariableRef(model, idx)
-        d = object.variable
-        method = InfiniteOpt.derivative_method(dref)
-        # if needed process lower order derivatives
-        if !InfiniteOpt.allows_high_order_derivatives(method) && d.order > 1
-            for o in d.order-1:-1:1
-                if !haskey(model.deriv_lookup, (d.variable_ref, d.parameter_ref, o))
-                    info = InfiniteOpt._DefaultDerivativeInfo
-                    new_d = InfiniteOpt.Derivative(info, d.variable_ref, d.parameter_ref, o)
-                    new_dref = InfiniteOpt.add_derivative(model, new_d)
-                    _transcribe_derivative_variable(new_dref, d, backend)
-                end
-            end
-        end
-        # process the derivative
-        _transcribe_derivative_variable(dref, d, backend)
+        dref = InfiniteOpt.DerivativeRef(model, idx)
+        base_name = InfiniteOpt.variable_string(MIME("text/plain"), dref)
+        info = object.variable.info
+        _transcribe_infinite_variable(backend, dref, base_name, info)
     end
     return
 end
@@ -927,10 +892,6 @@ function transcribe_derivative_evaluations!(
         if !InfiniteOpt.has_derivative_constraints(dref)
             # generate the evaluation expressions
             vref = object.variable.variable_ref
-            if !InfiniteOpt.allows_high_order_derivatives(method) && order > 1
-                d_idx = model.deriv_lookup[vref, object.variable.parameter_ref, order - 1]
-                vref = InfiniteOpt.GeneralVariableRef(model, d_idx)
-            end
             exprs = InfiniteOpt.evaluate_derivative(dref, vref, method, backend)
             # prepare the iteration helpers
             param_group_int_idx = InfiniteOpt.parameter_group_int_index(pref)
