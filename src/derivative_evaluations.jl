@@ -582,7 +582,8 @@ function reformulate_high_order_derivatives(dref::DerivativeRef)
             if !haskey(model.deriv_lookup, (d.variable_ref, d.parameter_ref, o))
                 info = _DefaultDerivativeInfo
                 new_d = Derivative(info, d.variable_ref, d.parameter_ref, o)
-                push!(new_derivs, new_d)
+                new_dref = add_derivative(model, new_d)
+                push!(new_derivs, new_dref)
             end
         end
     end
