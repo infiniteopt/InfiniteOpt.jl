@@ -553,8 +553,6 @@ A mutable `DataType` for storing `ScalarParameter`s and their data.
 - `parameter::P`: The scalar parameter.
 - `group_int_idx::Int`: The location of the corresponding `ObjectIndex` in
     `InfiniteModel.param_group_indices`.
-- `parameter_num::Int`: Given by `InfiniteModel.last_param_num` (updated when
-                        prior parameters are deleted)
 - `name::String`: The name used for printing.
 - `parameter_func_indices::Vector{ParameterFunctionIndex}`: Indices of dependent
    infinite parameter functions.
@@ -573,7 +571,6 @@ A mutable `DataType` for storing `ScalarParameter`s and their data.
 mutable struct ScalarParameterData{P <: ScalarParameter} <: AbstractDataObject
     parameter::P
     group_int_idx::Int
-    parameter_num::Int
     name::String
     parameter_func_indices::Vector{ParameterFunctionIndex}
     infinite_var_indices::Vector{InfiniteVariableIndex}
@@ -591,13 +588,11 @@ end
 function ScalarParameterData(
     param::P,
     group_int_idx::Int,
-    parameter_num::Int,
     name::String = ""
     ) where {P <: ScalarParameter}
     return ScalarParameterData{P}(
         param,
         group_int_idx,
-        parameter_num,
         name,
         ParameterFunctionIndex[],
         InfiniteVariableIndex[], 
@@ -621,8 +616,6 @@ A mutable `DataType` for storing [`DependentParameters`](@ref) and their data.
 - `parameters::P`: The parameter collection.
 - `group_int_idx::Int`: The location of the corresponding `ObjectIndex` in
    `InfiniteModel.param_group_indices`.
-- `parameter_nums::UnitRange{Int}`: Given by `InfiniteModel.last_param_num`
-                                    (updated when prior parameters are deleted)
 - `names::Vector{String}`: The names used for printing each parameter.
 - `parameter_func_indices::Vector{ParameterFunctionIndex}`: Indices of
    dependent infinite parameter functions.
@@ -637,7 +630,6 @@ A mutable `DataType` for storing [`DependentParameters`](@ref) and their data.
 mutable struct MultiParameterData{P <: DependentParameters} <: AbstractDataObject
     parameters::P
     group_int_idx::Int
-    parameter_nums::UnitRange{Int}
     names::Vector{String}
     parameter_func_indices::Vector{ParameterFunctionIndex}
     infinite_var_indices::Vector{InfiniteVariableIndex}
@@ -650,13 +642,12 @@ end
 function MultiParameterData(
     params::P,
     group_int_idx::Int,
-    parameter_nums::UnitRange{Int},
     names::Vector{String},
     ) where {P <: DependentParameters}
     return MultiParameterData{P}(
         params,
         group_int_idx,
-        parameter_nums, names,
+        names,
         ParameterFunctionIndex[], 
         InfiniteVariableIndex[],
         [MeasureIndex[] for i in eachindex(names)],
@@ -695,13 +686,11 @@ vectorized form of the support that comes from `support::VectorTuple` via:
                         inputs to `func`. Their formatting is analagous 
                         to those of infinite variables. 
 - `group_int_idxs::Vector{Int}`: The parameter group integer indices associated with `parameter_refs`.
-- `parameter_nums::Vector{Int}`: The parameter numbers of `parameter_refs`.
 """
 struct ParameterFunction{F <: Function, T <: JuMP.AbstractVariableRef}
     func::F
     parameter_refs::Collections.VectorTuple{T}
     group_int_idxs::Vector{Int}
-    parameter_nums::Vector{Int}
 end
 
 """
@@ -760,7 +749,6 @@ infinite parameter support that matches the format encoded in `parameter_refs`.
 - `info::JuMP.VariableInfo{LB, UB, FX, ST}`: JuMP variable information.
 - `parameter_refs::Collections.VectorTuple{T}`: The infinite parameter references that parameterize the 
   variable.
-- `parameter_nums::Vector{Int}`: The parameter numbers of `parameter_refs`.
 - `group_int_idxs::Vector{Int}`: The parameter group integer indices associated
   with `parameter_refs`.
 """
@@ -773,7 +761,6 @@ struct InfiniteVariable{
     } <: JuMP.AbstractVariable
     info::JuMP.VariableInfo{LB, UB, FX, ST} 
     parameter_refs::Collections.VectorTuple{T}
-    parameter_nums::Vector{Int}
     group_int_idxs::Vector{Int}
 end
 
@@ -815,8 +802,6 @@ infinite variable.
 - `eval_support::Vector{Float64}`: The evaluated parameter values that corresponds 
     to the vectorized infinite parameters of `infinite_variable_ref`. Any infinite 
     parameter not replaced by a value is represented with a `NaN`.
-- `parameter_nums::Vector{Int}`: The parameter numbers associated with the evaluated
-                                 `parameter_refs`.
 - `group_int_idxs::Vector{Int}`: The parameter group integer indices associated with the
                               evaluated `parameter_refs`.
 """
@@ -826,7 +811,6 @@ struct SemiInfiniteVariable{
     info::RestrictedDomainInfo
     infinite_variable_ref::I
     eval_support::Vector{Float64}
-    parameter_nums::Vector{Int}
     group_int_idxs::Vector{Int}
 end
 
@@ -1172,10 +1156,6 @@ and is enacted on `func` when the measure is evaluated (expended).
 - `group_int_idxs::Vector{Int}`: The parameter group integer indices of the evaluated
                               measure expression (i.e., the group integer indices of
                               `func` excluding those that belong to `data`).
-- `parameter_nums::Vector{Int}`: The parameter numbers that parameterize the
-                                 evaluated measure expression. (i.e., the
-                                 parameter numbers of `func` excluding those
-                                 that belong to `data`).
 - `constant_func::Bool`: Indicates if `func` is not parameterized by the infinite
                          parameters in `data`. (i.e., do the group integer indices of
                          `func` and `data` have no intersection?) This is useful
@@ -1185,7 +1165,6 @@ struct Measure{T <: JuMP.AbstractJuMPScalar, V <: AbstractMeasureData}
     func::T
     data::V
     group_int_idxs::Vector{Int}
-    parameter_nums::Vector{Int}
     constant_func::Bool
 end
 
@@ -1393,7 +1372,6 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
     dependent_params::MOIUC.CleverDict{DependentParametersIndex, MultiParameterData}
     finite_params::MOIUC.CleverDict{FiniteParameterIndex, ScalarParameterData{FiniteParameter}}
     name_to_param::Union{Dict{String, AbstractInfOptIndex}, Nothing}
-    last_param_num::Int
     param_group_indices::Vector{Union{IndependentParameterIndex, DependentParametersIndex}}
     param_functions::MOIUC.CleverDict{ParameterFunctionIndex, <:ParameterFunctionData}
     piecewise_vars::Dict{IndependentParameterIndex, Set{InfiniteVariableIndex}}
@@ -1494,7 +1472,7 @@ function InfiniteModel(backend::AbstractTransformationBackend = TranscriptionBac
         MOIUC.CleverDict{IndependentParameterIndex, ScalarParameterData{<:IndependentParameter}}(),
         MOIUC.CleverDict{DependentParametersIndex, MultiParameterData}(),
         MOIUC.CleverDict{FiniteParameterIndex, ScalarParameterData{FiniteParameter}}(),
-        nothing, 0,
+        nothing,
         Union{IndependentParameterIndex, DependentParametersIndex}[],
         MOIUC.CleverDict{ParameterFunctionIndex, ParameterFunctionData{<:ParameterFunction}}(),
         Dict{IndependentParameterIndex, Set{InfiniteVariableIndex}}(),
@@ -1566,7 +1544,6 @@ function Base.empty!(model::InfiniteModel)
     empty!(model.dependent_params)
     empty!(model.finite_params)
     model.name_to_param = nothing
-    model.last_param_num = 0
     empty!(model.param_group_indices)
     empty!(model.param_functions)
     empty!(model.piecewise_vars)
@@ -1600,9 +1577,6 @@ function Base.empty!(model::InfiniteModel)
     return model
 end
 
-# Define basic accessors
-_last_param_num(model::InfiniteModel) = model.last_param_num
-
 """
     parameter_group_indices(model::InfiniteModel)::Vector{Union{IndependentParameterIndex, DependentParametersIndex}}
 
@@ -1629,7 +1603,7 @@ function _make_param_tuple_element(
     model::InfiniteModel,
     idx::DependentParametersIndex,
     )
-    num_params = length(model.dependent_params[idx].parameter_nums)
+    num_params = length(model.dependent_params[idx].names)
     return [GeneralVariableRef(model, idx.value, DependentParameterIndex, i)
             for i in 1:num_params]
 end

@@ -7,7 +7,7 @@
     @infinite_parameter(m, c[1:2] in [0, 1])
     @variable(m, ivref, Infinite(a, b..., c))
     eval_supp = [0.5, NaN, 1., 0., 0.]
-    var = SemiInfiniteVariable(RestrictedDomainInfo(), ivref, eval_supp, [2], [2])
+    var = SemiInfiniteVariable(RestrictedDomainInfo(), ivref, eval_supp, [2])
     object = VariableData(var, "var")
     idx = SemiInfiniteVariableIndex(1)
     vref = SemiInfiniteVariableRef(m, idx)
@@ -76,10 +76,6 @@
     # parameter_group_int_indices
     @testset "parameter_group_int_indices" begin
         @test InfiniteOpt.parameter_group_int_indices(vref) == [2]
-    end
-    # _parameter_numbers
-    @testset "_parameter_numbers" begin
-        @test InfiniteOpt._parameter_numbers(vref) == [2]
     end
     # infinite_variable_ref
     @testset "infinite_variable_ref" begin
@@ -219,7 +215,6 @@ end
         new_info = RestrictedDomainInfo(true, 1., false, NaN, false, NaN, true, 42.)
         @test build_variable(error, ivref, eval_supp, new_info).info.lower_bound == 1
         @test build_variable(error, ivref, eval_supp, check = false).group_int_idxs == [2]
-        @test build_variable(error, ivref, eval_supp, check = false).parameter_nums == [2]
     end
     # test JuMP.add_variable
     @testset "JuMP.add_variable" begin

@@ -28,6 +28,9 @@
     data.infvar_supports[y0] = [(0., [0., 0.]), (0., [1., 1.])]
     data.infvar_lookup[y0] = Dict([0, 0, 0] => a, [0, 1, 1] => b)
     data.finvar_mappings[x0] = a
+    data.infvar_param_idxs[pf] = [1]
+    data.infvar_param_idxs[x] = [1]
+    data.infvar_param_idxs[y] = [1, 2, 3]
     IOTO.set_parameter_supports(tb, m)
     # test make_point_variable_ref
     @testset "make_point_variable_ref" begin
@@ -60,11 +63,11 @@
     # test add_semi_infinite_variable
     @testset "add_semi_infinite_variable" begin
         # add one that was already added to the infinite model
-        var = SemiInfiniteVariable(RestrictedDomainInfo(), y, [0.0, NaN, NaN], [2, 3], [2])
+        var = SemiInfiniteVariable(RestrictedDomainInfo(), y, [0.0, NaN, NaN], [2])
         @test isequal(InfiniteOpt.add_semi_infinite_variable(tb, var), y0)
         @test IOTO.transcription_variable(y0) == [a, b]
         # add a new one
-        var = SemiInfiniteVariable(RestrictedDomainInfo(), y, [1.0, NaN, NaN], [2, 3], [2])
+        var = SemiInfiniteVariable(RestrictedDomainInfo(), y, [1.0, NaN, NaN], [2])
         vref = GeneralVariableRef(m, -1, SemiInfiniteVariableIndex)
         @test isequal(InfiniteOpt.add_semi_infinite_variable(tb, var), vref)
         @test isequal(data.semi_infinite_vars, [var])

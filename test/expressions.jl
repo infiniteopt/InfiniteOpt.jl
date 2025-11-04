@@ -4,7 +4,7 @@
     m = InfiniteModel()
     @infinite_parameter(m, t in [0, 1])
     @infinite_parameter(m, x[1:2] in [-1, 1])
-    func = ParameterFunction(sin, IC.VectorTuple(t), [1], [1])
+    func = ParameterFunction(sin, IC.VectorTuple(t), [1])
     object = ParameterFunctionData(func, "test")
     idx = ParameterFunctionIndex(1)
     fref = ParameterFunctionRef(m, idx)
@@ -53,10 +53,6 @@
     # parameter_group_int_indices
     @testset "parameter_group_int_indices" begin
         @test InfiniteOpt.parameter_group_int_indices(fref) == [1]
-    end
-    # _parameter_numbers
-    @testset "_parameter_numbers" begin
-        @test InfiniteOpt._parameter_numbers(fref) == [1]
     end
     # JuMP.name
     @testset "JuMP.name" begin
@@ -431,7 +427,7 @@ end
     @variable(m, pt, Point(inf, 0))
     @variable(m, finite)
     data = TestData(par, 0, 5)
-    meas = Measure(finite, data, Int[], Int[], true)
+    meas = Measure(finite, data, Int[], true)
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
@@ -547,64 +543,6 @@ end
         nlp = sin(inf) / pt
         # test expressions
         @test InfiniteOpt.parameter_group_int_indices(nlp) == [1]
-    end
-end
-
-# Test _parameter_numbers
-@testset "_parameter_numbers" begin
-    # initialize model and references
-    m = InfiniteModel()
-    @infinite_parameter(m, par in [0, 1])
-    @infinite_parameter(m, pars[1:2] in [0, 1])
-    @variable(m, inf, Infinite(par))
-    @variable(m, inf2, Infinite(par, pars))
-    @variable(m, pt, Point(inf, 0))
-    @variable(m, finite)
-    var = build_variable(error, inf2, [0.5, NaN, NaN], check = false)
-    red = add_variable(m, var)
-    # test for finite variable reference
-    @testset "FiniteVariable" begin
-        @test InfiniteOpt._parameter_numbers(pt) == []
-        @test InfiniteOpt._parameter_numbers(finite) == []
-    end
-    # test for infinite variable reference
-    @testset "InfiniteVariable" begin
-        @test InfiniteOpt._parameter_numbers(inf) == [1]
-        @test InfiniteOpt._parameter_numbers(inf2) == [1, 2, 3]
-    end
-    # test for parameter reference
-    @testset "Parameter" begin
-        @test InfiniteOpt._parameter_numbers(par) == [1]
-        @test InfiniteOpt._parameter_numbers(pars[2]) == [3]
-    end
-    # test for semi-infinite variable reference
-    @testset "SemiInfiniteInfinite" begin
-        @test InfiniteOpt._parameter_numbers(red) == [2, 3]
-    end
-    # test for GenericAffExpr
-    @testset "AffExpr" begin
-        # make expressions
-        aff1 = inf + inf2 + pt - 3
-        aff2 = pt + finite - 2
-        # test expressions
-        @test sort!(InfiniteOpt._parameter_numbers(aff1)) == [1, 2, 3]
-        @test InfiniteOpt._parameter_numbers(aff2) == []
-    end
-    # test for GenericQuadExpr
-    @testset "QuadExpr" begin
-        # make expressions
-        quad1 = inf * inf2 + inf + inf2 + pt - 3 - par
-        quad2 = pt * pt + pt + finite - 2
-        # test expressions
-        @test sort!(InfiniteOpt._parameter_numbers(quad1)) == [1, 2, 3]
-        @test InfiniteOpt._parameter_numbers(quad2) == []
-    end
-    # test for GenericNonlinearExpr
-    @testset "GenericNonlinearExpr" begin
-        # make expressions
-        nlp = sin(inf2)
-        # test expressions
-        @test sort!(InfiniteOpt._parameter_numbers(nlp)) == [1, 2, 3]
     end
 end
 

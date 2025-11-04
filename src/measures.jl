@@ -62,11 +62,6 @@ function parameter_group_int_indices(mref::MeasureRef)
     return core_object(mref).group_int_idxs
 end
 
-# Extend _parameter_numbers
-function _parameter_numbers(mref::MeasureRef)
-    return core_object(mref).parameter_nums
-end
-
 ## Set helper methods for adapting data_objects with parametric changes 
 # No change needed 
 function _adaptive_data_update(
@@ -757,20 +752,17 @@ function build_measure(
     data::AbstractMeasureData
     )
     expr_group_int_idxs = parameter_group_int_indices(expr)
-    expr_param_nums = _parameter_numbers(expr)
     prefs = parameter_refs(data)
     data_group_int_idxs = parameter_group_int_indices(prefs)
-    data_param_nums = [_parameter_number(pref) for pref in prefs]
     # NOTE setdiff! cannot be used here since it modifies group_int_idxs of expr if expr is a single infinite variable
     group_int_idxs = sort(setdiff(expr_group_int_idxs, data_group_int_idxs))
-    param_nums = sort(setdiff(expr_param_nums, data_param_nums))
     # check if analytic method should be applied
     lb_nan = isnan(first(JuMP.lower_bound(data)))
     ub_nan = isnan(first(JuMP.upper_bound(data)))
-    # NOTE intersect! cannot be used here since it modifies parameter_nums of expr if expr is a single infinite variable
-    constant_func = isempty(intersect(expr_param_nums, data_param_nums)) &&
+    # NOTE intersect! cannot be used here since it modifies idxs of expr if expr is a single infinite variable
+    constant_func = isempty(intersect(expr_group_int_idxs, data_group_int_idxs)) &&
                     ((!lb_nan && !ub_nan) || _is_expect(data))
-    return Measure(expr, data, group_int_idxs, param_nums, constant_func)
+    return Measure(expr, data, group_int_idxs, constant_func)
 end
 
 ################################################################################
@@ -1366,7 +1358,7 @@ function JuMP.delete(model::InfiniteModel, mref::MeasureRef)
         data = measure_data(meas_ref)
         if func isa GeneralVariableRef
             new_func = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
-            new_meas = Measure(new_func, data, Int[], Int[], false)
+            new_meas = Measure(new_func, data, Int[], false)
         else
             _remove_variable(func, gvref)
             new_meas = build_measure(func, data)

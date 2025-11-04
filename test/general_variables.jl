@@ -247,10 +247,6 @@ end
               GeneralVariableRef(m, 2, TestIndex)]
     sdomain = IntervalDomain(0, 1)
     adomain = CollectionDomain([sdomain, sdomain])
-    # test _parameter_number
-    @testset "_parameter_number" begin
-        @test_throws MethodError InfiniteOpt._parameter_number(gvref)
-    end
     # test parameter_group_int_index
     @testset "parameter_group_int_index" begin
         @test_throws MethodError InfiniteOpt.parameter_group_int_index(gvref)

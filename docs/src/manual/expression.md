@@ -193,6 +193,4 @@ InfiniteOpt._constraint_dependencies
 InfiniteOpt._constraint_dependencies(::GeneralVariableRef)
 InfiniteOpt._derivative_constraint_dependencies
 InfiniteOpt._derivative_constraint_dependencies(::GeneralVariableRef)
-InfiniteOpt._parameter_number
-InfiniteOpt._parameter_number(::GeneralVariableRef)
 ```

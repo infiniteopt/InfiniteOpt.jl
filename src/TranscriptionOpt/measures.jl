@@ -82,8 +82,12 @@ function InfiniteOpt.add_semi_infinite_variable(
             InfiniteOpt.SemiInfiniteVariableIndex
         )
         push!(semi_infinite_vars, var)
-        ivref_param_nums = InfiniteOpt._parameter_numbers(ivref)
-        param_nums = var.parameter_nums
+        ivref_pref_supp_idxs = data.infvar_param_idxs[ivref]
+        pref_supp_idxs = [
+            ivref_pref_supp_idxs[i] 
+            for i in eachindex(ivref_pref_supp_idxs) 
+            if isnan(eval_supp[i])
+        ]
         supp_indices = support_index_iterator(backend, var.group_int_idxs)
         if ivref.index_type == InfiniteOpt.ParameterFunctionIndex && 
            !data.update_parameter_functions
@@ -95,9 +99,9 @@ function InfiniteOpt.add_semi_infinite_variable(
         sizehint!(lookup_dict, length(supp_indices))
         for i in supp_indices
             raw_supp = index_to_support(backend, i)
-            ivref_supp = [isnan(s) ? raw_supp[ivref_param_nums[j]] : s 
+            ivref_supp = [isnan(s) ? raw_supp[ivref_pref_supp_idxs[j]] : s 
                           for (j, s) in enumerate(eval_supp)]
-            supp = raw_supp[param_nums]
+            supp = raw_supp[pref_supp_idxs]
             lookup_dict[supp] = lookup_by_support(ivref, backend, ivref_supp)
         end
         if val_type == JuMP.VariableRef
@@ -106,6 +110,7 @@ function InfiniteOpt.add_semi_infinite_variable(
             data.pfunc_lookup[rvref] = lookup_dict
         end
         data.semi_lookup[(ivref, eval_supp)] = rvref
+        data.infvar_param_idxs[rvref] = pref_supp_idxs
         return rvref
     end
 end

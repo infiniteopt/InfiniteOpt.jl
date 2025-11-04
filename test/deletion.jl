@@ -200,12 +200,10 @@ end
         @test isequal(measure_function(dmref2), zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}))
         @test InfiniteOpt.parameter_group_int_indices(dmref) == [2, 3, 4]
         @test InfiniteOpt.parameter_group_int_indices(dmref2) == []
-        @test InfiniteOpt._parameter_numbers(dmref) == [2, 3, 4, 5]
-        @test InfiniteOpt._parameter_numbers(dmref2) == []
         # undo changes
-        meas = Measure(inf + par - x + rv + par2 + par3 + fin, data, [2, 4], [2, 5], false)
+        meas = Measure(inf + par - x + rv + par2 + par3 + fin, data, [2, 4], false)
         InfiniteOpt._set_core_object(dmref, meas)
-        meas = Measure(par2, data, [2], [2], false)
+        meas = Measure(par2, data, [2], false)
         InfiniteOpt._set_core_object(dmref2, meas)
     end
     # test _update_constraints
@@ -259,18 +257,12 @@ end
         expected = [IndependentParameterIndex(1), DependentParametersIndex(1),
                     IndependentParameterIndex(3)]
         @test InfiniteOpt.parameter_group_indices(m) == expected
-        @test InfiniteOpt._last_param_num(m) == 4
         @test InfiniteOpt.parameter_group_int_index(dpar) == 1
         @test InfiniteOpt.parameter_group_int_index(dpars[1]) == 2
         @test InfiniteOpt.parameter_group_int_index(dpar3) == 3
-        @test InfiniteOpt._parameter_number(dpar3) == 4
-        @test InfiniteOpt._parameter_number(dpars[2]) == 3
-        @test InfiniteOpt._parameter_numbers(dinf4) == [1, 2, 3]
         @test isempty(setdiff(InfiniteOpt.parameter_group_int_indices(inf3), [1, 2]))
-        @test InfiniteOpt._parameter_numbers(dinf) == [1]
         @test isempty(setdiff(InfiniteOpt.parameter_group_int_indices(drv), [1, 2]))
         @test InfiniteOpt.parameter_group_int_indices(dmref) == [3]
-        @test InfiniteOpt._parameter_numbers(dmref) == [4]
         @test isempty(setdiff(InfiniteOpt.parameter_group_int_indices(con), [1, 2, 3]))
         @test isempty(InfiniteOpt.parameter_group_int_indices(con2))
         @test !is_valid(m, con3)
@@ -282,9 +274,6 @@ end
         @test isempty(setdiff(InfiniteOpt.parameter_group_int_indices(con), [1, 2]))
         expected = [IndependentParameterIndex(1), DependentParametersIndex(1)]
         @test InfiniteOpt.parameter_group_indices(m) == expected
-        @test InfiniteOpt._last_param_num(m) == 3
-        @test InfiniteOpt._parameter_number(dpars[2]) == 3
-        @test InfiniteOpt._parameter_numbers(dinf4) == [1, 2, 3]
         # test invalid parameter
         @test_throws AssertionError delete(m, par2)
         @test_throws AssertionError delete(m, par3)
@@ -372,14 +361,10 @@ end
         @test isequal_canonical(jump_function(constraint_object(con)), inf2 - par2)
         expected = [IndependentParameterIndex(1), IndependentParameterIndex(2)]
         @test InfiniteOpt.parameter_group_indices(m) == expected
-        @test InfiniteOpt._last_param_num(m) == 2
         @test InfiniteOpt.parameter_group_int_index(dpar) == 1
         @test InfiniteOpt.parameter_group_int_index(dpar2) == 2
-        @test InfiniteOpt._parameter_number(dpar2) == 2
         @test isempty(setdiff(InfiniteOpt.parameter_group_int_indices(dinf2), [1, 2]))
-        @test InfiniteOpt._parameter_numbers(dinf) == [1]
         @test InfiniteOpt.parameter_group_int_indices(dmref) == []
-        @test InfiniteOpt._parameter_numbers(dmref) == []
         @test isempty(setdiff(InfiniteOpt.parameter_group_int_indices(con), [1, 2]))
         @test !is_valid(m, con2)
         # test assertion error

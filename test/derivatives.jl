@@ -71,10 +71,6 @@
     @testset "parameter_group_int_indices" begin
         @test InfiniteOpt.parameter_group_int_indices(dref) == [1]
     end
-    # _parameter_numbers
-    @testset "_parameter_numbers" begin
-        @test InfiniteOpt._parameter_numbers(dref) == [1]
-    end
     # test _variable_info
     @testset "_variable_info" begin
         @test InfiniteOpt._variable_info(dref) == info
@@ -443,7 +439,7 @@ end
         rvref = gvref(pref, [1, 0])
         @test @deriv(rvref, pref) isa GeneralVariableRef    
         # test with measures 
-        meas = Measure(w, TestData(pref, 0, 1), [2], [2], false)
+        meas = Measure(w, TestData(pref, 0, 1), [2], false)
         data = MeasureData(meas, "meas")
         @test InfiniteOpt._add_data_object(m, data) isa MeasureIndex
         mref = GeneralVariableRef(m, 1, MeasureIndex)

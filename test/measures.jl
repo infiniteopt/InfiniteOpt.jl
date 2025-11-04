@@ -5,7 +5,7 @@
     @infinite_parameter(m, t in [0, 1])
     w = t -> 1
     meas_data = DiscreteMeasureData(t, ones(2), ones(2), All, w, NaN, NaN, false)
-    meas = Measure(zero(AffExpr),meas_data, [1], [1], false)
+    meas = Measure(zero(AffExpr),meas_data, [1], false)
     object = MeasureData(meas)
     idx = MeasureIndex(1)
     mref = MeasureRef(m, idx)
@@ -32,11 +32,6 @@
     @testset "_core_variable_object" begin
         @test core_object(mref) == meas
         @test core_object(gvref) == meas
-    end
-    # test _parameter_numbers
-    @testset "_parameter_numbers" begin
-        @test InfiniteOpt._parameter_numbers(mref) == [1]
-        @test InfiniteOpt._parameter_numbers(gvref) == [1]
     end
     # test parameter_group_int_indices
     @testset "parameter_group_int_indices" begin
@@ -522,7 +517,7 @@ end
     end
     # test add_measure
     @testset "add_measure" begin
-        meas1 = Measure(par + 2inf - x, data1, [1], [1], false)
+        meas1 = Measure(par + 2inf - x, data1, [1], false)
         mref1 = MeasureRef(m, MeasureIndex(1))
         @test isequal(dispatch_variable_ref(add_measure(m, meas1, "measure1")), mref1)
         @test supports(par) == [1.0]
@@ -541,7 +536,7 @@ end
     @variable(m, inf, Infinite(par))
     @variable(m, x)
     data = DiscreteMeasureData(par, [1], [1])
-    meas = Measure(par + 2inf - x, data, [1], [1], false)
+    meas = Measure(par + 2inf - x, data, [1], false)
     mref = add_measure(m, meas)
     # test measure_function
     @testset "measure_function" begin

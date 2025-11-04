@@ -303,10 +303,7 @@ function add_parameters(
     end
     # make the parameter model object
     group_int_idx = length(parameter_group_indices(model)) + 1
-    first_param_num = model.last_param_num + 1
-    last_param_num = model.last_param_num += num_params
-    param_nums = first_param_num:last_param_num
-    data_object = MultiParameterData(params, group_int_idx, param_nums, names)
+    data_object = MultiParameterData(params, group_int_idx, names)
     # add the data object to the model and make the references
     obj_index = _add_data_object(model, data_object)
     # reset the name dictionary 
@@ -473,16 +470,6 @@ end
 ################################################################################
 #                          PARAMETER OBJECT METHODS
 ################################################################################
-# Extend _parameter_number
-function _parameter_number(pref::DependentParameterRef)
-    return _data_object(pref).parameter_nums[_param_index(pref)]
-end
-
-# Extend _parameter_numbers
-function _parameter_numbers(pref::DependentParameterRef)
-    return [_parameter_number(pref)]
-end
-
 """
     parameter_group_int_index(pref::DependentParameterRef)::Int
 
@@ -508,12 +495,16 @@ end
 # Reconstruction is necessary 
 function _adaptive_data_update(pref::DependentParameterRef, params::P1, 
     data::MultiParameterData{P2})  where {P1, P2}
-    new_data = MultiParameterData(params, data.group_int_idx, data.parameter_nums, 
-                                  data.names, data.parameter_func_indices,
-                                  data.infinite_var_indices, 
-                                  data.measure_indices,
-                                  data.constraint_indices,
-                                  data.has_internal_supports)
+    new_data = MultiParameterData(
+        params, 
+        data.group_int_idx, 
+        data.names, 
+        data.parameter_func_indices,
+        data.infinite_var_indices, 
+        data.measure_indices,
+        data.constraint_indices,
+        data.has_internal_supports
+    )
     _data_dictionary(pref)[JuMP.index(pref).object_index] = new_data
     return
 end
@@ -1661,10 +1652,9 @@ function JuMP.delete(
     end
     # get the object and parameter numbers
     group_int_idx = parameter_group_int_index(first(prefs))
-    param_nums = collect(_data_object(first(prefs)).parameter_nums)
     # delete parameter information stored in model
     _delete_data_object(first(prefs))
-    # update the parameter group integer indices and parameter numbers
-    _update_model_numbers(model, group_int_idx, param_nums)
+    # update the parameter group integer indices
+    _update_group_int_indices(model, group_int_idx)
     return
 end

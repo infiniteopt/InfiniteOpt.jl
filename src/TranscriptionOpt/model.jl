@@ -24,6 +24,7 @@ mutable struct TranscriptionData
 
     # Metadata
     valid_indices::Dict{Any, Array{Bool}}
+    infvar_param_idxs::Dict{InfiniteOpt.GeneralVariableRef, Vector{Int}}
 
     # Internal variables (created via internal measure expansions)
     semi_infinite_vars::Vector{InfiniteOpt.SemiInfiniteVariable{InfiniteOpt.GeneralVariableRef}}
@@ -45,6 +46,7 @@ mutable struct TranscriptionData
     # Collected Supports
     supports::Tuple
     support_labels::Tuple
+    param_to_support_idx::Dict{InfiniteOpt.GeneralVariableRef, Int}
     has_internal_supports::Bool
 
     # Default constructor
@@ -61,6 +63,7 @@ mutable struct TranscriptionData
             Dict{InfiniteOpt.GeneralVariableRef, Float64}(),
             # meta data
             Dict{Any, Array{Bool}}(),
+            Dict{InfiniteOpt.GeneralVariableRef, Vector{Int}}(),
             # internal variables
             Vector{InfiniteOpt.SemiInfiniteVariable{InfiniteOpt.GeneralVariableRef}}(),
             Dict{Tuple{InfiniteOpt.GeneralVariableRef, Vector{Float64}}, InfiniteOpt.GeneralVariableRef}(),
@@ -76,6 +79,7 @@ mutable struct TranscriptionData
             # support storage
             (), 
             (), 
+            Dict{InfiniteOpt.GeneralVariableRef, Int}(),
             false,
             )
     end
@@ -90,6 +94,7 @@ function Base.empty!(data::TranscriptionData)
     empty!(data.pfunc_lookup)
     empty!(data.point_pfunc_mappings)
     empty!(data.valid_indices)
+    empty!(data.infvar_param_idxs)
     empty!(data.semi_infinite_vars)
     empty!(data.semi_lookup)
     data.last_point_index = 0
@@ -101,6 +106,7 @@ function Base.empty!(data::TranscriptionData)
     empty!(data.constr_supports)
     data.supports = ()
     data.support_labels = ()
+    empty!(data.param_to_support_idx)
     data.has_internal_supports = false
     return data
 end

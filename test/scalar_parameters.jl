@@ -10,8 +10,8 @@
     info = NoGenerativeSupports()
     ind_param = IndependentParameter(domain, supps_dict, 5, method, info)
     fin_param = FiniteParameter(42)
-    ind_object = ScalarParameterData(ind_param, 1, 1, "ind")
-    fin_object = ScalarParameterData(fin_param, -1, -1, "fin")
+    ind_object = ScalarParameterData(ind_param, 1, "ind")
+    fin_object = ScalarParameterData(fin_param, -1, "fin")
     ind_pref = IndependentParameterRef(m, ind_idx)
     fin_pref = FiniteParameterRef(m, fin_idx)
     ind_gvref = GeneralVariableRef(m, 1, IndependentParameterIndex)
@@ -55,16 +55,6 @@
         @test core_object(ind_gvref) == ind_param
         @test core_object(fin_pref) == fin_param
         @test core_object(fin_gvref) == fin_param
-    end
-    # test _parameter_number
-    @testset "_parameter_number" begin
-        @test InfiniteOpt._parameter_number(ind_pref) == 1
-        @test InfiniteOpt._parameter_number(ind_gvref) == 1
-    end
-    # test _parameter_numbers
-    @testset "_parameter_numbers" begin
-        @test InfiniteOpt._parameter_numbers(ind_pref) == [1]
-        @test InfiniteOpt._parameter_numbers(ind_gvref) == [1]
     end
     # test parameter_group_int_index
     @testset "parameter_group_int_index" begin

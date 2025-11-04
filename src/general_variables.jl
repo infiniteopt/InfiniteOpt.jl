@@ -421,26 +421,6 @@ end
 #                              PARAMETER METHODS
 ################################################################################
 """
-    _parameter_number(pref::DispatchVariableRef)::Int
-
-Return the parameter creation number for `pref` assuming it is an infinite
-parameter. This needs to be defined for the type of `pref`. This should use
-the `_data_object` to get the number.
-"""
-function _parameter_number end
-
-"""
-    _parameter_number(pref::GeneralVariableRef)::Int
-
-Return the parameter creation number for `pref` assuming it is an infinite
-parameter. It relies on `_parameter_number` being properly defined for the
-underlying `DispatchVariableRef`, otherwise an `MethodError` is thrown.
-"""
-function _parameter_number(pref::GeneralVariableRef)::Int
-    return _parameter_number(dispatch_variable_ref(pref))
-end
-
-"""
     parameter_group_int_index(pref::DispatchVariableRef)::Int
 
 Return the parameter group integer index for `pref` assuming it is an infinite
