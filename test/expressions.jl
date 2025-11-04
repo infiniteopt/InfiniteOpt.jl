@@ -636,6 +636,7 @@ end
         @test isequal(map_expression(v -> y, nlp), (sin(y) + (2y + 42))^3.4)
         @test isequal(map_expression(v -> v^3, sin(y)), sin(y^3))
         @test isequal(map_expression(v -> x, sin(y), new_b), sin(x))
+        @test map_expression(v -> y, 42) == 42
     end
     # test map_nlp_to_ast deprecation
     @testset "map_nlp_to_ast (deprecation)" begin
