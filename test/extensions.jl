@@ -244,6 +244,7 @@ end
     @test supports(meas) == [(-1.,), (-2.,)]
     @test supports(c1, my_kwarg = true) == [(2.,), (3.,)]
     @test supports(x + y) == [(-42.,), (1.,)]
+    @test variable_ref_type(m.backend) == VariableRef
 
     # test parameter updates
     @test set_parameter_value(pf, cos) isa Nothing

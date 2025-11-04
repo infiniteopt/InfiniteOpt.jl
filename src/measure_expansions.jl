@@ -586,7 +586,7 @@ function expand_measure(
     simple_data = DiscreteMeasureData(pref, ones(1), ones(1), label,
                                       default_weight, lb, ub, is_expect)
     new_ex = sum(coeffs[i] * w(supps[i]) * 
-            map_expression(v -> _map_variable(v, simple_data, supps[i], write_model), expr) 
+            map_expression(v -> _map_variable(v, simple_data, supps[i], write_model), expr, write_model) 
             for i in eachindex(supps))
     return JuMP.flatten!(new_ex) # make expression flat over summation
 end
@@ -610,7 +610,7 @@ function expand_measure(
     simple_data = DiscreteMeasureData(prefs, ones(1), ones(length(prefs), 1),
                                       label, default_weight, lbs, ubs, is_expect)
     new_ex = sum(coeffs[i] * w(@view(supps[:, i])) * 
-            map_expression(v -> _map_variable(v, simple_data, @view(supps[:, i]), write_model), expr) 
+            map_expression(v -> _map_variable(v, simple_data, @view(supps[:, i]), write_model), expr, write_model) 
             for i in eachindex(coeffs))
     return JuMP.flatten!(new_ex) # make expression flat over summation
 end
@@ -848,7 +848,7 @@ function expand_measures(
     expr::JuMP.AbstractJuMPScalar,
     write_model::Union{InfiniteModel, AbstractTransformationBackend}
     )
-    return map_expression(v -> expand_measures(v, write_model), expr)
+    return map_expression(v -> expand_measures(v, write_model), expr, write_model)
 end
 
 # AbstractArray of expressions 

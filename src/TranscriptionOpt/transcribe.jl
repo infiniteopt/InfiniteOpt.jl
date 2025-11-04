@@ -551,7 +551,8 @@ function transcription_expression(
     )
     return InfiniteOpt.map_expression(
         v -> transcription_expression(v, backend, support), 
-        expr
+        expr,
+        backend
     )
 end
 

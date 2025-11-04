@@ -506,6 +506,23 @@ function JuMP.set_time_limit_sec(model::InfiniteModel, value::Real)
     return JuMP.set_attribute(model.backend, MOI.TimeLimitSec(), Float64(value))
 end
 
+"""
+    JuMP.variable_ref_type(backend::AbstractTransformationBackend)
+
+Implement [`JuMP.variable_ref_type`](https://jump.dev/JuMP.jl/v1/api/JuMP/#variable_ref_type)
+for transformation backends. If applicable, this should be extended for 
+new backend types. No extension is needed for [`JuMPBackend`](@ref)s.
+"""
+function JuMP.variable_ref_type(backend::AbstractTransformationBackend)
+    error("`JuMP.variable_ref_type` not defined for backends of type " *
+          "`$(typeof(backend))`.")
+end
+
+# Define for JuMPBackend
+function JuMP.variable_ref_type(backend::JuMPBackend)
+    return JuMP.variable_ref_type(backend.model)
+end
+
 # Single argument methods that don't rely on `[get/set]_attribute`
 for func in (:bridge_constraints, :backend, :mode, :unsafe_backend, 
              :compute_conflict!, :copy_conflict)

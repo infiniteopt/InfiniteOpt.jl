@@ -614,69 +614,31 @@ end
     aff = 2z + 42
     quad = z^2 + 2z
     nlp = (sin(z) + aff) ^ 3.4
-    @variable(Model(), x)
+    new_b = TranscriptionBackend()
+    @variable(new_b.model, x)
     # test variable 
     @testset "Variable" begin
-        @test isequal(map_expression(v -> x, z), x)
+        @test isequal(map_expression(v -> x, z, new_b), x)
     end
     # test AffExpr
     @testset "AffExpr" begin
-        @test isequal(map_expression(v -> x, aff), 2x + 42)
+        @test isequal(map_expression(v -> x, aff, new_b), 2x + 42)
+        @test isequal(map_expression(v -> y, aff), 2y + 42)
+        @test map_expression(v -> x, zero(AffExpr)) == zero(AffExpr)
     end
     # test QuadExpr 
     @testset "QuadExpr" begin
-        @test isequal(map_expression(v -> x, quad), x^2 + 2x)
+        @test isequal(map_expression(v -> x, quad, new_b), x^2 + 2x)
     end
     # test GenericNonlinearExpr
     @testset "GenericNonlinearExpr" begin
-        @test isequal(map_expression(v -> y, nlp), (sin(y) + (2y + 42))^3.4)
+        @test isequal(map_expression(v -> y, nlp, m), (sin(y) + (2y + 42))^3.4)
         @test isequal(map_expression(v -> v^3, sin(y)), sin(y^3))
+        @test isequal(map_expression(v -> x, sin(y)), sin(x))
     end
-end
-
-# Test map_expression_to_ast
-@testset "map_expression_to_ast" begin 
-    # setup model
-    m = InfiniteModel()
-    @variable(m, z)
-    @variable(m, y)
-    aff = 2z + y + 42
-    quad = z^2 + 3 * z * y + 2z
-    nlp = (sin(z) + aff) ^ 3.4
-    aff0 = zero(GenericAffExpr{Float64, GeneralVariableRef})
-    quad2 = 2 * z^2
-    quad0 = zero(GenericQuadExpr{Float64, GeneralVariableRef})
-    jm = Model()
-    @variable(jm, x)
-    @variable(jm, w)
-    vmap(v) = v == z ? x : w
-    omap(op) = :test
-    # test constant
-    @testset "Constant" begin
-        @test map_expression_to_ast(vmap, 42) == :(42)
-    end
-    # test variable 
-    @testset "Variable" begin
-        @test map_expression_to_ast(vmap, z) == :($x)
-    end
-    # test AffExpr
-    @testset "AffExpr" begin
-        @test map_expression_to_ast(vmap, aff) == :(2 * $x + $w + 42)
-        @test map_expression_to_ast(vmap, aff0) == :(+(0))
-    end
-    # test QuadExpr 
-    @testset "QuadExpr" begin
-        @test map_expression_to_ast(vmap, quad) == :($x * $x + 3 * $x * $w + 2 * $x)
-        @test map_expression_to_ast(vmap, quad2) == :(+(2 * $x * $x))
-        @test map_expression_to_ast(vmap, quad0) == :(+(0))
-    end
-    # test GenericNonlinearExpr
-    @testset "GenericNonlinearExpr" begin
-        @test map_expression_to_ast(vmap, omap, nlp) == :(test(test(test($x), (2 * $x + $w + 42)), 3.4))
-    end
-    # test deprecation 
-    @testset "map_nlp_to_ast" begin
-        @test (@test_deprecated map_nlp_to_ast(vmap, nlp)) == :((sin($x) + (2.0 * $x + $w + 42.0)) ^ 3.4)
+    # test map_nlp_to_ast deprecation
+    @testset "map_nlp_to_ast (deprecation)" begin
+        @test_throws ErrorException map_nlp_to_ast(v -> y, nlp)
     end
 end
 
