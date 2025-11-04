@@ -142,6 +142,11 @@ end
         @test sprint(print_bridge_graph, m) == expected
         stdout_test(print_bridge_graph, expected, m)
     end
+    @testset "JuMP.variable_ref_type" begin
+        @test variable_ref_type(jump_backend) == JuMP.VariableRef
+        @test variable_ref_type(m) == GeneralVariableRef
+        @test_throws ErrorException variable_ref_type(TestBackend())
+    end
     @testset "JuMP.set_optimizer" begin
         @test_throws ErrorException set_optimizer(TestBackend(), mockoptimizer)
         bmodel2 = Model()
