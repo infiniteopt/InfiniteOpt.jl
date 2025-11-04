@@ -131,20 +131,6 @@ function InfiniteOpt.add_supports_to_parameters(d::TestData)::Nothing
 end
 InfiniteOpt.support_label(d::TestData) = UniqueMeasure{:a}
 
-# Define useful function for deletion testing
-function _update_variable_param_refs(vref::InfiniteVariableRef,
-                                     prefs::IC.VectorTuple{GeneralVariableRef}
-                                     )::Nothing
-    # get basic information
-    info = InfiniteOpt._variable_info(vref)
-    param_nums = [InfiniteOpt._parameter_number(pref) for pref in prefs]
-    # get the parameter group integer indices
-    group_int_idxs = InfiniteOpt.parameter_group_int_indices(parameter_list(prefs))
-    is_vect_func = InfiniteOpt._is_vector_start(vref)
-    new_var = InfiniteVariable(info, prefs, param_nums, group_int_idxs, is_vect_func)
-    InfiniteOpt._set_core_object(vref, new_var)
-    return
-end
 
 function Base.isequal(nlp1::GenericNonlinearExpr, nlp2::GenericNonlinearExpr)
     return nlp1.head == nlp2.head && isequal(nlp1.args, nlp2.args)

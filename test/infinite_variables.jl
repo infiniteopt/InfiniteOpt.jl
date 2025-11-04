@@ -8,17 +8,14 @@
     @infinite_parameter(m, d in [0, 1])
     idx = InfiniteVariableIndex(1)
     group_idxs = [1, 3, 5, 6]
-    param_idxs = [1, 3, 5, 6, 7]
     num = Float64(0)
     func = (x...) -> 1
-    pfunc = ParameterFunction(func, IC.VectorTuple(a, b[2], c, d), group_idxs, param_idxs)
+    pfunc = ParameterFunction(func, IC.VectorTuple(a, b[2], c, d), group_idxs)
     info = VariableInfo(false, num, false, num, false, num, false, pfunc, false, false)
     new_info = VariableInfo(true, 0., true, 0., true, pfunc, true, num, true, false)
     new_info2 = VariableInfo(true, 0., true, pfunc, true, 0., true, num, true, false)
-    var = InfiniteVariable(info, IC.VectorTuple(a, b[2], c, d),
-                           param_idxs, group_idxs)
-    var2 = InfiniteVariable(new_info, IC.VectorTuple(a, b[2], c, d),
-                            param_idxs, group_idxs)
+    var = InfiniteVariable(info, IC.VectorTuple(a, b[2], c, d), group_idxs)
+    var2 = InfiniteVariable(new_info, IC.VectorTuple(a, b[2], c, d), group_idxs)
     object = VariableData(var, "var")
     vref = InfiniteVariableRef(m, idx)
     gvref = GeneralVariableRef(m, 1, InfiniteVariableIndex)
@@ -73,10 +70,6 @@
     # parameter_group_int_indices
     @testset "parameter_group_int_indices" begin
         @test InfiniteOpt.parameter_group_int_indices(vref) == group_idxs
-    end
-    # _parameter_numbers
-    @testset "_parameter_numbers" begin
-        @test InfiniteOpt._parameter_numbers(vref) == param_idxs
     end
     # test _variable_info
     @testset "_variable_info" begin
@@ -238,24 +231,22 @@ end
     # _check_and_format_infinite_info (Real)
     @testset "_check_and_format_infinite_info" begin
         tuple = IC.VectorTuple((pref, prefs, pref2))
-        param_idxs = [1, 3, 4, 2]
         group_idxs = [1, 3, 2]
-        @test !InfiniteOpt._check_and_format_infinite_info(error, info, tuple, param_idxs, group_idxs).has_start
-        @test InfiniteOpt._check_and_format_infinite_info(error, info2, tuple, param_idxs, group_idxs).start isa ParameterFunction
-        @test InfiniteOpt._check_and_format_infinite_info(error, info3, tuple, param_idxs, group_idxs).start == 42
-        @test InfiniteOpt._check_and_format_infinite_info(error, info3, tuple, param_idxs, group_idxs).has_lb
-        @test InfiniteOpt._check_and_format_infinite_info(error, info3, tuple, param_idxs, group_idxs).lower_bound isa ParameterFunction
+        @test !InfiniteOpt._check_and_format_infinite_info(error, info, tuple, group_idxs).has_start
+        @test InfiniteOpt._check_and_format_infinite_info(error, info2, tuple, group_idxs).start isa ParameterFunction
+        @test InfiniteOpt._check_and_format_infinite_info(error, info3, tuple, group_idxs).start == 42
+        @test InfiniteOpt._check_and_format_infinite_info(error, info3, tuple, group_idxs).has_lb
+        @test InfiniteOpt._check_and_format_infinite_info(error, info3, tuple, group_idxs).lower_bound isa ParameterFunction
         bad_func(a, b) = 2
         bad_info = VariableInfo(true, num, true, num, true, num, true, bad_func, true, false)
-        @test_throws ErrorException InfiniteOpt._check_and_format_infinite_info(error, bad_info, tuple, param_idxs, group_idxs)
+        @test_throws ErrorException InfiniteOpt._check_and_format_infinite_info(error, bad_info, tuple, group_idxs)
     end
     # _check_and_format_infinite_info (Fallback)
     @testset "_check_and_format_infinite_info (Fallback)" begin
         tuple = IC.VectorTuple((pref, prefs, pref2))
-        param_idxs = [1, 3, 4, 2]
         group_idxs = [1, 3, 2]
         bad_info = VariableInfo(true, num, true, num, true, num, true, Complex(1), true, false)
-        @test_throws ErrorException InfiniteOpt._check_and_format_infinite_info(error, bad_info, tuple, param_idxs, group_idxs)
+        @test_throws ErrorException InfiniteOpt._check_and_format_infinite_info(error, bad_info, tuple, group_idxs)
     end
     # build_variable
     @testset "JuMP.build_variable" begin
@@ -273,7 +264,6 @@ end
         @test isequal(build_variable(error, info, Infinite(pref, prefs)).parameter_refs, tuple)
         tuple = IC.VectorTuple(prefs)
         @test isequal(build_variable(error, info, Infinite(prefs)).parameter_refs, tuple)
-        @test isequal(build_variable(error, info, Infinite(prefs)).parameter_nums, [3, 4])
         @test isequal(build_variable(error, info, Infinite(prefs)).group_int_idxs, [3])
     end
     # _check_parameters_valid
@@ -694,7 +684,7 @@ end
         @test is_used(vref)
         empty!(InfiniteOpt._point_variable_dependencies(vref))
         # test used by semi-infinite variable
-        var = SemiInfiniteVariable(RestrictedDomainInfo(), y, [0.5, NaN, NaN], [2], [2])
+        var = SemiInfiniteVariable(RestrictedDomainInfo(), y, [0.5, NaN, NaN], [2])
         object = VariableData(var, "var")
         idx = SemiInfiniteVariableIndex(1)
         rvref = SemiInfiniteVariableRef(m, idx)

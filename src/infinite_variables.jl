@@ -62,11 +62,6 @@ function parameter_group_int_indices(vref::InfiniteVariableRef)
     return core_object(vref).group_int_idxs
 end
 
-# Extend _parameter_numbers
-function _parameter_numbers(vref::InfiniteVariableRef)
-    return core_object(vref).parameter_nums
-end
-
 ## Set helper methods for adapting data_objects with parametric changes 
 # No change needed 
 function _adaptive_data_update(
@@ -202,7 +197,6 @@ function _process_info_arg(
     _error::Function,
     value::Real,
     prefs::Collections.VectorTuple,
-    param_nums::Vector{Int},
     group_idxs::Vector{Int},
     ) 
     return convert(Float64, value)
@@ -211,11 +205,10 @@ function _process_info_arg(
     _error::Function,
     func::Function,
     prefs::Collections.VectorTuple,
-    param_nums::Vector{Int},
     group_idxs::Vector{Int},
     )
     _check_param_func_method(_error, func, prefs)
-    return ParameterFunction(func, prefs, group_idxs, param_nums)
+    return ParameterFunction(func, prefs, group_idxs)
 end
 
 ## Check and format the variable info considering functional start values
@@ -229,18 +222,17 @@ function _check_and_format_infinite_info(
         <:Union{Real, Function}
         },
     prefs::Collections.VectorTuple,
-    param_nums::Vector{Int},
     group_int_idxs::Vector{Int},
     )
     return JuMP.VariableInfo(
         info.has_lb,
-        _process_info_arg(_error, info.lower_bound, prefs, param_nums, group_int_idxs), 
+        _process_info_arg(_error, info.lower_bound, prefs, group_int_idxs), 
         info.has_ub,
-        _process_info_arg(_error, info.upper_bound, prefs, param_nums, group_int_idxs),
+        _process_info_arg(_error, info.upper_bound, prefs, group_int_idxs),
         info.has_fix,
-        _process_info_arg(_error, info.fixed_value, prefs, param_nums, group_int_idxs),
+        _process_info_arg(_error, info.fixed_value, prefs, group_int_idxs),
         info.has_start,
-        _process_info_arg(_error, info.start, prefs, param_nums, group_int_idxs),
+        _process_info_arg(_error, info.start, prefs, group_int_idxs),
         info.binary, 
         info.integer
     )
@@ -251,7 +243,6 @@ function _check_and_format_infinite_info(
     _error::Function,
     info::JuMP.VariableInfo,
     prefs::Collections.VectorTuple,
-    param_nums::Vector{Int},
     group_int_idxs::Vector{Int},
     )
     _error("Unrecognized formatting for the variable domain information.")
@@ -293,11 +284,10 @@ function JuMP.build_variable(
     for pref in prefs 
         union!(group_int_idxs, parameter_group_int_index(pref))
     end
-    param_nums = [_parameter_number(pref) for pref in prefs]
     # check and format the info
-    new_info = _check_and_format_infinite_info(_error, info, prefs, param_nums, group_int_idxs)
+    new_info = _check_and_format_infinite_info(_error, info, prefs, group_int_idxs)
     # make the variable and return
-    return InfiniteVariable(new_info, prefs, param_nums, group_int_idxs)
+    return InfiniteVariable(new_info, prefs, group_int_idxs)
 end
 
 # check the pref tuple contains only valid parameters
@@ -624,9 +614,8 @@ function _update_variable_info(
     info::JuMP.VariableInfo
     )
     prefs = raw_parameter_refs(vref)
-    param_nums = _parameter_numbers(vref)
     group_int_idxs = parameter_group_int_indices(vref)
-    new_var = InfiniteVariable(info, prefs, param_nums, group_int_idxs)
+    new_var = InfiniteVariable(info, prefs, group_int_idxs)
     _set_core_object(vref, new_var)
     return
 end
@@ -637,9 +626,8 @@ function _process_info_arg(
     func::Function
     )
     prefs = raw_parameter_refs(vref)
-    param_nums = _parameter_numbers(vref)
     group_int_idxs = parameter_group_int_indices(vref)
-    return _process_info_arg(error, func, prefs, param_nums, group_int_idxs)
+    return _process_info_arg(error, func, prefs, group_int_idxs)
 end
 
 ################################################################################

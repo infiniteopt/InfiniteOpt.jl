@@ -6,7 +6,7 @@
     idx = DependentParameterIndex(obj_idx, 1)
     domain = CollectionDomain([IntervalDomain(0, 1), IntervalDomain(0, 1)])
     params = DependentParameters(domain, OrderedDict{Vector{Float64}, Set{DataType}}(), 5)
-    object = MultiParameterData(params, 1, 1:2, ["p1", "p2"])
+    object = MultiParameterData(params, 1, ["p1", "p2"])
     pref = DependentParameterRef(m, idx)
     gvref = GeneralVariableRef(m, 1, DependentParameterIndex, 1)
     bad_idx = DependentParameterIndex(DependentParametersIndex(-1), 2)
@@ -137,21 +137,18 @@ end
         params = InfiniteOpt._build_parameters(error, [domain1, domain1], inds1)
         @test isequal(add_parameters(m, params, ["", ""]), prefs)
         @test InfiniteOpt.parameter_group_indices(m) == [index(prefs[1]).object_index]
-        @test InfiniteOpt._last_param_num(m) == 2
         @test name.(prefs) == ["", ""]
         # test vector build
         prefs = [GeneralVariableRef(m, 2, DependentParameterIndex, i) for i in 1:2]
         params = InfiniteOpt._build_parameters(error, [domain2, domain2], inds1)
         @test isequal(add_parameters(m, params, ["p1", "p2"]), prefs)
         @test InfiniteOpt.parameter_group_indices(m)[2] == index(prefs[1]).object_index
-        @test InfiniteOpt._last_param_num(m) == 4
         @test name.(prefs) == ["p1", "p2"]
         # test array build
         prefs = [GeneralVariableRef(m, 3, DependentParameterIndex, i) for i in 1:4]
         params = InfiniteOpt._build_parameters(error, [domain3 for i in 1:4], inds2)
         @test isequal(add_parameters(m, params, ["p$i" for i in 1:4]), prefs)
         @test InfiniteOpt.parameter_group_indices(m)[3] == index(prefs[1]).object_index
-        @test InfiniteOpt._last_param_num(m) == 8
         @test name.(prefs) == ["p$i" for i in 1:4]
         # test name error 
         @test_throws ErrorException add_parameters(m, params, ["p"])
@@ -416,19 +413,6 @@ end
     params = DependentParameters(domain, OrderedDict{Vector{Float64}, Set{DataType}}(), 10)
     bad_idx = DependentParameterIndex(DependentParametersIndex(-1), 2)
     bad_pref = DependentParameterRef(m, bad_idx)
-    # test _parameter_number
-    @testset "_parameter_number" begin
-        @test InfiniteOpt._parameter_number(prefs[1]) == 1
-        @test InfiniteOpt._parameter_number(prefs[2]) == 2
-        @test InfiniteOpt._parameter_number(gvrefs[1]) == 1
-        @test_throws ErrorException InfiniteOpt._parameter_number(bad_pref)
-    end
-    # test _parameter_numbers
-    @testset "_parameter_numbers" begin
-        @test InfiniteOpt._parameter_numbers(prefs[1]) == [1]
-        @test InfiniteOpt._parameter_numbers(prefs[2]) == [2]
-        @test InfiniteOpt._parameter_numbers(gvrefs[1]) == [1]
-    end
     # test parameter_group_int_index
     @testset "parameter_group_int_index" begin
         @test InfiniteOpt.parameter_group_int_index(prefs[1]) == 1

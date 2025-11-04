@@ -8,7 +8,7 @@
     @variable(m, finite)
     dinf = @deriv(inf, par)
     data = TestData(par, 0, 5)
-    meas = Measure(finite, data, Int[], Int[], true)
+    meas = Measure(finite, data, Int[], true)
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
@@ -94,7 +94,7 @@ end
     @variable(m, pt, Point(inf, 0))
     @variable(m, finite)
     data = TestData(par, 0, 5)
-    meas = Measure(finite, data, Int[], Int[], true)
+    meas = Measure(finite, data, Int[], true)
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
@@ -176,7 +176,7 @@ end
     @variable(m, pt, Point(inf, 0))
     @variable(m, finite)
     data = TestData(par, 0, 5)
-    meas = Measure(finite, data, Int[], Int[], true)
+    meas = Measure(finite, data, Int[], true)
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
@@ -259,7 +259,7 @@ end
     @variable(m, finite)
     @variable(m, test[1:51])
     data = TestData(par, 0, 5)
-    meas = Measure(finite, data, Int[], Int[], true)
+    meas = Measure(finite, data, Int[], true)
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
@@ -403,7 +403,7 @@ end
     @variable(m, finite)
     @variable(m, test[1:51])
     data = TestData(par, 0, 5)
-    meas = Measure(finite, data, Int[], Int[], true)
+    meas = Measure(finite, data, Int[], true)
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
@@ -504,7 +504,7 @@ end
     @variable(m, finite)
     @variable(m, test[1:51])
     data = TestData(par, 0, 5)
-    meas = Measure(finite, data, Int[], Int[], true)
+    meas = Measure(finite, data, Int[], true)
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
@@ -605,7 +605,7 @@ end
     @variable(m, finite)
     @variable(m, test[1:51])
     data = TestData(par, 0, 5)
-    meas = Measure(finite, data, Int[], Int[], true)
+    meas = Measure(finite, data, Int[], true)
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
@@ -718,7 +718,7 @@ end
     @variable(m, finite)
     @variable(m, test[1:51])
     data = TestData(par, 0, 5)
-    meas = Measure(finite, data, Int[], Int[], true)
+    meas = Measure(finite, data, Int[], true)
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex
@@ -831,7 +831,7 @@ end
     @variable(m, finite)
     @variable(m, test[1:51])
     data = TestData(par, 0, 5)
-    meas = Measure(finite, data, Int[], Int[], true)
+    meas = Measure(finite, data, Int[], true)
     object = MeasureData(meas, "test")
     mindex = MeasureIndex(1)
     @test InfiniteOpt._add_data_object(m, object) == mindex

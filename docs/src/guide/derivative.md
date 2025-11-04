@@ -1,6 +1,6 @@
 ```@meta
 DocTestFilters = [r"≥|>=", r" == | = ", r" ∈ | in ", r" for all | ∀ ", r"d|∂", 
-                  r"integral|∫", r".*scalar_parameters.jl:813"]
+                  r"integral|∫", r".*scalar_parameters.jl:807"]
 ```
 
 # [Derivative Operators](@id deriv_docs)
@@ -509,7 +509,7 @@ julia> derivative_constraints(d1)
 
 julia> add_supports(t, 0.2)
 ┌ Warning: Support/method changes will invalidate existing derivative evaluation constraints that have been added to the InfiniteModel. Thus, these are being deleted.
-└ @ InfiniteOpt ~/work/infiniteopt/InfiniteOpt.jl/src/scalar_parameters.jl:813
+└ @ InfiniteOpt ~/work/infiniteopt/InfiniteOpt.jl/src/scalar_parameters.jl:807
 
 julia> has_derivative_constraints(d1)
 false

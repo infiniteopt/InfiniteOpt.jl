@@ -119,11 +119,6 @@ function parameter_group_int_indices(dref::DerivativeRef)
     return parameter_group_int_indices(derivative_argument(dref))
 end
 
-# Extend _parameter_numbers
-function _parameter_numbers(dref::DerivativeRef)
-    return _parameter_numbers(derivative_argument(dref))
-end
-
 # Get derivative index for variable-parameter pair if one exists 
 function _existing_derivative_index(
     vref::GeneralVariableRef, 
@@ -249,9 +244,8 @@ function build_derivative(
     end
     # check and format the info correctly
     prefs = raw_parameter_refs(argument_ref)
-    param_nums = _parameter_numbers(argument_ref)
     group_int_idxs = parameter_group_int_indices(argument_ref)
-    new_info = _check_and_format_infinite_info(_error, info, prefs, param_nums, group_int_idxs)
+    new_info = _check_and_format_infinite_info(_error, info, prefs, group_int_idxs)
     if new_info.binary || new_info.integer
         _error("Derivatives cannot be defined as binary or integer variables.")
     end

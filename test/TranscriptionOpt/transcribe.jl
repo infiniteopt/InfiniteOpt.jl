@@ -290,11 +290,11 @@ end
     end
     # test _support_in_restrictions
     @testset "_support_in_restrictions" begin 
-        @test IOTO._support_in_restrictions(constraint_object(c1), [0., 0., 0.])
-        @test IOTO._support_in_restrictions(constraint_object(c2), [0., 0., 0.])
-        @test !IOTO._support_in_restrictions(constraint_object(c2), [0, 0., 1.])
+        @test IOTO._support_in_restrictions(constraint_object(c1), Float64[])
+        @test IOTO._support_in_restrictions(constraint_object(c2), [0.])
+        @test !IOTO._support_in_restrictions(constraint_object(c2), [1.])
         @test IOTO._support_in_restrictions(constraint_object(c3), [1., 1., 1.])
-        @test !IOTO._support_in_restrictions(constraint_object(c3), [1., 1., 0.])
+        @test !IOTO._support_in_restrictions(constraint_object(c3), [0., 1., 1.])
     end
     # test _process_constraint
     @testset "_process_constraint" begin

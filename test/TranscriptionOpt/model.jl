@@ -486,6 +486,10 @@ end
     data.pfunc_lookup[f] = Dict([0, 0, 0] => 0.5, [1, 0, 0] => 0.7)
     data.measure_lookup[meas1] = Dict(Float64[] => 1)
     data.measure_lookup[meas2] = Dict([0] => 1, [1] => 2)
+    data.infvar_param_idxs[x] = [3, 1, 2]
+    data.infvar_param_idxs[f] = [3, 1, 2]
+    data.infvar_param_idxs[meas2] = [3]
+    data.infvar_param_idxs[meas1] = []
     @test IOTO.set_parameter_supports(tb, m) isa Nothing
     # test IOTO.transcription_expression in accordance with the methods defined in transcribe.jl
     @testset "IOTO.transcription_expression (Fallback)" begin
@@ -504,12 +508,14 @@ end
                           add_support = false)
         data.infvar_mappings[rv] = [0.7]
         data.pfunc_lookup[rv] = Dict([0, 0] => 0.7)
+        data.infvar_param_idxs[rv] = [1, 2]
         @test IOTO.transcription_expression(rv, tb, [0., 0., 1.]) == 0.7
         # semi_infinite of infinite variable
         rv = add_variable(m, build_variable(error, x, [1, NaN, NaN]),
                           add_support = false)
         data.infvar_mappings[rv] = [b]
         data.infvar_lookup[rv] = Dict([0, 0] => b)
+        data.infvar_param_idxs[rv] = [1, 2]
         @test IOTO.transcription_expression(rv, tb, [0., 0., 1.]) == b
     end
     # test transcription expression for finite variables with 3 args

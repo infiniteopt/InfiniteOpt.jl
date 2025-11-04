@@ -78,11 +78,6 @@ function parameter_group_int_indices(vref::SemiInfiniteVariableRef)
     return core_object(vref).group_int_idxs
 end
 
-# Extend _parameter_numbers
-function _parameter_numbers(vref::SemiInfiniteVariableRef)
-    return core_object(vref).parameter_nums
-end
-
 ################################################################################
 #                             DEFINITION METHODS
 ################################################################################
@@ -253,10 +248,6 @@ function JuMP.build_variable(
         for (i, idx) in enumerate(parameter_group_int_indices(dvref))
         if isnan(eval_support[raw_prefs.ranges[i].start])
     ]
-    # get the parameter numbers
-    orig_nums = _parameter_numbers(ivref)
-    param_nums = [orig_nums[i] for i in eachindex(orig_nums)
-                  if isnan(eval_support[i])]
     # round the support values in accordance with the significant digits
     for i in eachindex(eval_support)
         eval_support[i] = round(
@@ -269,7 +260,6 @@ function JuMP.build_variable(
         restricted_info,
         ivref,
         eval_support,
-        param_nums, 
         group_int_idxs
     )
 end
@@ -519,7 +509,6 @@ function _update_variable_info(
         info,
         var.infinite_variable_ref,
         var.eval_support,
-        var.parameter_nums,
         var.group_int_idxs
         )
     _set_core_object(vref, new_var)

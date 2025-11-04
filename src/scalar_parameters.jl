@@ -85,16 +85,6 @@ function core_object(pref::FiniteParameterRef)
     return _data_object(pref).parameter
 end
 
-# Extend _parameter_number
-function _parameter_number(pref::IndependentParameterRef)
-    return _data_object(pref).parameter_num
-end
-
-# Extend _parameter_numbers
-function _parameter_numbers(pref::IndependentParameterRef)
-    return [_parameter_number(pref)]
-end
-
 """
     `parameter_group_int_index(pref::IndependentParameterRef)::Int
 
@@ -126,15 +116,21 @@ function _adaptive_data_update(
     param::P1, 
     data::ScalarParameterData{P2}
     )  where {P1, P2}
-    new_data = ScalarParameterData(param, data.group_int_idx, data.parameter_num, 
-                                   data.name, data.parameter_func_indices,
-                                   data.infinite_var_indices, 
-                                   data.derivative_indices, data.measure_indices,
-                                   data.constraint_indices, data.in_objective,
-                                   data.generative_measures,
-                                   data.has_internal_supports, 
-                                   data.has_generative_supports,
-                                   data.has_deriv_constrs)
+    new_data = ScalarParameterData(
+        param, 
+        data.group_int_idx,
+        data.name, 
+        data.parameter_func_indices,
+        data.infinite_var_indices, 
+        data.derivative_indices, 
+        data.measure_indices,
+        data.constraint_indices, 
+        data.in_objective,
+        data.generative_measures,
+        data.has_internal_supports, 
+        data.has_generative_supports,
+        data.has_deriv_constrs
+    )
     _data_dictionary(pref)[JuMP.index(pref)] = new_data
     return
 end
@@ -312,8 +308,7 @@ function add_parameter(
     name::String = ""
     )
     group_int_idx = length(parameter_group_indices(model)) + 1
-    param_num = model.last_param_num += 1
-    data_object = ScalarParameterData(p, group_int_idx, param_num, name)
+    data_object = ScalarParameterData(p, group_int_idx, name)
     obj_index = _add_data_object(model, data_object)
     model.name_to_param = nothing
     return GeneralVariableRef(model, obj_index.value, typeof(obj_index))
@@ -343,7 +338,7 @@ function add_parameter(
     p::FiniteParameter,
     name::String = ""
     )
-    data_object = ScalarParameterData(p, -1, -1, name)
+    data_object = ScalarParameterData(p, -1, name)
     obj_index = _add_data_object(model, data_object)
     model.name_to_param = nothing
     return GeneralVariableRef(model, obj_index.value, typeof(obj_index))
@@ -574,8 +569,7 @@ function _update_param_name_dict(
     ) where {K, V <: MultiParameterData}
     name_dict = _param_name_dict(model)
     for (index, data_object) in param_dict
-        param_nums = data_object.parameter_nums
-        for i in eachindex(param_nums)
+        for i in eachindex(data_object.names)
             name = data_object.names[i]
             if haskey(name_dict, name)
                 # IndependentParameterIndex(-1) is a special value that means
@@ -1617,7 +1611,7 @@ function _update_measures(model::InfiniteModel, pref::GeneralVariableRef)
         if func isa GeneralVariableRef
             data = measure_data(mref)
             new_func = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
-            new_meas = Measure(new_func, data, Int[], Int[], true)
+            new_meas = Measure(new_func, data, Int[], true)
             _set_core_object(mref, new_meas)
         else
             _remove_variable(func, pref)
@@ -1658,45 +1652,38 @@ function _update_number_list(nums::Vector{Int}, list::Vector{Int})
     return
 end
 
-# Update the model with the removed parameter number(s) and parameter group index
-function _update_model_numbers(
+# Update the model with the removed parameter group indices
+function _update_group_int_indices(
     model::InfiniteModel,
     group_int_idx::Int,
-    param_nums::Vector{Int}
     )
     # update the independent parameters
     for (_, object) in _data_dictionary(model, IndependentParameter)
         if object.group_int_idx > group_int_idx
             object.group_int_idx -= 1
-            object.parameter_num -= length(param_nums)
         end
     end
     # update the dependent parameters
     for (_, object) in _data_dictionary(model, DependentParameters)
         if object.group_int_idx > group_int_idx
             object.group_int_idx -= 1
-            object.parameter_nums = object.parameter_nums .- length(param_nums)
         end
     end
     # update the infinite parameter functions
     for (_, object) in model.param_functions
         _update_number_list([group_int_idx], object.func.group_int_idxs)
-        _update_number_list(param_nums, object.func.parameter_nums)
     end
     # update the infinite variables
     for vref in JuMP.all_variables(model, InfiniteVariable)
         _update_number_list([group_int_idx], parameter_group_int_indices(vref))
-        _update_number_list(param_nums, _parameter_numbers(vref))
     end
     # update the semi-infinite variables
     for vref in JuMP.all_variables(model, SemiInfiniteVariable)
         _update_number_list([group_int_idx], parameter_group_int_indices(vref))
-        _update_number_list(param_nums, _parameter_numbers(vref))
     end
     # update the measures
     for mref in all_measures(model)
         _update_number_list([group_int_idx], parameter_group_int_indices(mref))
-        _update_number_list(param_nums, _parameter_numbers(mref))
     end
     # update the constraints
     for (_, object) in model.constraints
@@ -1704,7 +1691,6 @@ function _update_model_numbers(
     end
     # update the central info
     deleteat!(parameter_group_indices(model), group_int_idx)
-    model.last_param_num -= length(param_nums)
     return
 end
 
@@ -1759,10 +1745,9 @@ function JuMP.delete(model::InfiniteModel, pref::IndependentParameterRef)
     _update_constraints(model, gvref)
     # delete parameter information stored in model
     group_int_idx = parameter_group_int_index(pref)
-    param_nums = _parameter_numbers(pref)
     _delete_data_object(pref)
-    # update the parameter group integer indices and parameter numbers
-    _update_model_numbers(model, group_int_idx, param_nums)
+    # update the parameter group integer indices
+    _update_group_int_indices(model, group_int_idx)
     return
 end
 

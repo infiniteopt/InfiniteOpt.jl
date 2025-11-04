@@ -138,22 +138,6 @@ function parameter_group_int_indices(expr)
     return collect(group_int_idxs)
 end
 
-## Return the unique set of parameter numbers in an expression
-# Dispatch fallback (--> should be defined for each non-empty variable type)
-_parameter_numbers(v::DispatchVariableRef) = Int[]
-
-# GeneralVariableRef
-function _parameter_numbers(v::GeneralVariableRef)
-    return _parameter_numbers(dispatch_variable_ref(v))
-end
-
-# Other
-function _parameter_numbers(expr)
-    param_nums = Set{Int}()
-    _interrogate_variables(v -> union!(param_nums, _parameter_numbers(v)), expr)
-    return collect(param_nums)
-end
-
 ################################################################################
 #                            VARIABLE REMOVAL BOUNDS
 ################################################################################

@@ -114,8 +114,7 @@ function JuMP.add_variable(
     pfunc = ParameterFunction(
         (s...) -> val,
         var.parameter_refs,
-        var.group_int_idxs,
-        var.parameter_nums
+        var.group_int_idxs
     )
     return add_parameter_function(model, pfunc, name)
 end
@@ -141,8 +140,7 @@ function JuMP.add_variable(
     pfunc = ParameterFunction(
         func,
         var.parameter_refs,
-        var.group_int_idxs,
-        var.parameter_nums
+        var.group_int_idxs
     )
     return add_parameter_function(model, pfunc, name)
 end
@@ -389,8 +387,7 @@ function _process_restricted_value(
     return ParameterFunction(
         new_func,
         raw_parameter_refs(var),
-        var.group_int_idxs, 
-        var.parameter_nums
+        var.group_int_idxs
     )
 end
 
@@ -1573,7 +1570,7 @@ function JuMP.delete(model::InfiniteModel, vref::DecisionVariableRef)
         data = measure_data(mref)
         if func isa GeneralVariableRef
             new_func = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
-            new_meas = Measure(new_func, data, Int[], Int[], true)
+            new_meas = Measure(new_func, data, Int[], true)
         else
             _remove_variable(func, gvref)
             new_meas = build_measure(func, data)

@@ -49,11 +49,6 @@ function parameter_group_int_indices(fref::ParameterFunctionRef)
     return core_object(fref).group_int_idxs
 end
 
-# Extend _parameter_numbers
-function _parameter_numbers(fref::ParameterFunctionRef)
-    return core_object(fref).parameter_nums
-end
-
 ################################################################################
 #                                 DEFINITION
 ################################################################################
@@ -131,10 +126,8 @@ function build_parameter_function(
         parameter_group_int_index(prefs[i, 1])
         for i in 1:size(prefs, 1)
     ]
-    # get the parameter numbers 
-    param_nums = [_parameter_number(pref) for pref in prefs]
     # make the variable and return
-    return ParameterFunction(func, prefs, group_int_idxs, param_nums)
+    return ParameterFunction(func, prefs, group_int_idxs)
 end
 
 # Fallback for weird macro inputs
@@ -363,7 +356,6 @@ function JuMP.set_parameter_value(
     new_pfunc = ParameterFunction(
         func, 
         old_pfunc.parameter_refs, 
-        old_pfunc.parameter_nums,
         old_pfunc.group_int_idxs
     )
     old_data_object = _data_object(fref)
@@ -588,7 +580,7 @@ function JuMP.delete(model::InfiniteModel, fref::ParameterFunctionRef)
         data = measure_data(mref)
         if func isa GeneralVariableRef
             new_func = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef})
-            new_meas = Measure(new_func, data, Int[], Int[], true)
+            new_meas = Measure(new_func, data, Int[], true)
         else
             _remove_variable(func, gvref)
             new_meas = build_measure(func, data)

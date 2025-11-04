@@ -168,12 +168,12 @@ end
                               OrderedDict(zeros(1) => Set([All])), 6).domain isa CollectionDomain
     # test ScalarParameterData
     @test ScalarParameterData <: AbstractDataObject
-    @test ScalarParameterData(FiniteParameter(42), 1, 1, "bob").name == "bob"
+    @test ScalarParameterData(FiniteParameter(42), 1, "bob").name == "bob"
     # test MultiParameterData
     @test MultiParameterData <: AbstractDataObject
     params = DependentParameters(CollectionDomain([IntervalDomain(0, 1)]),
                                  OrderedDict(zeros(1) => Set([All])), 6)
-    @test MultiParameterData(params, 1, 1:1, ["par[1]"]) isa MultiParameterData
+    @test MultiParameterData(params, 1, ["par[1]"]) isa MultiParameterData
 end
 
 # Test Backends
@@ -197,7 +197,6 @@ end
     @test InfiniteModel() isa JuMP.AbstractModel
     @test InfiniteModel(mockoptimizer, add_bridges = false) isa InfiniteModel
     # test accessors
-    @test InfiniteOpt._last_param_num(m) == 0
     @test InfiniteOpt.parameter_group_indices(m) isa Vector{Union{IndependentParameterIndex, DependentParametersIndex}}
     # test other methods 
     @test empty!(InfiniteModel(mockoptimizer)).backend isa TranscriptionBackend
@@ -267,9 +266,9 @@ end
     pref = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
     vt = IC.VectorTuple(pref)
     # test ParameterFunction
-    @test ParameterFunction(sin, vt, [1], [1]) isa ParameterFunction
+    @test ParameterFunction(sin, vt, [1]) isa ParameterFunction
     # test ParameterFunctionData
-    @test ParameterFunctionData(ParameterFunction(sin, vt, [1], [1])) isa ParameterFunctionData
+    @test ParameterFunctionData(ParameterFunction(sin, vt, [1])) isa ParameterFunctionData
 end
 
 # Test variable datatypes
@@ -280,16 +279,16 @@ end
     sample_info = VariableInfo(true, num, true, num, true, num, true, num, true, true)
     pref = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
     func = (x) -> NaN
-    pfunc = ParameterFunction(func, IC.VectorTuple(pref), [1], [1])
+    pfunc = ParameterFunction(func, IC.VectorTuple(pref), [1])
     inf_info = VariableInfo(true, num, true, pfunc, true, num, false, pfunc, true, true)
     vref = GeneralVariableRef(m, 1, InfiniteVariableIndex)
     # Infinite variable
     @test InfiniteVariable <: JuMP.AbstractVariable
-    @test InfiniteVariable(inf_info, IC.VectorTuple(pref), [1], [1]) isa InfiniteVariable
+    @test InfiniteVariable(inf_info, IC.VectorTuple(pref), [1]) isa InfiniteVariable
     # Semi-Infinite variable
     @test RestrictedDomainInfo() isa RestrictedDomainInfo
     @test SemiInfiniteVariable <: JuMP.AbstractVariable
-    @test SemiInfiniteVariable(RestrictedDomainInfo(), vref, [0.5], [1], [1]) isa SemiInfiniteVariable
+    @test SemiInfiniteVariable(RestrictedDomainInfo(), vref, [0.5], [1]) isa SemiInfiniteVariable
     # Point variable
     @test PointVariable <: JuMP.AbstractVariable
     @test PointVariable(RestrictedDomainInfo(), vref, Float64[1]) isa PointVariable
@@ -305,7 +304,7 @@ end
     num = Float64(0)
     pref = GeneralVariableRef(m, 1, IndependentParameterIndex, -1)
     func = (x) -> NaN
-    pfunc = ParameterFunction(func, IC.VectorTuple(pref), [1], [1])
+    pfunc = ParameterFunction(func, IC.VectorTuple(pref), [1])
     inf_info = VariableInfo(true, pfunc, true, num, true, num, false, pfunc, true, true)
     vref = GeneralVariableRef(m, 1, InfiniteVariableIndex)
     dref = GeneralVariableRef(m, 1, DerivativeIndex)
@@ -313,7 +312,7 @@ end
     @test Derivative <: JuMP.AbstractVariable
     @test Derivative(inf_info, vref, pref, 1) isa Derivative
     # Semi-infinite derivative
-    @test SemiInfiniteVariable(RestrictedDomainInfo(), dref, [0.5], [1], [1]) isa SemiInfiniteVariable
+    @test SemiInfiniteVariable(RestrictedDomainInfo(), dref, [0.5], [1]) isa SemiInfiniteVariable
     # Point derivative
     @test PointVariable(RestrictedDomainInfo(), dref, Float64[1]) isa PointVariable
     # VariableData
@@ -342,11 +341,11 @@ end
     @test Measure isa UnionAll
     @test Measure(zero(AffExpr),
                   DiscreteMeasureData(pref, ones(2), ones(2), All, w, NaN, NaN, false),
-                  [1], [1], false) isa Measure
+                  [1], false) isa Measure
     # MeasureData
     @test MeasureData <: AbstractDataObject
     @test MeasureData(Measure(zero(AffExpr), DiscreteMeasureData(pref,
-                      ones(2), ones(2), All, w, NaN, NaN, false), [1], [1], true)) isa MeasureData
+                      ones(2), ones(2), All, w, NaN, NaN, false), [1], true)) isa MeasureData
 end
 
 # Test the constraint datatypes
@@ -358,7 +357,7 @@ end
     # DomainRestrictedConstraint
     @test DomainRestriction((p) -> true, pref) isa DomainRestriction
     @test DomainRestrictedConstraint <: JuMP.AbstractConstraint
-    pfunc = ParameterFunction((x) -> true, IC.VectorTuple(pref), [1], [1])
+    pfunc = ParameterFunction((x) -> true, IC.VectorTuple(pref), [1])
     @test DomainRestrictedConstraint(con, pfunc).restriction == pfunc
     # ConstraintData
     @test ConstraintData <: AbstractDataObject
