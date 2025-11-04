@@ -157,7 +157,7 @@ end
 # To the extend desired, extend any or all of the JuMP API below
 # Not needed for `JuMPBackend`s
 for func in (:bridge_constraints, :backend, :mode, :unsafe_backend,
-             :compute_conflict!, :copy_conflict)
+             :compute_conflict!, :copy_conflict, :variable_ref_type)
     @eval begin
         # EXTEND FUNCTION AS APPROPRIATE
         function JuMP.$func(backend::NewReformBackend)

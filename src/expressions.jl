@@ -208,23 +208,42 @@ end
 #                                MAPPING METHODS
 ################################################################################
 """
-    map_expression(transform::Function, 
-                   expr::JuMP.AbstractJuMPScalar)::JuMP.AbstractJuMPScalar
+    map_expression(
+        transform::Function, 
+        expr::JuMP.AbstractJuMPScalar,
+        [write_model::Union{InfiniteModel, AbstractTransformationBackend}]
+    )::JuMP.AbstractJuMPScalar
 
 Map and return a new expression of `expr` where each variable is transformed 
-via `transform`. This can be helpful for writing user extensions.
+via `transform`. This can be helpful for writing user extensions. For this 
+to work with new `AbstractTransformationBackend`s, 
+[`JuMP.variable_ref_type`](@ref) needs to be defined for the backend. If 
+`write_model` is not provided, the `JuMP.owner_model(expr)` is used.
+`JuMP.owner_model(expr)` is used.
 """
-function map_expression(transform::Function, v::JuMP.AbstractVariableRef)
+function map_expression(
+    transform::Function,
+    v::JuMP.AbstractVariableRef,
+    write_model::Union{InfiniteModel, AbstractTransformationBackend}
+    )
     return transform(v)
 end
 
 # Constant
-function map_expression(transform::Function, c::Number)
+function map_expression(
+    transform::Function,
+    c::Number,
+    write_model::Union{InfiniteModel, AbstractTransformationBackend}
+    )
     return c
 end
 
 # AffExpr
-function map_expression(transform::Function, aff::JuMP.GenericAffExpr)
+function map_expression(
+    transform::Function,
+    aff::JuMP.GenericAffExpr,
+    write_model::Union{InfiniteModel, AbstractTransformationBackend}
+    )
     # flatten needed in case expression becomes nonlinear with transform
     return JuMP.flatten!(@_expr(sum(c * transform(v) 
                         for (c, v) in JuMP.linear_terms(aff)) + 
@@ -232,111 +251,50 @@ function map_expression(transform::Function, aff::JuMP.GenericAffExpr)
 end
 
 # QuadExpr
-function map_expression(transform::Function, quad::JuMP.GenericQuadExpr)
+function map_expression(
+    transform::Function,
+    quad::JuMP.GenericQuadExpr,
+    write_model::Union{InfiniteModel, AbstractTransformationBackend}
+    )
     # flatten needed in case expression becomes nonlinear with transform
     return JuMP.flatten!(@_expr(sum(c * transform(v1) * transform(v2) 
                         for (c, v1, v2) in JuMP.quad_terms(quad)) + 
-                        map_expression(transform, quad.aff)))
+                        map_expression(transform, quad.aff, write_model)))
 end
 
 # NonlinearExpr 
-function map_expression(transform::Function, nlp::JuMP.GenericNonlinearExpr)
-    # TODO: Figure out how to make the recursionless code work 
-    # stack = Tuple{Vector{Any}, Vector{Any}}[]
-    # new_nlp = JuMP.GenericNonlinearExpr{NewVrefType}(nlp.head, Any[]) # Need to add `NewVrefType` arg throughout pkg
-    # push!(stack, (nlp.args, new_nlp.args))
-    # while !isempty(stack)
-    #     args, cloned = pop!(stack)
-    #     for arg in args
-    #         if arg isa JuMP.GenericNonlinearExpr
-    #             new_expr = JuMP.GenericNonlinearExpr{NewVrefType}(arg.head, Any[])
-    #             push!(stack, (arg.args, new_expr.args))
-    #         else
-    #             new_expr = map_expression(transform, arg)
-    #         end
-    #         push!(cloned, new_expr)
-    #     end
-    # end
-    # return new_nlp
-    return JuMP.GenericNonlinearExpr(nlp.head, Any[map_expression(transform, arg) for arg in nlp.args])
+function map_expression(
+    transform::Function,
+    nlp::JuMP.GenericNonlinearExpr,
+    write_model::Union{InfiniteModel, AbstractTransformationBackend}
+    )
+    stack = Tuple{Vector{Any}, Vector{Any}}[]
+    NewVrefType = JuMP.variable_ref_type(write_model)
+    new_nlp = JuMP.GenericNonlinearExpr{NewVrefType}(nlp.head, Any[])
+    push!(stack, (nlp.args, new_nlp.args))
+    while !isempty(stack)
+        args, cloned = pop!(stack)
+        for arg in args
+            if arg isa JuMP.GenericNonlinearExpr
+                new_expr = JuMP.GenericNonlinearExpr{NewVrefType}(arg.head, Any[])
+                push!(stack, (arg.args, new_expr.args))
+            else
+                new_expr = map_expression(transform, arg, write_model)
+            end
+            push!(cloned, new_expr)
+        end
+    end
+    return new_nlp
 end
 
-"""
-    map_expression_to_ast(var_mapper::Function, [op_mapper::Function,] expr::JuMP.AbstractJuMPScalar)::Expr
-
-Map the expression `expr` to a Julia AST expression where each variable is mapped 
-via `var_mapper` and is directly interpolated into the AST expression. Any nonlinear 
-operators can be mapped if needed via `op_mapper` and will be inserted into the 
-AST expression. This is only intended for developers and advanced users.
-"""
-function map_expression_to_ast(var_mapper::Function, expr)
-    return map_expression_to_ast(var_mapper, identity, expr)
+# Two arguments
+function map_expression(transform::Function, expr::JuMP.AbstractJuMPScalar)
+    model = JuMP.owner_model(expr)
+    isnothing(model) && return expr
+    return map_expression(transform, expr, model)
 end
-
-# Constant
-function map_expression_to_ast(::Function, ::Function, c)
+function map_expression(transform::Function, c::Number)
     return c
-end
-
-# GeneralVariableRef
-function map_expression_to_ast(
-    var_mapper::Function, 
-    ::Function, 
-    vref::GeneralVariableRef
-    )
-    return var_mapper(vref)
-end
-
-# GenericAffExpr
-function map_expression_to_ast(
-    var_mapper::Function, 
-    ::Function, 
-    aff::GenericAffExpr
-    )
-    ex = Expr(:call, :+)
-    for (c, v) in JuMP.linear_terms(aff)
-        if isone(c)
-            push!(ex.args, var_mapper(v))
-        else
-            push!(ex.args, Expr(:call, :*, c, var_mapper(v)))
-        end
-    end
-    if !iszero(aff.constant) || isempty(ex.args[2:end])
-        push!(ex.args, aff.constant)
-    end
-    return ex
-end
-
-# GenericQuadExpr
-function map_expression_to_ast(
-    var_mapper::Function, 
-    op_mapper::Function, 
-    quad::GenericQuadExpr
-    )
-    ex = Expr(:call, :+)
-    for (c, v1, v2) in JuMP.quad_terms(quad)
-        if isone(c)
-            push!(ex.args, Expr(:call, :*, var_mapper(v1), var_mapper(v2)))
-        else
-            push!(ex.args, Expr(:call, :*, c, var_mapper(v1), var_mapper(v2)))
-        end
-    end
-    aff_ex = map_expression_to_ast(var_mapper, op_mapper, quad.aff)
-    if aff_ex.args != [:+, 0.0] || isempty(ex.args[2:end])
-        append!(ex.args, aff_ex.args[2:end])
-    end
-    return ex
-end
-
-# GenericNonlinearExpr
-function map_expression_to_ast(
-    var_mapper::Function, 
-    op_mapper::Function, 
-    expr::JuMP.GenericNonlinearExpr
-    )
-    ex = Expr(:call, op_mapper(expr.head))
-    append!(ex.args, map_expression_to_ast(var_mapper, op_mapper, arg) for arg in expr.args)
-    return ex
 end
 
 ################################################################################
