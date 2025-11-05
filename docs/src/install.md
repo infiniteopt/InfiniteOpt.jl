@@ -8,7 +8,7 @@ found [here](https://julialang.org/downloads/). We recommend using
 [VSCode](https://www.julia-vscode.org/) to edit and run Julia scripts.
 
 !!! note
-    This version of `InfiniteOpt` requires that Julia 1.6 or newer be used.
+    This version of `InfiniteOpt` requires that Julia 1.10 or newer be used.
 
 !!! tip
     We recommend installing the latest version of Julia. However, for users that 
@@ -21,7 +21,7 @@ Julia terminal and enter the package manager:
 ```julia-repl
 julia> ]
 
-(v1.10) pkg>
+(v1.12) pkg>
 ```
 
 !!! tip
@@ -36,12 +36,12 @@ Use the `add` command in the package to manager to add the following packages:
 
 For example, to install `Distributions` we would enter:
 ```julia-repl
-(v1.10) pkg> add Distributions
+(v1.12) pkg> add Distributions
 ```
 
 Now let's install `InfiniteOpt`:
 ```julia-repl
-(v1.10) pkg> add InfiniteOpt
+(v1.12) pkg> add InfiniteOpt
 ```
 
 !!! info
@@ -51,7 +51,7 @@ Now let's install `InfiniteOpt`:
 Alternatively, we can install the current experimental version of 
 `InfiniteOpt` via:
 ```julia-repl
-(v1.10) pkg> add https://github.com/infiniteopt/InfiniteOpt.jl
+(v1.12) pkg> add https://github.com/infiniteopt/InfiniteOpt.jl
 ```
 
 ## Install Optimization Solvers
@@ -64,7 +64,7 @@ that use JuMP) and their corresponding Julia packages is provided in
 
 For example, we can install Ipopt which is an open-source nonlinear solver:
 ```julia-repl
-(v1.10) pkg> add Ipopt
+(v1.12) pkg> add Ipopt
 ```
 Now Ipopt can be used as the optimizer (solver) for an infinite model by running:
 ```julia-repl
@@ -88,7 +88,7 @@ form `vX.Y.Z`. You can check which versions you have installed with:
 ```julia-repl
 julia> ]
 
-(v1.10) pkg> status
+(v1.12) pkg> status
 ```
 This should almost always be the most-recent release. You can check the releases
 of a package by going to the relevant GitHub page, and navigating to the
