@@ -11,6 +11,7 @@ using Interpolations # TODO: Move to runtests.jl once OffSetArrays type piracy p
     @infinite_parameter(model, s ∈ [3, 4], num_supports = 3, derivative_method = OrthogonalCollocation(3))
     @infinite_parameter(model, γ ∈ [5, 6], supports = [5, 5.15, 5.25, 6])
     @infinite_parameter(model, δ ∈ [7, 8], num_supports = 3)
+    @infinite_parameter(model, d[1:2] in [-1, 1], num_supports = 3)
     @finite_parameter(model, β == 1.5)
     @variable(model, 0 ≤ x ≤ 10, Infinite(t))                       # single parameter
     @variable(model, 0 ≤ y ≤ 10, Infinite(t, s))                    # multi parameter
@@ -19,7 +20,8 @@ using Interpolations # TODO: Move to runtests.jl once OffSetArrays type piracy p
     @variable(model, ySemi, SemiInfinite(y, 1.5, s))       # semi-infinite
     @variable(model, wSemi[i = 1:2], SemiInfinite(w[i], 5.25, δ))  # vector, semi-infinite
     @variable(model, α, Point(y, 1.5, 3.5))                # point variable
-    @variable(model, 0 ≤ ω ≤ 10)                                    # finite variable
+    @variable(model, 0 ≤ ω ≤ 10)               
+    @variable(model, q, Infinite(d))                     # finite variable
 
     @constraint(model, 8*∂(x, t)^2 + cos(∂(y,s))^3 ≤ 5*x*y)
     @constraint(model, con, sin(x)*t ≥ 0)
@@ -44,6 +46,7 @@ using Interpolations # TODO: Move to runtests.jl once OffSetArrays type piracy p
     ωVar = transformation_variable(ω, label = InfiniteOpt.All)
     dxVar = transformation_variable(∂(x, t), label = InfiniteOpt.All)
     dyVar = transformation_variable(∂(y, s), label = InfiniteOpt.All)
+    dq = transformation_variable.(q, label = InfiniteOpt.All)
 
     xVals = [2.858, 2.929, 2.991]
 
@@ -164,6 +167,15 @@ using Interpolations # TODO: Move to runtests.jl once OffSetArrays type piracy p
         )
     end
 
+    for i in eachindex(dq)
+        MOI.set(
+            mockOptimizer,
+            MOI.VariablePrimal(1),
+            JuMP.optimizer_index(dq[i]),
+            i
+        )
+    end
+
     # Unit tests
     tol = 1e-06
     @test termination_status(model) == MOI.ALMOST_LOCALLY_SOLVED
@@ -185,6 +197,8 @@ using Interpolations # TODO: Move to runtests.jl once OffSetArrays type piracy p
     @test_throws ErrorException value.(w, (NoInterp(), Linear()))
     @test_throws ErrorException value.(z, cubic_spline_interpolation)
     @test_throws ErrorException value.(w, cubic_spline_interpolation)
+    @test_throws ErrorException value(q, Linear())
+    @test_throws ErrorException value(q, Cubic())
 
     # Test the interpolation values
     @test isapprox(value(β, cubic_spline_interpolation), 1.5, atol=tol)
