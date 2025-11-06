@@ -4,166 +4,129 @@ import JuMP
 import InfiniteOpt
 import Interpolations as IP
 
-const _irregularGridMethods = Union{typeof(IP.linear_interpolation),
-                            typeof(IP.constant_interpolation)}
-
-const _convenienceConstructors = Union{typeof(IP.linear_interpolation),
-                        typeof(IP.constant_interpolation),
-                        typeof(IP.cubic_spline_interpolation)}
+# Define convenient type unions
+const _IrregularGridMethods = Union{
+    typeof(IP.linear_interpolation),
+    typeof(IP.constant_interpolation)
+}
+const _RefTypes = Union{
+    InfiniteOpt.GeneralVariableRef,
+    JuMP.GenericAffExpr{Float64, InfiniteOpt.GeneralVariableRef},
+    JuMP.GenericQuadExpr{Float64, InfiniteOpt.GeneralVariableRef},
+    JuMP.GenericNonlinearExpr{InfiniteOpt.GeneralVariableRef},
+    InfiniteOpt.InfOptConstraintRef
+}
 
 """
-    JuMP.value(vref::GeneralVariableRef,
-        method::Interpolations.InterpolationType);
-        [kwargs...])
+    JuMP.value(
+        ref::Union{GeneralVariableRef, JuMP.AbstractJuMPScalar, InfOptConstraintRef},
+        method::Union{Interpolations.InterpolationType, Interpolations.Degree};
+        [kwargs...]
+    )::Interpolations.Extrapolation
 
-Extend `JuMP.value` to return `vref` as an interpolation object from
+Extend `JuMP.value` to return `ref` as an interpolation object from
 Interpolations.jl, based on `method` which specifies the interpolation method. 
 Currently supported method(s) are:
-- `linear_interpolation`
-- `constant_interpolation`
-- `cubic_spline_interpolation`
+- `constant_interpolation` or `Constant()`
+- `linear_interpolation` or `Linear()`
+- `cubic_spline_interpolation` or `Cubic()`
 
-All methods support equidistant grid points. However, irregular grid points can 
-only be used with `linear_interpolation` and `constant_interpolation`.
-
-```julia
-JuMP.value(vref::GeneralVariableRef, degree::Interpolations.Degree; kwargs...)
-```
-Extend `JuMP.value` to return `vref` as an interpolation object from 
-Interpolations.jl, based on `degree` which specifies the degree of interpolation.
-The currently supported degrees are:
-- `Linear()`
-- `Constant()`
-- `Cubic()`
-
-All methods support equidistant grid points. However, irregular grid points can 
-only be used with `Linear()` and `Constant()`.
+All methods support equidistant grid points. However, nonequidistant discretization grids
+are not compatible with cubic splines.
 
 **Examples**
 ```julia-repl
-julia> zFunc = value(z, cubic_spline_interpolation)
+julia> y_interp_func = value(y, cubic_spline_interpolation)
 
-julia> zFunc(5.4);
+julia> y_interp_func(5.4);
 42.0
 
-julia> zFunc2 = value(z, Cubic())
+julia> y_interp_func2 = value(y, Cubic())
 
-julia> zFunc2(5.4)
+julia> y_interp_func2(5.4)
 42.0
 ```
 """
-function JuMP.value(vref::InfiniteOpt.GeneralVariableRef,
-                    method::IP.InterpolationType; kwargs...)
-    throw(ArgumentError("Unsupported interpolation type: $(method). 
-        Supported interpolation types are: linear_interpolation, 
-        constant_interpolation, and cubic_spline_interpolation."))
+function JuMP.value(
+    obj::_RefTypes,
+    method::IP.InterpolationType; 
+    kwargs...
+    )
+    error("Unsupported interpolation type: $(method).",
+          "Supported interpolation types are: linear_interpolation, ",
+          "constant_interpolation, and cubic_spline_interpolation.")
 end
-
-function JuMP.value(vref::InfiniteOpt.GeneralVariableRef,
-        interpMethod::typeof(IP.cubic_spline_interpolation);
-        kwargs...)
-    InfiniteOpt._check_result_is_current(JuMP.owner_model(vref), JuMP.value)
-
-    # Get infinite parameter references for which the variable depends on
-    prefs = InfiniteOpt.parameter_refs(vref)
-
-    if isempty(prefs)
-        # If no infinite parameters, return the value directly
-        return InfiniteOpt._get_value(vref,
-                                      InfiniteOpt._index_type(vref);
-                                      kwargs...)
-    else
-        # Get the parameter supports
-        Vparams = []
-        for pref in prefs
-            # If user defined irregular grid points for supports, throw an error
-            suppsLabel = first(InfiniteOpt.core_object(pref).supports)[2]
-            if !(InfiniteOpt.UniformGrid in suppsLabel)
-                throw(ArgumentError("Interpolation method $(interpMethod) does 
-                not support irregular grids for supports. Please specify a 
-                uniform grid or choose a different interpolation method."))
+function JuMP.value(
+    ref::_RefTypes,
+    interp_method::typeof(IP.cubic_spline_interpolation);
+    kwargs...
+    )
+    # get the variable values
+    ref_values = JuMP.value(ref; kwargs...)
+    isempty(InfiniteOpt.parameter_group_int_indices(ref)) && return ref_values
+    # get infinite parameter references for which the variable depends on
+    prefs = InfiniteOpt.parameter_refs(ref)
+    supp_ranges = Tuple(
+        begin
+            if length(pref) != 1
+                error("Cannot interpolate over dependent infinite parameters.")
             end
-
-            # Create an equidistant range for support values
-            paramVals = InfiniteOpt._get_value(pref,
-                                    InfiniteOpt._index_type(pref);
-                                    kwargs...)
-            numSupps = length(paramVals)
-            paramRange = LinRange(paramVals[1], paramVals[end], numSupps)
-            push!(Vparams, paramRange)
+            s = JuMP.value(pref; kwargs...)
+            if !all(isapprox(s[i+1] - s[i], s[2] - s[1]) for i in 1:length(s)-1)
+                error("Cubic spline interpolation requires uniform grids for supports.")
+            end
+            LinRange(s[1], s[end], length(s))
         end
-
-        # Ensure Vparams is a tuple for interpolation
-        Vparams = Tuple(Vparams)
-
-        # Get the variable supports
-        Vsupps = InfiniteOpt._get_value(vref,
-                                        InfiniteOpt._index_type(vref);
-                                        kwargs...)
-
-        # Pass the parameter and variable values to interpolation function
-        varFunc = interpMethod(Vparams, Vsupps)
-        return varFunc
-    end
-end
-
-function JuMP.value(vref::InfiniteOpt.GeneralVariableRef,
-    interpMethod::_irregularGridMethods; kwargs...)
-    InfiniteOpt._check_result_is_current(JuMP.owner_model(vref), JuMP.value)
-
-    # Get infinite parameter references for which the variable depends on
-    prefs = InfiniteOpt.parameter_refs(vref)
-
-    if isempty(prefs)
-        # If no infinite parameters, return the value directly
-        return InfiniteOpt._get_value(vref, InfiniteOpt._index_type(vref); kwargs...)
-    else
-        # Get the parameter supports
-        Vparams = []
         for pref in prefs
-            paramVals = InfiniteOpt._get_value(pref,
-                                               InfiniteOpt._index_type(pref);
-                                               kwargs...)
-            # Directly pass in a vector of support values, which may be irregularly spaced
-            push!(Vparams, paramVals)
+    )
+    # return the interpolation
+    return interp_method(supp_ranges, ref_values)
+end
+function JuMP.value(
+    ref::_RefTypes,
+    interp_method::_IrregularGridMethods; 
+    kwargs...
+    )
+    # get the variable values
+    ref_values = JuMP.value(ref; kwargs...)
+    isempty(InfiniteOpt.parameter_group_int_indices(ref)) && return ref_values
+    # get infinite parameter references for which the variable depends on
+    prefs = InfiniteOpt.parameter_refs(ref)
+    supp_values = Tuple(
+        begin
+            if length(pref) != 1
+                error("Cannot interpolate over dependent infinite parameters.")
+            end
+            JuMP.value(pref; kwargs...)
         end
+        for pref in prefs
+    )
+    # return the interpolation
+    return interp_method(supp_values, ref_values)
+end
 
-        # Ensure Vparams is a tuple for interpolation
-        Vparams = Tuple(Vparams)
-
-        # Get the variable supports
-        Vsupps = InfiniteOpt._get_value(vref, 
-                                        InfiniteOpt._index_type(vref); 
-                                        kwargs...)
-
-        # Pass the parameter and variable values to interpolation function
-        varFunc = interpMethod(Vparams, Vsupps)
-        return varFunc
+# Interpolation degrees
+function JuMP.value(
+    ref::_RefTypes,
+    degree::IP.Degree; 
+    kwargs...
+    )
+    error("Unsupported interpolation degree: $(degree). Supported ",
+          "interpolation degrees are: Linear(), Constant(), and Cubic().")
+end
+for (degree, method) in zip(
+    (:Linear, :Constant, :Cubic),
+    (:linear_interpolation, :constant_interpolation, :cubic_spline_interpolation)
+    )
+    @eval begin
+        function JuMP.value(
+            ref::_RefTypes,
+            degree::IP.$degree;
+            kwargs...
+            )
+            return JuMP.value(ref, IP.$method; kwargs...)
+        end
     end
 end
 
-# Fallback for unsupported interpolation degrees
-function JuMP.value(vref::InfiniteOpt.GeneralVariableRef,
-    degree::IP.Degree; kwargs...)
-    throw(ArgumentError("Unsupported interpolation degree: $(degree). Supported 
-    interpolation degrees are: Linear(), Constant(), and Cubic()."))
-end
-
-function JuMP.value(vref::InfiniteOpt.GeneralVariableRef,
-                    degree::IP.Linear;
-                    kwargs...)
-    return JuMP.value(vref, IP.linear_interpolation; kwargs...) 
-end
-
-function JuMP.value(vref::InfiniteOpt.GeneralVariableRef,
-                    degree::IP.Constant;
-                    kwargs...)
-    return JuMP.value(vref, IP.constant_interpolation; kwargs...) 
-end
-
-function JuMP.value(vref::InfiniteOpt.GeneralVariableRef,
-                    degree::IP.Cubic;
-                    kwargs...)
-    return JuMP.value(vref, IP.cubic_spline_interpolation; kwargs...) 
-end
-end
+end # end of module
