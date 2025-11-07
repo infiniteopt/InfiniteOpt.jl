@@ -11,6 +11,7 @@ using Interpolations # TODO: Move to runtests.jl once OffSetArrays type piracy p
     @infinite_parameter(model, s ∈ [3, 4], num_supports = 3, derivative_method = OrthogonalCollocation(3))
     @infinite_parameter(model, γ ∈ [5, 6], supports = [5, 5.15, 5.25, 6])
     @infinite_parameter(model, δ ∈ [7, 8], num_supports = 3)
+    @infinite_parameter(model, d[1:2] in [-1, 1], num_supports = 3)
     @finite_parameter(model, β == 1.5)
     @variable(model, 0 ≤ x ≤ 10, Infinite(t))                       # single parameter
     @variable(model, 0 ≤ y ≤ 10, Infinite(t, s))                    # multi parameter
@@ -19,10 +20,11 @@ using Interpolations # TODO: Move to runtests.jl once OffSetArrays type piracy p
     @variable(model, ySemi, SemiInfinite(y, 1.5, s))       # semi-infinite
     @variable(model, wSemi[i = 1:2], SemiInfinite(w[i], 5.25, δ))  # vector, semi-infinite
     @variable(model, α, Point(y, 1.5, 3.5))                # point variable
-    @variable(model, 0 ≤ ω ≤ 10)                                    # finite variable
+    @variable(model, 0 ≤ ω ≤ 10)               
+    @variable(model, q, Infinite(d))                     # finite variable
 
     @constraint(model, 8*∂(x, t)^2 + cos(∂(y,s))^3 ≤ 5*x*y)
-    @constraint(model, sin(x)*t ≥ y*s)
+    @constraint(model, con, sin(x)*t ≥ 0)
     @constraint(model, [i in 1:2], z[i] + w[i] ≤ 1.5)
     @objective(model, Max, ∫(x^2, t) + ∫(∫(y^2 + x*y, t), s) + ∫(∫(z[1] - sin(z[2]) + w[1] - cos(w[2]), γ), δ))
     set_silent(model)
@@ -44,6 +46,7 @@ using Interpolations # TODO: Move to runtests.jl once OffSetArrays type piracy p
     ωVar = transformation_variable(ω, label = InfiniteOpt.All)
     dxVar = transformation_variable(∂(x, t), label = InfiniteOpt.All)
     dyVar = transformation_variable(∂(y, s), label = InfiniteOpt.All)
+    dq = transformation_variable.(q, label = InfiniteOpt.All)
 
     xVals = [2.858, 2.929, 2.991]
 
@@ -164,18 +167,14 @@ using Interpolations # TODO: Move to runtests.jl once OffSetArrays type piracy p
         )
     end
 
-    # Test the interpolation value function
-    βValue = value(β, cubic_spline_interpolation)
-    xFunc = value(x, cubic_spline_interpolation)
-    yFunc = value(y, linear_interpolation)
-    zFunc = value.(z, (Linear(), Constant()))
-    wFunc = value.(w, linear_interpolation)
-    ySemiFunc = value(ySemi, Cubic())
-    wSemiFunc = value.(wSemi, linear_interpolation)
-    αValue = value(α, Constant())
-    ωValue = value(ω, constant_interpolation)
-    dxFunc = value(∂(x, t), cubic_spline_interpolation)
-    dyFunc = value(∂(y, s), linear_interpolation)
+    for i in eachindex(dq)
+        MOI.set(
+            mockOptimizer,
+            MOI.VariablePrimal(1),
+            JuMP.optimizer_index(dq[i]),
+            i
+        )
+    end
 
     # Unit tests
     tol = 1e-06
@@ -189,29 +188,37 @@ using Interpolations # TODO: Move to runtests.jl once OffSetArrays type piracy p
     @test value(ω) isa Real
 
     # Test interpolation method errors
-    @test_throws ArgumentError value(x, Quadratic())
-    @test_throws ArgumentError value(y, Gridded(Linear()))
-    @test_throws ArgumentError value(x, Gridded(Quadratic()))
-    @test_throws ArgumentError value(y, LinearMonotonicInterpolation())
-    @test_throws ArgumentError value.(z, (Linear(), Quadratic()))
-    @test_throws ArgumentError value.(w, (Linear(), Lanczos()))
-    @test_throws ArgumentError value.(w, (NoInterp(), Linear()))
-    @test_throws ArgumentError value.(z, cubic_spline_interpolation)
-    @test_throws ArgumentError value.(w, cubic_spline_interpolation)
+    @test_throws ErrorException value(x, Quadratic())
+    @test_throws ErrorException value(y, Gridded(Linear()))
+    @test_throws ErrorException value(x, Gridded(Quadratic()))
+    @test_throws ErrorException value(y, LinearMonotonicInterpolation())
+    @test_throws ErrorException value.(z, (Linear(), Quadratic()))
+    @test_throws ErrorException value.(w, (Linear(), Lanczos()))
+    @test_throws ErrorException value.(w, (NoInterp(), Linear()))
+    @test_throws ErrorException value.(z, cubic_spline_interpolation)
+    @test_throws ErrorException value.(w, cubic_spline_interpolation)
+    @test_throws ErrorException value(q, Linear())
+    @test_throws ErrorException value(q, Cubic())
 
     # Test the interpolation values
-    @test isapprox(βValue, 1.5, atol=tol)
-    @test isapprox(xFunc(1.55), 2.9355847500000003, atol=tol)
-    @test isapprox(yFunc(1.55, 3.6), 0.09764, atol=tol)
-    @test isapprox(zFunc[1](5.4), 0.5825999999999999, atol=tol)
-    @test isapprox(zFunc[2](5.75), 0.297, atol=tol)
-    @test isapprox(wFunc[1](5.75, 7.35), 0.8185666666666667, atol=tol)
-    @test isapprox(wFunc[2](5.75, 7.35), 1.5328333333333333, atol=tol)
-    @test isapprox(ySemiFunc(3.24), 0.12989190399999995, atol=tol)
-    @test isapprox(wSemiFunc[1](7.24), 0.6224000000000001, atol=tol)
-    @test isapprox(wSemiFunc[2](7.24), 2.19948, atol=tol)
-    @test αValue == 0.090
-    @test ωValue == 3.5
-    @test isapprox(dxFunc(1.35), 1.62957825, atol=tol)
-    @test isapprox(dyFunc(1.35, 3.86), 2.083256, atol=tol)
+    @test isapprox(value(β, cubic_spline_interpolation), 1.5, atol=tol)
+    @test isapprox(value(x, cubic_spline_interpolation)(1.55), 2.9355847500000003, atol=tol)
+    @test isapprox(value(y, linear_interpolation)(1.55, 3.6), 0.09764, atol=tol)
+    @test isapprox(value(z[1], Linear())(5.4), 0.5825999999999999, atol=tol)
+    @test isapprox(value(z[2], Constant())(5.75), 0.297, atol=tol)
+    @test isapprox(value(w[1], linear_interpolation)(5.75, 7.35), 0.8185666666666667, atol=tol)
+    @test isapprox(value(w[2], linear_interpolation)(5.75, 7.35), 1.5328333333333333, atol=tol)
+    @test isapprox(value(ySemi, Cubic())(3.24), 0.12989190399999995, atol=tol)
+    @test isapprox(value(wSemi[1], linear_interpolation)(7.24), 0.6224000000000001, atol=tol)
+    @test isapprox(value(wSemi[2], linear_interpolation)(7.24), 2.19948, atol=tol)
+    @test value(α, Constant()) == 0.090
+    @test value(ω, constant_interpolation) == 3.5
+    @test isapprox(value(∂(x, t), cubic_spline_interpolation)(1.35), 1.62957825, atol=tol)
+    @test isapprox(value(∂(y, s), linear_interpolation)(1.35, 3.86), 2.083256, atol=tol)
+
+    # Test other calls
+    @test value(2x+3, Constant())(1.7) == xVals[2]*2 + 3
+    @test value(x^2, Constant())(1.2) == xVals[1]^2
+    @test value(sin(x), Constant())(1.2) == sin(xVals[1])
+    @test value(con, Constant())(1.7) == sin(xVals[2])*1.5
 end
