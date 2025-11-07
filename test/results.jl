@@ -453,6 +453,8 @@ end
     end
     # test set_start_values
     @testset "set_start_values" begin
+        @test_throws ErrorException map_value_to_start(inf, tb)
+        @test_throws ErrorException map_value_to_start(inf, 42)
         @test_throws ErrorException set_start_values(m) # Interpolations not loaded
     end
     # test model not up to date
