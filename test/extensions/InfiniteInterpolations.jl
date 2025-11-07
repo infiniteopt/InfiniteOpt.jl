@@ -221,4 +221,11 @@ using Interpolations # TODO: Move to runtests.jl once OffSetArrays type piracy p
     @test value(x^2, Constant())(1.2) == xVals[1]^2
     @test value(sin(x), Constant())(1.2) == sin(xVals[1])
     @test value(con, Constant())(1.7) == sin(xVals[2])*1.5
+
+    # Test JuMP.set_start_values
+    delete(model, q)
+    set_transformation_backend_ready(model, true) # hack to remove variable with dependent parameters
+    @test set_start_values(model, degree = Constant()) isa Nothing
+    @test start_value(ω) == 3.5
+    @test isapprox(start_value(z[2])(5.75), 0.297, atol=tol)
 end
