@@ -129,4 +129,14 @@ for (degree, method) in zip(
     end
 end
 
+# Provide fallback for map_value_to_start (kind of type piracy, but there isn't a great alternative)
+function InfiniteOpt.map_value_to_start(
+    vref::InfiniteOpt.GeneralVariableRef,
+    backend::InfiniteOpt.AbstractTransformationBackend;
+    degree::IP.Degree = IP.Linear()
+    )
+    interp = JuMP.value(vref, degree)
+    return (p...) -> interp(p...)
+end
+
 end # end of module

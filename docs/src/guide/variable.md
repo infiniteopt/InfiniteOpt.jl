@@ -852,6 +852,9 @@ julia> set_start_value(z, 0)
 julia> start_value(z)
 0.0
 ```
+If the model is optimized, we can also set the start values for all variables based on the
+previous solution via [`set_start_values`](@ref), but this requires that `Interpolations` be
+imported.
 
 !!! note
     For effective resolves, 

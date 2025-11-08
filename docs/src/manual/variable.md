@@ -137,6 +137,7 @@ JuMP.unset_binary(::UserDecisionVariableRef)
 JuMP.set_integer(::UserDecisionVariableRef)
 JuMP.unset_integer(::UserDecisionVariableRef)
 JuMP.relax_integrality(::InfiniteModel)
+JuMP.set_start_values(::InfiniteModel)
 JuMP.delete(::InfiniteModel, ::DecisionVariableRef)
 ```
 
