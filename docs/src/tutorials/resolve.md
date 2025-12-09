@@ -4,7 +4,7 @@ DocTestFilters = [r"≤|<=", r" == | = ", r" ∈ | in ", r" for all | ∀ ", r"d
 ```
 
 # Resolve Guide
-Below we show how to do efficient resolves of problems defined in `InfiniteOpt`, such as in model predictive control. Please refer to the 
+Below we show how to do efficient resolves of problems defined in `InfiniteOpt` via model predictive control of a continuous stirred tank reactor (CSTR). Please refer to the 
 Guide on our subsequent pages for more complete information on modeling a stand-alone problem.
 
 ## Preliminaries 
@@ -17,7 +17,7 @@ See [Installation](@ref) for more information.
 
 ### Optimal Control Formulation
 Now we need to formulate the problem we want to solve mathematically. For example, 
-let's define a simple optimal control model for a continuous stirred tank reactor (CSTR):
+let's define a simple optimal control model:
 ```math
 \begin{aligned}
 	&&\underset{C_A(t), T(t), T_c(t)}{\text{min}} &&& \int_{t \in \mathcal{D_t}} (T(t) - T_{sp}(t))^2 dt\\
@@ -27,19 +27,20 @@ let's define a simple optimal control model for a continuous stirred tank reacto
     &&&&& r_A = kC_A(t),\\
 	&&&&& \frac{\partial C_A(t)}{\partial t} = \frac{F(C_f - C_A(t)) - Vr_A}{V},\\
     &&&&& \frac{\partial T(t)}{\partial t} = \frac{F\rho c_p(T_f - T(t)) + r_AH_RV + U_A(T_c(t) - T(t))}{\rho c_p V},\\
+    &&&&& T_c(t) = T_c(D_c) \quad \forall t \in D_t \geq D_c ,\\
     &&&&& C_A(t) \geq 0,\\
     &&&&& 273.15 \leq T(t) \leq 400,\\
     &&&&& 250 \leq T_c(t) \leq 350,\\
 \end{aligned}
 ```
-Here, our state variables are concentration ``C_A(t)`` and reactor temperature ``T(t)``, while the control input is the jacket temperature ``T_c(t)``. This results in a dynamic model based on time ``t`` over the prediction horizon ``D_t``.
+Here, our state variables are concentration ``C_A(t)`` and reactor temperature ``T(t)``, while the control input is the jacket temperature ``T_c(t)``. This results in a dynamic model based on time ``t`` over the prediction horizon ``D_t``. Note there is also a constraint that keeps input ``T_c(t)`` constant beyond the control domain ``D_c``.
 
 ## Parameter Specification
 Before moving on, we'll need to define the necessary constants and problem 
 parameters. We'll define the following in our 
 Julia session (these could also be put into a script as shown later on):
 ```jldoctest quick
-julia> Δt = 0.1; Dt = 3; # set time domain parameters 
+julia> Δt = 0.1; Dt = 3; Dc = 2.5; # set time domain parameters 
 
 julia> init = [0.9, 305, 300]; # set the initial conditions
 
@@ -59,8 +60,7 @@ julia> function setpoint(t, offset)
         else
             return 318
         end
-        end
-setpoint (generic function with 1 method)
+        end;
 ```
 Note that an `offset` argument is added to ensure the setpoint function returns different values depending on what control step the problem is posed at. 
 
@@ -90,30 +90,27 @@ Note that `update_parameter_functions` is set to true to enable setpoint functio
 Before moving on, let's make finite parameters via [`@finite_parameter`](@ref) 
 to represent initial conditions for ``C_A`` and ``T`` since we'll want to update them between optimal control solves: 
 ```jldoctest quick
-julia> @finite_parameter(model, Ca0 == init[1])
-Ca0
+julia> @finite_parameter(model, Ca0 == init[1]);
 
-julia> @finite_parameter(model, T0 == init[2])
-T0
+julia> @finite_parameter(model, T0 == init[2]);
 ```
 Learn more about finite parameters on our [Finite Parameters](@ref finite_param_docs) 
 page.
 
 ### Infinite Parameters 
 The next thing we need to do is identify the infinite domains our problem contains 
-and define an infinite parameter(s) for each one via [`@infinite_parameter`]. For 
+and define an infinite parameter(s) for each one via [`@infinite_parameter`](@ref). For 
 this problem, we have the time domain ``t \in \mathcal{D}_t``:
 ```jldoctest quick
 julia> @infinite_parameter(model, t in [0, Dt], supports = collect(0:Δt:Dt), 
-                           derivative_method = OrthogonalCollocation(3))
-t
+                           derivative_method = OrthogonalCollocation(3));
 ```
 We specify the domain the parameter depends on via `in`.
 Here we also directly provide the supports
 that will be used to reformulate and solve the problem (i.e., discretize). 
 We also specify the derivative evaluation method associated with `t` that will be 
 used to evaluate the derivatives numerically. See more information about parameters 
-on our [Infinite Parameters] (@ref inf_par_docs) page. Also learn more about 
+on our [Infinite Parameters](@ref inf_par_docs) page. Also learn more about 
 derivative methods on our [Derivative Operators](@ref deriv_docs) page.
 
 ### Variables 
@@ -133,8 +130,7 @@ T(t)
 julia> @variable(model, 250 ≤ Tc ≤ 350, Infinite(t), start = init[3])
 Tc(t)
 ```
-Notice that we specify the initial guess for all of them via `start`, which is the same as the initial conditions in this case. We also 
-can symbolically define variable bounds accordingly.
+Notice that we specify the initial guess for all of them via `start`, which are the same as the initial conditions in this case. We can also symbolically define variable bounds at the same time.
 
 We'll also define the setpoint parameter function via [`@parameter_function`](@ref):
 ```jldoctest quick
@@ -173,7 +169,7 @@ julia> @constraint(model, T(0) == T0)
 T(0) - T0 = 0
 ```
 Note that it is important that we include appropriate boundary conditions when using 
-derivatives in our model. For more information please see 
+derivatives in our model. For more information, please see 
 [Derivative Operators](@ref deriv_docs).
 
 Next, we add our model constraints that have derivatives using 
@@ -190,6 +186,16 @@ julia> @constraint(model, deriv(Ca, t) == (F*(cf - Ca) - V*rate)/V);
 
 julia> @constraint(model, deriv(T, t) == (1/(rho * cp * V)) * (F * rho * cp * (Tf - T) + V * Hr * rate + Ua * (Tc - T)));
 ```
+
+We can also use [`DomainRestriction`](@ref) to add a constraint for the control horizon.
+ ```jldoctest quick
+julia> controlFunc(t_c) = (Dc ≤ t_c ≤ Dt); # Function for domain values
+
+julia> controlDomain = DomainRestriction(controlFunc, t);   # Domain restriction for infinite parameter t
+
+julia> @constraint(model, Tc == Tc(Dc), controlDomain);  # Add constraint defined on restricted domain
+```
+
 Finally, to address any unwanted degrees of freedom introduced by internal collocation 
 nodes with [`OrthogonalCollocation`](@ref). We should call [`constant_over_collocation`](@ref constant_over_collocation(::InfiniteVariableRef, ::GeneralVariableRef)) 
 on any control variables:
@@ -278,7 +284,7 @@ julia> function cstrDynamics!(dx, x, p, t)
         rate = k * Ca
         dx[1] = F/V * (cf - Ca) - V * rate
         dx[2] = (1/(rho * cp * V)) * (F * rho * cp * (Tf - T) + V * Hr * rate + Ua * (Tc - T))
-        end
+        end;
 ```
 Then create a function that solves the ODE problem and returns the updated state:
 ```jldoctest quick
@@ -287,7 +293,7 @@ julia> function cstrSim(x0, tspan)
         sol = solve(prob, Tsit5(), reltol=1e-6, abstol=1e-8)
         xsol = sol.u[end]
         return xsol
-        end
+        end;
 ```
 Now let's simulate the system forward!
 ```jldoctest quick
@@ -307,17 +313,17 @@ Now we need to update our model for the next solve. First, we update some parame
 ```jldoctest quick
 julia> tk += Δt;     # Updated offset for the next control step
 ```
-We'll then update the initial guesses in the model using the previous solution via `warmstart_backend_start_values`.
+We'll then update the initial guesses in the model using the previous solution via [`warmstart_backend_start_values`](@ref).
 ```jldoctest quick
 julia> warmstart_backend_start_values(model);
 ```
-We'll also update the initial condition parameters using `set_parameter_value`.
+We'll also update the initial condition parameters using [`set_parameter_value`](@ref).
 ```jldoctest quick
 julia> set_parameter_value(Ca0, Ca_opt);
 
 julia> set_parameter_value(T0, T_opt);
 ```
-Lastly, we'll need to update the setpoint parameter function, which can also be done via `set_parameter_value`. In this case, we'll create a new function with an updated offset value.
+Lastly, we'll need to update the setpoint parameter function, which can also be done via [`set_parameter_value`](@ref). In this case, we'll create a new function with an updated offset value.
 ```jldoctest quick
 julia> newTsp = (t) -> setpoint(t, tk);
 
@@ -381,11 +387,9 @@ Total seconds in IPOPT                               = 0.008
 
 EXIT: Optimal Solution Found.
 ```
-!!! note
-    This tutorial assumes that the problem structure remains the same between consecutive solves (AKA no new variables or constraints are added to the problem).
 
 ### Performance tips
-Given a warmstart, we can also reduce the number of iterations by decreasing certain solver parameters via `set_optimizer_attribute`.
+Given a warmstart, we can also reduce the number of iterations by decreasing certain solver parameters via [`set_optimizer_attribute`](@ref).
 ```jldoctest quick
 julia> set_optimizer_attribute(model, "bound_push", 1e-8); # Desired minimum distance from intial point to bounds
 
@@ -446,9 +450,11 @@ Total seconds in IPOPT                               = 0.004
 
 EXIT: Optimal Solution Found
 ```
+!!! note
+    This tutorial assumes that the problem structure remains the same between consecutive solves (AKA no new variables or constraints are added to the problem).
 
 ## Model Predictive Control Script 
-The steps outlined in the sections above can be captured in a loop. This is summarized in the model predictive control script below :
+The steps outlined in the sections above can be captured in a loop. This is summarized in the script below:
 ```julia
 using InfiniteOpt, Ipopt, DifferentialEquations
 
@@ -469,6 +475,7 @@ Ca_k, T_k = init[1:2]
 # DEFINE MPC PARAMETERS
 Δt = 0.1      # Control interval
 Dt = 3        # Prediction horizon
+Dc = 2.5      # Control horizon
 t0 = 0        # Initial simulation time
 tf = 2       # Final simulation time
 t_vals = collect(t0:Δt:tf)
@@ -531,6 +538,11 @@ end)
 @constraint(model, ∂(Ca, t) == (F * (cf - Ca) - V * rate)/V)
 @constraint(model, ∂(T, t) == (1/(rho * cp * V)) * (F * rho * cp * (Tf - T) + V * Hr * rate + Ua * (Tc - T)))
 
+# SET THE CONTROL HORIZON
+controlFunc(t_c) = (Dc ≤ t_c ≤ Dt)
+controlDomain = DomainRestriction(controlFunc, t)
+@constraint(model, Tc == Tc(Dc), controlDomain)
+
 # ADJUST DEGREES OF FREEDOM FOR CONTROL VARIABLES
 constant_over_collocation.(Tc, t)
 
@@ -567,7 +579,7 @@ end
 
 ## GPU-Accelerated Resolves
 ### Software Setup
-We can also facilitate resolves on GPUs. First, we'll need to ensure the following packages are installed:
+We can also do resolves on GPUs. First, we'll need to ensure the following packages are installed:
 - `InfiniteExaModels.jl`
 - `MadNLP.jl`
 - `CUDA.jl`
@@ -576,13 +588,12 @@ We can also facilitate resolves on GPUs. First, we'll need to ensure the followi
     Currently, this workflow is only available on NVIDIA GPUs that support CUDA.
 
 ### Problem setup
-Now, we'll need to initialize our model with an `ExaTranscriptionBackend` that employs a `CUDABackend`. This will transcribe the InfiniteOpt problem into an ExaModel that is GPU compatible. We'll also use a GPU-based solver like `MadNLP.jl`.
+Now, we'll need to initialize our model with an `ExaTranscriptionBackend` that employs a `CUDABackend`. This will transcribe the InfiniteOpt problem into an ExaModel that is GPU compatible. We'll also use the `MadNLPGPU` module from `MadNLP.jl` for solving.
 ```julia
 julia> using InfiniteExaModels, InfiniteExaModels, MadNLPGPU, CUDA
 
 julia> model = InfiniteModel(ExaTranscriptionBackend(MadNLPSolver, backend = CUDABackend()));
 ```
-
 Since we'll be indexing `Tc` for the optimal control input, we'll also need to set `allowscalar` to true.
 ```julia
 julia> CUDA.allowscalar(true);
@@ -612,6 +623,7 @@ Ca_k, T_k = init[1:2]
 # DEFINE MPC PARAMETERS
 Δt = 0.1      # Control interval
 Dt = 3        # Prediction horizon
+Dc = 2.5      # Control horizon
 t0 = 0        # Initial simulation time
 tf = 2       # Final simulation time
 t_vals = collect(t0:Δt:tf)
@@ -674,6 +686,11 @@ end)
 @expression(model, rate, k * Ca)
 @constraint(model, ∂(Ca, t) == (F * (cf - Ca) - V * rate)/V)
 @constraint(model, ∂(T, t) == (1/(rho * cp * V)) * (F * rho * cp * (Tf - T) + V * Hr * rate + Ua * (Tc - T)))
+
+# SET THE CONTROL HORIZON
+controlFunc(t_c) = (Dc ≤ t_c ≤ Dt)
+controlDomain = DomainRestriction(controlFunc, t)
+@constraint(model, Tc == Tc(Dc), controlDomain)
 
 # ADJUST DEGREES OF FREEDOM FOR CONTROL VARIABLES
 constant_over_collocation.(Tc, t)
