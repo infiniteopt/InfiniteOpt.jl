@@ -389,7 +389,7 @@ EXIT: Optimal Solution Found.
 ```
 
 ### Performance tips
-Given a warmstart, we can also reduce the number of iterations by decreasing certain solver parameters via [`set_optimizer_attribute`](@ref).
+Given a warmstart, we can also reduce the number of iterations by decreasing certain solver parameters via [`set_optimizer_attribute`](https://jump.dev/JuMP.jl/stable/api/JuMP/#set_optimizer_attribute).
 ```jldoctest quick
 julia> set_optimizer_attribute(model, "bound_push", 1e-8); # Desired minimum distance from intial point to bounds
 
