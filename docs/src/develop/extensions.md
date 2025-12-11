@@ -734,7 +734,7 @@ Our extension is done and now `RandomGenerativeInfo` can be incorporated by a
 `GenerativeDerivativeMethod` we create or an `AbstractMeasureData` object of our 
 choice like `FunctionalDiscreteMeasureData`. 
 
-## [Transformation Backends] (@id extend_backends)
+## [Transformation Backends](@id extend_backends)
 `InfiniteOpt` provides a convenient interface and abstraction for modeling 
 infinite-dimensional optimization problems. By default, `InfiniteModel`s are 
 reformulated into a solvable `JuMP.Model` via `TranscriptionOpt.TranscriptionBackend` 

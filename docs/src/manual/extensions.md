@@ -5,7 +5,7 @@ respective [guide](@ref ext_docs) for more information.
 ## InfiniteInterpolations
 Enabled via `import InfiniteOpt, Interpolations`.
 ```@docs
-JuMP.value(::Union{GeneralVariableRef,JuMP.GenericAffExpr{Float64, GeneralVariableRef},JuMP.GenericQuadExpr{Float64, GeneralVariableRef},JuMP.GenericNonlinearExpr{GeneralVariableRef},InfOptConstraintRef}, ::Interpolations.InterpolationType)
+JuMP.value(::GeneralVariableRef, ::Interpolations.InterpolationType)
 ```
 
 ## InfiniteMathOptAI

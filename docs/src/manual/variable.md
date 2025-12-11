@@ -8,7 +8,7 @@ Note that the principle way for defining variables is by using
 [`JuMP.@variable`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.@variable) 
 which originates from `JuMP.jl`.
 
-### Infinite
+### Infinite Variables
 ```@docs
 InfOptVariableType
 Infinite
@@ -22,7 +22,7 @@ InfiniteVariableRef
 InfiniteOpt.Collections.VectorTuple
 ```
 
-### Semi-Infinite
+### Semi-Infinite Variables
 ```@docs
 SemiInfinite
 JuMP.build_variable(::Function, ::JuMP.VariableInfo, ::SemiInfinite)
@@ -34,7 +34,7 @@ SemiInfiniteVariableIndex
 SemiInfiniteVariableRef
 ```
 
-### Point
+### Point Variables
 ```@docs
 Point
 JuMP.build_variable(::Function, ::JuMP.VariableInfo, ::Point)
@@ -44,7 +44,7 @@ PointVariableIndex
 PointVariableRef
 ```
 
-### Finite 
+### Finite Variables
 Note that finite variables simply correspond to using 
 [`JuMP.ScalarVariable`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.ScalarVariable) 
 which originates from `JuMP.jl` as well. In other words, these are defined via 
@@ -82,7 +82,7 @@ used_by_measure(::DecisionVariableRef)
 used_by_objective(::DecisionVariableRef)
 ```
 
-### Infinite
+### Infinite Variables
 ```@docs
 parameter_refs(::InfiniteVariableRef)
 parameter_list(::InfiniteVariableRef)
@@ -95,7 +95,7 @@ parameter_group_int_indices(::InfiniteVariableRef)
 core_object(::InfiniteVariableRef)
 ```
 
-### Semi-Infinite
+### Semi-Infinite Variables
 ```@docs
 infinite_variable_ref(::SemiInfiniteVariableRef)
 parameter_refs(::SemiInfiniteVariableRef)
@@ -108,7 +108,7 @@ parameter_group_int_indices(::SemiInfiniteVariableRef)
 core_object(::SemiInfiniteVariableRef)
 ```
 
-### Point
+### Point Variables
 ```@docs
 infinite_variable_ref(::PointVariableRef)
 parameter_values(::PointVariableRef)
@@ -116,7 +116,7 @@ raw_parameter_values(::PointVariableRef)
 core_object(::PointVariableRef)
 ```
 
-### Finite
+### Finite Variables
 ```@docs
 core_object(::FiniteVariableRef)
 ```
@@ -141,12 +141,12 @@ JuMP.set_start_values(::InfiniteModel)
 JuMP.delete(::InfiniteModel, ::DecisionVariableRef)
 ```
 
-### Infinite
+### Infinite Variables
 ```@docs
 constant_over_collocation(::InfiniteVariableRef, ::GeneralVariableRef)
 ```
 
-### Semi-Infinite
+### Semi-Infinite Variables
 ```@docs
 JuMP.set_name(::SemiInfiniteVariableRef,::String)
 ```

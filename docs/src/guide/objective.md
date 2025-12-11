@@ -14,7 +14,7 @@ One key idea is that the objective must evaluate to a finite expression which me
 it must only explicitly contain finite variables and point variables. Infinite 
 expressions must be summarized by a measure (e.g., taking the expectation of a random variable).
 
-## [Basic Usage] (@id obj_basic)
+## [Basic Usage](@id obj_basic)
 Principally, the objective function is specified via 
 [`@objective`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.@objective) 
 as is done in `JuMP`. For example, let's define the stochastic objective to 
