@@ -80,7 +80,7 @@ julia> @variable(model, y >= 0, Infinite(t));
 julia> f, formulation = add_predictor(model, NN, [y, t]);
 
 julia> @constraint(model, ∂(y, t) == only(f))
-d/dt[y(t)] - moai_Affine[1](t) == 0, for all t in [0, 1]
+d/dt[y(t)] - moai_Affine[1](t) = 0, ∀ t ∈ [0, 1]
 ```
 Here, `f` is the vector of output variables (only 1 in this case) and `formulation`
 is an object that stores all the variables and constraints created to embed `NN` in
