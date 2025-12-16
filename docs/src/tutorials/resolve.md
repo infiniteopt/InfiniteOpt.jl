@@ -3,8 +3,8 @@ DocTestFilters = [r"≤|<=", r" == | = ", r" ∈ | in ", r" for all | ∀ ", r"d
                   r"E|𝔼", r"integral|∫"]
 ```
 
-# Resolve Guide
-Below we show how to do efficient resolves of problems defined in `InfiniteOpt` via model predictive control of a continuous stirred tank reactor (CSTR). Please refer to the 
+# Re-solve Guide
+Below we show how to do efficient re-solves of problems defined in `InfiniteOpt` via model predictive control of a continuous stirred tank reactor (CSTR). Please refer to the 
 Guide on our subsequent pages for more complete information on modeling a stand-alone problem.
 
 ## Preliminaries 
@@ -307,7 +307,7 @@ julia> Ca_opt, T_opt = xsol[1:2];    # Obtain updated states
 ```
 Note that the updated states `Ca_opt` and `T_opt` will become the initial conditions for the next optimal control solve.
 
-## Resolves
+## Re-solves
 ### Updating the model
 Now we need to update our model for the next solve. First, we update some parameters accordingly:
 ```jldoctest quick
@@ -577,9 +577,9 @@ for i in eachindex(t_vals)
 end
 ```
 
-## GPU-Accelerated Resolves
+## GPU-Accelerated Re-solves
 ### Software Setup
-We can also do resolves on GPUs. First, we'll need to ensure the following packages are installed:
+We can also do re-solves on GPUs. First, we'll need to ensure the following packages are installed:
 - `InfiniteExaModels.jl`
 - `MadNLP.jl`
 - `CUDA.jl`
@@ -724,4 +724,4 @@ for i in eachindex(t_vals)
 end
 ```
 !!! note
-    Although `MadNLP.jl` does support `bound_push` and `bound_fac` as options, they currently do not have an effect in resolves.
+    Although `MadNLP.jl` does support `bound_push` and `bound_fac` as options, they currently do not have an effect in re-solves.
