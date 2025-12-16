@@ -4,8 +4,10 @@ DocTestFilters = [r"≤|<=", r" == | = ", r" ∈ | in ", r" for all | ∀ ", r"d
 ```
 
 # Re-solve Guide
-Below we show how to do efficient re-solves of problems defined in `InfiniteOpt` via model predictive control of a continuous stirred tank reactor (CSTR). Please refer to the 
-Guide on our subsequent pages for more complete information on modeling a stand-alone problem.
+There are situations where one may want to re-solve problems defined in `InfiniteOpt`, such as in model predictive control. InfiniteOpt's re-solve framework facilitates this through a persistent solver interface and model backend, avoiding the need to build them again for each re-solve.
+
+Below, we show how to do efficient re-solves via model predictive control of a continuous stirred tank reactor (CSTR). Please refer to the 
+Guide for more complete information on modeling a stand-alone problem.
 
 ## Preliminaries 
 ### Software Setup
@@ -15,14 +17,20 @@ First, we need to make sure everything is installed. This will include:
 - installing wanted optimizers e.g., `Ipopt.jl`
 See [Installation](@ref) for more information.
 
-### Optimal Control Formulation
-Now we need to formulate the problem we want to solve mathematically. For example, 
-let's define a simple optimal control model:
+### Problem Formulation
+We formulate a model predictive control (MPC) problem over a total simulation domain ``D_{sim} := [t_0, t_f]``, consisting of ``N_{sim}`` control steps with control interval ``\Delta t``. Note here, an optimal control problem ``\mathcal{P}`` is being repeatedly solved at each control step ``t_k``, setting up the stage for re-solves.
 ```math
 \begin{aligned}
-	&&\underset{C_A(t), T(t), T_c(t)}{\text{min}} &&& \int_{t \in \mathcal{D_t}} (T(t) - T_{sp}(t))^2 dt\\
-	&&\text{s.t.} &&& C_a(0) = C_{A, 0},\\
-    &&&&& T(0) = T_{0},\\
+MPC = \mathcal{P(t_k)}_{k = 0}^{N_{sim}} \quad \quad N_{sim} = \frac{t_f - t_0}{\Delta t} + 1
+\end{aligned}
+```
+
+For this tutorial, we define the optimal control problem ``\mathcal{P(t_k)}`` as follows:
+```math
+\begin{aligned}
+	&&\underset{C_A(t), T(t), T_c(t)}{\text{min}} &&& \int_{0}^{\mathcal{D_t}} (T(t) - T_{sp}(t))^2 dt\\
+	&&\text{s.t.} &&& C_a(0) = C_{A}(t_k),\\
+    &&&&& T(0) = T(t_k),\\
     &&&&& k = k_0 \exp\left(\frac{-E_R}{T(t)}\right),\\
     &&&&& r_A = kC_A(t),\\
 	&&&&& \frac{\partial C_A(t)}{\partial t} = \frac{F(C_f - C_A(t)) - Vr_A}{V},\\
@@ -33,14 +41,16 @@ let's define a simple optimal control model:
     &&&&& 250 \leq T_c(t) \leq 350,\\
 \end{aligned}
 ```
-Here, our state variables are concentration ``C_A(t)`` and reactor temperature ``T(t)``, while the control input is the jacket temperature ``T_c(t)``. This results in a dynamic model based on time ``t`` over the prediction horizon ``D_t``. Note there is also a constraint that keeps input ``T_c(t)`` constant beyond the control domain ``D_c``.
+Here, the objective is set to track the setpoint ``T_{sp}(t)``. Our state variables are concentration ``C_A(t)`` and reactor temperature ``T(t)``, while the control input is the jacket temperature ``T_c(t)``. There is also a constraint to keep input ``T_c(t)`` constant beyond the control domain ``D_c``. Overall, this results in a dynamic model based on time ``t`` over the prediction horizon ``\mathcal{D_t}``.
 
 ## Parameter Specification
 Before moving on, we'll need to define the necessary constants and problem 
 parameters. We'll define the following in our 
 Julia session (these could also be put into a script as shown later on):
 ```jldoctest quick
-julia> Δt = 0.1; Dt = 3; Dc = 2.5; # set time domain parameters 
+julia> Δt = 0.1; t0 = 0, tf = 2;   # set MPC simulation parameters
+
+julia> Dt = 3; Dc = 2.5; # set time domain parameters 
 
 julia> init = [0.9, 305, 300]; # set the initial conditions
 
@@ -62,7 +72,7 @@ julia> function setpoint(t, offset)
         end
         end;
 ```
-Note that an `offset` argument is added to ensure the setpoint function returns different values depending on what control step the problem is posed at. 
+Note that an `offset` argument is added to ensure the setpoint function returns accurate values depending on what control step ``t_k`` the problem is posed at. 
 
 ## Optimal Control Problem
 ### Model Initialization 
@@ -88,7 +98,7 @@ Note that `update_parameter_functions` is set to true to enable setpoint functio
 [Infinite Models](@ref infinite_model_docs) page.
 
 Before moving on, let's make finite parameters via [`@finite_parameter`](@ref) 
-to represent initial conditions for ``C_A`` and ``T`` since we'll want to update them between optimal control solves: 
+to represent initial conditions for ``C_A`` and ``T`` since we'll want to update them between solves: 
 ```jldoctest quick
 julia> @finite_parameter(model, Ca0 == init[1]);
 
@@ -98,16 +108,16 @@ Learn more about finite parameters on our [Finite Parameters](@ref finite_param_
 page.
 
 ### Infinite Parameters 
-The next thing we need to do is identify the infinite domains our problem contains 
-and define an infinite parameter(s) for each one via [`@infinite_parameter`](@ref). For 
+The next thing we need to do is identify the infinite domain for our problem 
+and define an infinite parameter for it via [`@infinite_parameter`](@ref). For 
 this problem, we have the time domain ``t \in \mathcal{D}_t``:
 ```jldoctest quick
 julia> @infinite_parameter(model, t in [0, Dt], supports = collect(0:Δt:Dt), 
                            derivative_method = OrthogonalCollocation(3));
 ```
 We specify the domain the parameter depends on via `in`.
-Here we also directly provide the supports
-that will be used to reformulate and solve the problem (i.e., discretize). 
+Here, we directly provide the supports
+that will be used to reformulate and solve the problem (i.e., discretize).
 We also specify the derivative evaluation method associated with `t` that will be 
 used to evaluate the derivatives numerically. See more information about parameters 
 on our [Infinite Parameters](@ref inf_par_docs) page. Also learn more about 
@@ -130,9 +140,9 @@ T(t)
 julia> @variable(model, 250 ≤ Tc ≤ 350, Infinite(t), start = init[3])
 Tc(t)
 ```
-Notice that we specify the initial guess for all of them via `start`, which are the same as the initial conditions in this case. We can also symbolically define variable bounds at the same time.
+Notice that we specify the initial guess for all of them via `start`, which are the same as the initial conditions in this case. We can also symbolically define variable bounds in the same line.
 
-We'll also define the setpoint parameter function via [`@parameter_function`](@ref):
+We'll also define a parameter function for the setpoint via [`@parameter_function`](@ref):
 ```jldoctest quick
 julia> @parameter_function(model, Tsp == t -> setpoint(t, tk))
 Tsp(t)
@@ -191,7 +201,7 @@ We can also use [`DomainRestriction`](@ref) to add a constraint for the control 
  ```jldoctest quick
 julia> controlFunc(t_c) = (Dc ≤ t_c ≤ Dt); # Function for domain values
 
-julia> controlDomain = DomainRestriction(controlFunc, t);   # Domain restriction for infinite parameter t
+julia> controlDomain = DomainRestriction(controlFunc, t);   # Create domain restriction for infinite parameter t
 
 julia> @constraint(model, Tc == Tc(Dc), controlDomain);  # Add constraint defined on restricted domain
 ```
@@ -323,12 +333,15 @@ julia> set_parameter_value(Ca0, Ca_opt);
 
 julia> set_parameter_value(T0, T_opt);
 ```
-Lastly, we'll need to update the setpoint parameter function, which can also be done via [`set_parameter_value`](@ref). In this case, we'll create a new function with an updated offset value.
+Lastly, we'll need to update the setpoint parameter function, which can also be done via [`set_parameter_value`](@ref). In this case, we'll need to create a new function with an updated offset value.
 ```jldoctest quick
 julia> newTsp = (t) -> setpoint(t, tk);
 
 julia> set_parameter_value(Tsp, newTsp);
 ```
+!!! warning
+    The framework's efficiency is based on the idea that the problem structure remains the same between consecutive solves (AKA no new variables or constraints are added). If changing the structure or using APIs other than `warmstart_backend_start_values` or `set_parameter_value` for updating, then a new backend and solver instance must be made from scratch.
+
 Now we can solve our updated model! 
 ```jldoctest quick
 julia> optimize!(model)
@@ -336,7 +349,7 @@ julia> optimize!(model)
 ```
 This is Ipopt version 3.14.19, running with linear solver MUMPS 5.8.1.
 
-Number of nonzeros in equality constraint Jacobian...:      969
+Number of nonzeros in equality constraint Jacobian...:      989
 Number of nonzeros in inequality constraint Jacobian.:        0
 Number of nonzeros in Lagrangian Hessian.............:      427
 
@@ -344,36 +357,36 @@ Total number of variables............................:      305
                      variables with only lower bounds:       61
                 variables with lower and upper bounds:      122
                      variables with only upper bounds:        0
-Total number of equality constraints.................:      274
+Total number of equality constraints.................:      285
 Total number of inequality constraints...............:        0
         inequality constraints with only lower bounds:        0
    inequality constraints with lower and upper bounds:        0
         inequality constraints with only upper bounds:        0
 
 iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
-   0  1.7342045e+01 5.78e+00 5.16e-02  -1.0 0.00e+00    -  0.00e+00 0.00e+00   0
-   1  1.5692725e+01 2.93e-01 5.98e-01  -1.0 2.10e+01    -  8.40e-01 1.00e+00f  1
-   2  8.5431043e+00 3.45e-01 1.02e-01  -1.0 2.80e+01    -  6.84e-01 1.00e+00f  1
-   3  4.8015451e+00 2.55e-01 5.17e-02  -1.0 3.46e+01    -  5.42e-01 1.00e+00f  1
-   4  2.7068147e+00 3.71e-01 8.82e-02  -1.0 4.90e+01    -  9.70e-01 1.00e+00f  1
-   5  2.1446416e+00 3.26e-02 5.37e-03  -1.7 1.83e+01    -  9.79e-01 1.00e+00h  1
-   6  1.9800640e+00 1.98e-02 3.83e-04  -2.5 1.15e+01    -  1.00e+00 1.00e+00h  1
-   7  1.9351403e+00 4.17e-03 9.26e-05  -2.5 5.15e+00    -  1.00e+00 1.00e+00h  1
-   8  1.9200825e+00 8.60e-04 1.66e-05  -3.8 2.35e+00    -  1.00e+00 1.00e+00h  1
-   9  1.9169920e+00 5.12e-05 1.22e-06  -3.8 5.59e-01    -  1.00e+00 1.00e+00h  1
+   0  5.0280000e+02 3.92e+01 1.80e+00  -1.0 0.00e+00    -  0.00e+00 0.00e+00   0
+   1  3.3245030e+01 4.66e+00 1.79e+00  -1.0 3.92e+01    -  7.14e-01 1.00e+00f  1
+   2  9.1455568e+00 1.05e+00 7.82e-01  -1.0 2.24e+01    -  8.22e-01 1.00e+00f  1
+   3  4.2533979e+00 3.66e-01 2.05e-01  -1.0 3.32e+01    -  9.02e-01 1.00e+00f  1
+   4  3.1557492e+00 7.79e-02 2.06e-02  -1.0 2.13e+01    -  1.00e+00 1.00e+00h  1
+   5  2.8576232e+00 2.40e-02 2.29e-03  -1.7 1.46e+01    -  1.00e+00 1.00e+00h  1
+   6  2.7626143e+00 1.22e-02 1.58e-04  -2.5 8.71e+00    -  1.00e+00 1.00e+00h  1
+   7  2.7340812e+00 3.12e-03 4.68e-05  -3.8 4.17e+00    -  1.00e+00 1.00e+00h  1
+   8  2.7262098e+00 4.52e-04 8.47e-06  -3.8 1.54e+00    -  1.00e+00 1.00e+00h  1
+   9  2.7245920e+00 2.41e-05 4.25e-07  -5.7 3.58e-01    -  1.00e+00 1.00e+00h  1
 iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
-  10  1.9165133e+00 1.25e-06 2.11e-08  -5.7 9.03e-02    -  1.00e+00 1.00e+00h  1
-  11  1.9165046e+00 4.24e-10 8.01e-12  -8.6 1.65e-03    -  1.00e+00 1.00e+00h  1
+  10  2.7245139e+00 6.02e-08 1.13e-09  -5.7 1.77e-02    -  1.00e+00 1.00e+00h  1
+  11  2.7245100e+00 1.38e-10 1.74e-12  -8.6 8.87e-04    -  1.00e+00 1.00e+00h  1
 
 Number of Iterations....: 11
 
                                    (scaled)                 (unscaled)
-Objective...............:   1.9165045692830063e+00    1.9165045692830063e+00
-Dual infeasibility......:   8.0068109934202508e-12    8.0068109934202508e-12
-Constraint violation....:   4.2356873564131092e-10    4.2356873564131092e-10
-Variable bound violation:   2.8904434543619573e-06    2.8904434543619573e-06
-Complementarity.........:   3.3290100135960107e-09    3.3290100135960107e-09
-Overall NLP error.......:   3.3290100135960107e-09    3.3290100135960107e-09
+Objective...............:   2.7245100343448030e+00    2.7245100343448030e+00
+Dual infeasibility......:   1.7391275767757273e-12    1.7391275767757273e-12
+Constraint violation....:   1.3756107364315540e-10    1.3756107364315540e-10
+Variable bound violation:   2.8948873023182387e-06    2.8948873023182387e-06
+Complementarity.........:   2.7460183036212907e-09    2.7460183036212907e-09
+Overall NLP error.......:   2.7460183036212907e-09    2.7460183036212907e-09
 
 
 Number of objective function evaluations             = 12
@@ -383,13 +396,13 @@ Number of inequality constraint evaluations          = 0
 Number of equality constraint Jacobian evaluations   = 12
 Number of inequality constraint Jacobian evaluations = 0
 Number of Lagrangian Hessian evaluations             = 11
-Total seconds in IPOPT                               = 0.008
+Total seconds in IPOPT                               = 0.009
 
 EXIT: Optimal Solution Found.
 ```
 
 ### Performance tips
-Given a warmstart, we can also reduce the number of iterations by decreasing certain solver parameters via [`set_optimizer_attribute`](https://jump.dev/JuMP.jl/stable/api/JuMP/#set_optimizer_attribute).
+Given a warmstart, we can also reduce the number of iterations by decreasing certain solver options via [`set_optimizer_attribute`](https://jump.dev/JuMP.jl/stable/api/JuMP/#set_optimizer_attribute).
 ```jldoctest quick
 julia> set_optimizer_attribute(model, "bound_push", 1e-8); # Desired minimum distance from intial point to bounds
 
@@ -397,14 +410,14 @@ julia> set_optimizer_attribute(model, "bound_frac", 1e-8); # Desired minimum rel
 
 julia> set_optimizer_attribute(model, "mu_init", 1e-11); # Initial barrier parameter value
 ```
-Solving with these new solver parameters reduces the number of iterations to 7:
+Solving with these new solver parameters reduces the number of iterations to 8:
 ```jldoctest quick
 julia> optimize!(model)
 ```
 ```
 This is Ipopt version 3.14.19, running with linear solver MUMPS 5.8.1.
 
-Number of nonzeros in equality constraint Jacobian...:      969
+Number of nonzeros in equality constraint Jacobian...:      989
 Number of nonzeros in inequality constraint Jacobian.:        0
 Number of nonzeros in Lagrangian Hessian.............:      427
 
@@ -412,46 +425,52 @@ Total number of variables............................:      305
                      variables with only lower bounds:       61
                 variables with lower and upper bounds:      122
                      variables with only upper bounds:        0
-Total number of equality constraints.................:      274
+Total number of equality constraints.................:      285
 Total number of inequality constraints...............:        0
         inequality constraints with only lower bounds:        0
    inequality constraints with lower and upper bounds:        0
         inequality constraints with only upper bounds:        0
 
 iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
-   0  1.7342045e+01 5.78e+00 5.16e-02 -11.0 0.00e+00    -  0.00e+00 0.00e+00   0
-   1  1.5715639e+01 2.93e-01 8.03e-01 -11.0 2.10e+01    -  8.46e-01 1.00e+00f  1
-   2  3.8284002e+00 2.28e+00 5.74e-01 -11.0 9.30e+01    -  3.94e-01 1.00e+00f  1
-   3  3.8665095e+00 6.50e-03 5.07e-02 -11.0 6.11e+00    -  6.16e-01 1.00e+00h  1
-   4  1.9535736e+00 1.08e+00 5.00e-02 -11.0 7.90e+01    -  8.03e-08 8.47e-01f  1
-   5  1.9164656e+00 2.81e-02 2.96e-03 -11.0 8.23e+00    -  9.29e-01 1.00e+00h  1
-   6  1.9165046e+00 3.14e-06 2.47e-06 -11.0 1.30e-01    -  9.99e-01 1.00e+00h  1
-   7  1.9165046e+00 3.98e-12 1.05e-13 -11.0 1.37e-04    -  1.00e+00 1.00e+00h  1
+   0  1.7342046e+01 5.78e+00 1.45e+00 -11.0 0.00e+00    -  0.00e+00 0.00e+00   0
+   1  1.5717415e+01 2.93e-01 6.72e-01 -11.0 2.10e+01    -  8.46e-01 1.00e+00f  1
+   2  3.8283977e+00 2.28e+00 5.69e-01 -11.0 9.30e+01    -  3.94e-01 1.00e+00f  1
+   3  3.8665197e+00 6.46e-03 5.07e-02 -11.0 6.13e+00    -  6.15e-01 1.00e+00h  1
+   4  3.6493980e+00 4.97e-03 9.58e-02 -11.0 4.58e+00    -  9.45e-07 1.00e+00f  1
+   5  1.9537673e+00 9.30e-01 4.58e-02 -11.0 7.46e+01    -  6.12e-02 8.36e-01f  1
+   6  1.9164754e+00 2.85e-02 2.87e-03 -11.0 8.29e+00    -  9.28e-01 1.00e+00h  1
+   7  1.9165162e+00 2.77e-06 2.29e-06 -11.0 1.21e-01    -  9.99e-01 1.00e+00h  1
+   8  1.9165162e+00 3.04e-12 8.34e-14 -11.0 1.24e-04    -  1.00e+00 1.00e+00h  1
 
-Number of Iterations....: 7
+Number of Iterations....: 8
 
                                    (scaled)                 (unscaled)
-Objective...............:   1.9165045626427855e+00    1.9165045626427855e+00
-Dual infeasibility......:   1.0451206186354420e-13    1.0451206186354420e-13
-Constraint violation....:   3.9843683907747618e-12    3.9843683907747618e-12
+Objective...............:   1.9165161630626244e+00    1.9165161630626244e+00
+Dual infeasibility......:   8.3353452221015503e-14    8.3353452221015503e-14
+Constraint violation....:   3.0420110874729289e-12    3.0420110874729289e-12
 Variable bound violation:   3.4981688941115863e-06    3.4981688941115863e-06
-Complementarity.........:   1.4336253488765137e-11    1.4336253488765137e-11
-Overall NLP error.......:   1.4336253488765137e-11    1.4336253488765137e-11
+Complementarity.........:   1.3620439999832149e-11    1.3620439999832149e-11
+Overall NLP error.......:   1.3620439999832149e-11    1.3620439999832149e-11
 
 
-Number of objective function evaluations             = 8
-Number of objective gradient evaluations             = 8
-Number of equality constraint evaluations            = 8
+Number of objective function evaluations             = 9
+Number of objective gradient evaluations             = 9
+Number of equality constraint evaluations            = 9
 Number of inequality constraint evaluations          = 0
-Number of equality constraint Jacobian evaluations   = 8
+Number of equality constraint Jacobian evaluations   = 9
 Number of inequality constraint Jacobian evaluations = 0
-Number of Lagrangian Hessian evaluations             = 7
-Total seconds in IPOPT                               = 0.004
+Number of Lagrangian Hessian evaluations             = 8
+Total seconds in IPOPT                               = 0.005
 
-EXIT: Optimal Solution Found
+EXIT: Optimal Solution Found.
 ```
-!!! note
-    This tutorial assumes that the problem structure remains the same between consecutive solves (AKA no new variables or constraints are added to the problem).
+Alternatively, `InfiniteExaModels.jl` can be used with `NLPModelsIpopt.jl` to cut down on both model and automatic differentiation (AD) time. When initializing the model, we specify an `ExaTranscriptionBackend` which will transcribe the InfiniteOpt problem into an ExaModel that exploits recurrent structure for performance. (Make sure to install these packages before importing!)
+```julia
+julia> using InfiniteExaModels, NLPModelsIpopt
+
+julia> model = InfiniteModel(ExaTranscriptionBackend(NLPModelsIpopt.IpoptSolver));
+```
+From here, we follow the same steps as above to define and solve the problem.
 
 ## Model Predictive Control Script 
 The steps outlined in the sections above can be captured in a loop. This is summarized in the script below:
@@ -473,11 +492,11 @@ init = [0.9, 305, 300]  # Initial conditions
 Ca_k, T_k = init[1:2]
 
 # DEFINE MPC PARAMETERS
+t0 = 0        # Initial simulation time
+tf = 2        # Final simulation time
 Δt = 0.1      # Control interval
 Dt = 3        # Prediction horizon
 Dc = 2.5      # Control horizon
-t0 = 0        # Initial simulation time
-tf = 2       # Final simulation time
 t_vals = collect(t0:Δt:tf)
 
 # INITIALIZE RELEVANT FUNCTIONS
@@ -538,7 +557,7 @@ end)
 @constraint(model, ∂(Ca, t) == (F * (cf - Ca) - V * rate)/V)
 @constraint(model, ∂(T, t) == (1/(rho * cp * V)) * (F * rho * cp * (Tf - T) + V * Hr * rate + Ua * (Tc - T)))
 
-# SET THE CONTROL HORIZON
+# SET THE CONTROL HORIZON CONSTRAINT
 controlFunc(t_c) = (Dc ≤ t_c ≤ Dt)
 controlDomain = DomainRestriction(controlFunc, t)
 @constraint(model, Tc == Tc(Dc), controlDomain)
@@ -579,7 +598,7 @@ end
 
 ## GPU-Accelerated Re-solves
 ### Software Setup
-We can also do re-solves on GPUs. First, we'll need to ensure the following packages are installed:
+We can further improve re-solve performance with GPU acceleration! First, we'll need to ensure the following packages are installed:
 - `InfiniteExaModels.jl`
 - `MadNLP.jl`
 - `CUDA.jl`
@@ -590,7 +609,7 @@ We can also do re-solves on GPUs. First, we'll need to ensure the following pack
 ### Problem setup
 Now, we'll need to initialize our model with an `ExaTranscriptionBackend` that employs a `CUDABackend`. This will transcribe the InfiniteOpt problem into an ExaModel that is GPU compatible. We'll also use the `MadNLPGPU` module from `MadNLP.jl` for solving.
 ```julia
-julia> using InfiniteExaModels, InfiniteExaModels, MadNLPGPU, CUDA
+julia> using InfiniteExaModels, MadNLPGPU, CUDA
 
 julia> model = InfiniteModel(ExaTranscriptionBackend(MadNLPSolver, backend = CUDABackend()));
 ```
@@ -598,130 +617,11 @@ Since we'll be indexing `Tc` for the optimal control input, we'll also need to s
 ```julia
 julia> CUDA.allowscalar(true);
 ```
-
-That's it for the GPU setup! From here, we can follow the same steps as above to formulate our problem.
-
-### Model Predictive Control Script
-The GPU version of the MPC script is given below:
-```julia
-using InfiniteOpt, InfiniteExaModels, MadNLPGPU, CUDA, DifferentialEquations
-
-# DEFINE THE PROBLEM CONSTANTS
-F = 100       # m³/s
-V = 100       # m³
-rho = 1000      # kg/m³
-cp = 0.239    # J/kg K
-Hr = 5e4       # Heat of reaction J/mol
-E = 8750     # E/R K
-k₀ = 7.2e10   # Pre-exponential factor 1/s
-Ua = 5e4      # Heat transfer coefficient J/s K
-cf = 1.0     # Feed concentration mol/m³
-Tf = 350     # Feed temperature K
-init = [0.9, 305, 300]  # Initial conditions
-Ca_k, T_k = init[1:2]
-
-# DEFINE MPC PARAMETERS
-Δt = 0.1      # Control interval
-Dt = 3        # Prediction horizon
-Dc = 2.5      # Control horizon
-t0 = 0        # Initial simulation time
-tf = 2       # Final simulation time
-t_vals = collect(t0:Δt:tf)
-
-# INITIALIZE RELEVANT FUNCTIONS
-function setpoint(t, offset)
-    t += offset
-    if t < 0.7
-        return 310
-    elseif t < 1.3
-        return 323
-    else
-        return 318
-    end
-end
-
-function cstrDynamics!(dx, x, p, t)
-    Ca, T, Tc = x
-    k = k₀ * exp(-E/T)
-    rate = k * Ca
-    dx[1] = F/V * (cf - Ca) - V * rate
-    dx[2] = (1/(rho * cp * V)) * (F * rho * cp * (Tf - T) + V * Hr * rate + Ua * (Tc - T))
-end
-
-function cstrSim(x0, tspan)
-    prob = ODEProblem(cstrDynamics!, x0, tspan)
-    sol = solve(prob, Tsit5(), reltol=1e-6, abstol=1e-8)
-    xsol = sol.u[end]
-    return xsol
-end
-
-# INITIALIZE THE MODEL
-model = InfiniteModel(ExaTranscriptionBackend(MadNLPSolver, backend = CUDABackend()))
-CUDA.allowscalar(true)
-
-# INITIALIZE THE PARAMETERS
-@infinite_parameter(model, t ∈ [0, Dt],
-                supports = collect(0:Δt:Dt),
-                derivative_method = OrthogonalCollocation(3))
-@finite_parameter(model, Ca0 == init[1])
-@finite_parameter(model, T0 == init[2])
-@parameter_function(model, Tsp == t -> setpoint(t, 0))
-
-# INITIALIZE THE VARIABLES
-@variables(model, begin
-    0 ≤ Ca, Infinite(t), (start = init[1])
-    273.15 ≤ T ≤ 400, Infinite(t), (start = init[2])
-    250 ≤ Tc ≤ 350, Infinite(t), (start = init[3])
-end)
-
-# SET THE OBJECTIVE
-@objective(model, Min, ∫((T - Tsp)^2, t))
-
-# SET THE INITIAL CONDITIONS
-@constraint(model, initialCa, Ca(0) == Ca0)
-@constraint(model, initialT, T(0) == T0)
-
-# SET THE PROBLEM CONSTRAINTS
-@expression(model, k, k₀ * exp(-E/T))
-@expression(model, rate, k * Ca)
-@constraint(model, ∂(Ca, t) == (F * (cf - Ca) - V * rate)/V)
-@constraint(model, ∂(T, t) == (1/(rho * cp * V)) * (F * rho * cp * (Tf - T) + V * Hr * rate + Ua * (Tc - T)))
-
-# SET THE CONTROL HORIZON
-controlFunc(t_c) = (Dc ≤ t_c ≤ Dt)
-controlDomain = DomainRestriction(controlFunc, t)
-@constraint(model, Tc == Tc(Dc), controlDomain)
-
-# ADJUST DEGREES OF FREEDOM FOR CONTROL VARIABLES
-constant_over_collocation.(Tc, t)
-
-# MPC LOOP
-for i in eachindex(t_vals)
-    # SOLVE THE MODEL
-    optimize!(model)
-
-    # GET THE OPTIMAL INPUT
-    Tc_opt = value.(Tc)[2]
-    
-    # SIMULATE SYSTEM FORWARD
-    tk = t_vals[i]  # Offset
-    tspan = (tk, tk + Δt)
-    xk = [Ca_k, T_k, Tc_opt]
-    xsol = cstrSim(xk, tspan)
-    global Ca_k, T_k = xsol[1:2]
-
-    # WARMSTART MODEL FOR NEXT SOLVE
-    warmstart_backend_start_values(model)
-
-    # UPDATE PARAMETERS
-    set_parameter_value(Ca0, Ca_k)
-    set_parameter_value(T0, T_k)
-    newTsp = (t) -> setpoint(t, tk + Δt)
-    set_parameter_value(Tsp, newTsp)
-
-    # ADJUST SOLVER PARAMETERS
-    set_optimizer_attribute(model, "mu_init", 2e-2)
-end
+We can also change solver options for more efficiency.
 ```
+julia> set_optimizer_attribute(model, "mu_init", 2E-2)
+```
+That's all we need to change for the GPU setup! From here, we follow the same steps as above to formulate our problem.
+
 !!! note
     Although `MadNLP.jl` does support `bound_push` and `bound_fac` as options, they currently do not have an effect in re-solves.
