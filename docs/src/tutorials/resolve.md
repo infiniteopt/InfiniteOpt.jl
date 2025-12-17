@@ -48,7 +48,7 @@ Before moving on, we'll need to define the necessary constants and problem
 parameters. We'll define the following in our 
 Julia session (these could also be put into a script as shown later on):
 ```jldoctest quick
-julia> Δt = 0.1; t0 = 0, tf = 2;   # set MPC simulation parameters
+julia> Δt = 0.1; t0 = 0; tf = 2;   # set MPC simulation parameters
 
 julia> Dt = 3; Dc = 2.5; # set time domain parameters 
 
