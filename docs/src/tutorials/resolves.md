@@ -3,63 +3,74 @@ DocTestFilters = [r"≤|<=", r" == | = ", r" ∈ | in ", r" for all | ∀ ", r"d
                   r"E|𝔼", r"integral|∫"]
 ```
 
-# Re-solve Guide
-There are situations where one may want to re-solve problems defined in `InfiniteOpt`, such as in model predictive control. InfiniteOpt's re-solve framework facilitates this through a persistent solver interface and model backend, avoiding the need to build them again for each re-solve.
+# Re-solve Tutorial
+There are settings where one may want to repeatedly solve problems defined in `InfiniteOpt`, such as in model predictive control. To support this, `InfiniteOpt` provides a re-solve framework that enables model updates between solves without rebuilding the backend or reinitializing the solver. This is facilitated through the following APIs:
 
-Below, we show how to do efficient re-solves via model predictive control of a continuous stirred tank reactor (CSTR). Please refer to the 
-Guide for more complete information on modeling a stand-alone problem.
+- [`set_parameter_value`](@ref) for updating parameters and parameter functions
+- [`warmstart_backend_start_values`](@ref) for warmstarting the backend using a previous solution
+
+As a result, we get a persistent backend and solver instance across subsequent solves, reducing initialization overhead and improving performance.
+
+Below, we demonstrate how to do efficient re-solves via model predictive control of a continuous stirred tank reactor (CSTR). For re-solving on GPUs, see the [InfiniteExaModels](@ref examodels_solves) section.
 
 ## Preliminaries 
 ### Software Setup
 First, we need to make sure everything is installed. This will include:
 - installing Julia 
-- installing the `InfiniteOpt.jl`, `JuMP.jl`, and `DifferentialEquations.jl` packages
+- installing `InfiniteOpt.jl`
+- installing `DifferentialEquations.jl` to simulate our system via an ODE problem
 - installing wanted optimizers e.g., `Ipopt.jl`
 See [Installation](@ref) for more information.
 
 ### Problem Formulation
-We formulate a model predictive control (MPC) problem over a total simulation domain ``D_{sim} := [t_0, t_f]``, consisting of ``N_{sim}`` control steps with control interval ``\Delta t``. Note here, an optimal control problem ``\mathcal{P}`` is being repeatedly solved at each control step ``t_k``, setting up the stage for re-solves.
+Consider a model predictive control (MPC) problem over a time domain ``D_{mpc} = [t_{0}, t_{f}]``, consisting of ``N_{mpc}`` control steps with a control interval of ``\Delta t``. At each control step ``t_k`` for ``k \in \{1, 2, ..., N_{mpc}\}``, an optimal control problem is solved to predict system behavior and determine the optimal input for the next control step. As such, this sets up the stage for optimal control re-solves. See below for a diagram of the MPC workflow:
+
+![mpc](../assets/mpc_diagram.png)
+
+We define our optimal control problem over the prediction horizon ``\mathcal{D_p} = [0, t_p]``, where the objective is set to track a setpoint ``T_{sp}(t)``. We also define the control horizon ``\mathcal{D_c} = [0, t_c]``, where ``t_c \leq t_p``, representing the subset of ``\mathcal{D_p}`` over which the control input is allowed to vary. Here is the full optimal control formulation:
 ```math
 \begin{aligned}
-MPC = \mathcal{P(t_k)}_{k = 0}^{N_{sim}} \quad \quad N_{sim} = \frac{t_f - t_0}{\Delta t} + 1
+	&&\underset{C_A(t), T(t), T_c(t)}{\text{min}} &&& \int_{t \in \mathcal{D_p}} (T(t) - T_{sp}(t))^2 dt\\
+	&&\text{s.t.} &&& C_a(0) = C_{A}(t_k)\\
+    &&&&& T(0) = T(t_k)\\
+    &&&&& k = k_0 \exp\left(\frac{-E_R}{T(t)}\right), & \forall t \in \mathcal{D_p}\\
+    &&&&& r_A = kC_A(t),& \forall t \in \mathcal{D_p}\\
+	&&&&& \frac{\partial C_A(t)}{\partial t} = \frac{F(C_f - C_A(t)) - Vr_A}{V}, & \forall t \in \mathcal{D_p}\\
+    &&&&& \frac{\partial T(t)}{\partial t} = \frac{F\rho c_p(T_f - T(t)) + r_AH_RV + U_A(T_c(t) - T(t))}{\rho c_p V}, & \forall t \in \mathcal{D_p}\\
+    &&&&& T_c(t) = T_c(t_c), & \forall t \in \mathcal{D_p} \setminus \mathcal{D_c}\\
+    &&&&& C_A(t) \geq 0\\
+    &&&&& 273.15 \leq T(t) \leq 400\\
+    &&&&& 250 \leq T_c(t) \leq 350\\
 \end{aligned}
 ```
+Here, our state variables are concentration ``C_A(t)`` and reactor temperature ``T(t)``, while the control input is the jacket temperature ``T_c(t)``. There is also a constraint to keep input ``T_c(t)`` constant beyond the control horizon ``D_c``. Overall, this results in a dynamic model based on time ``t``.
 
-For this tutorial, we define the optimal control problem ``\mathcal{P(t_k)}`` as follows:
-```math
-\begin{aligned}
-	&&\underset{C_A(t), T(t), T_c(t)}{\text{min}} &&& \int_{0}^{\mathcal{D_t}} (T(t) - T_{sp}(t))^2 dt\\
-	&&\text{s.t.} &&& C_a(0) = C_{A}(t_k),\\
-    &&&&& T(0) = T(t_k),\\
-    &&&&& k = k_0 \exp\left(\frac{-E_R}{T(t)}\right),\\
-    &&&&& r_A = kC_A(t),\\
-	&&&&& \frac{\partial C_A(t)}{\partial t} = \frac{F(C_f - C_A(t)) - Vr_A}{V},\\
-    &&&&& \frac{\partial T(t)}{\partial t} = \frac{F\rho c_p(T_f - T(t)) + r_AH_RV + U_A(T_c(t) - T(t))}{\rho c_p V},\\
-    &&&&& T_c(t) = T_c(D_c) \quad \forall t \in D_t \geq D_c ,\\
-    &&&&& C_A(t) \geq 0,\\
-    &&&&& 273.15 \leq T(t) \leq 400,\\
-    &&&&& 250 \leq T_c(t) \leq 350,\\
-\end{aligned}
-```
-Here, the objective is set to track the setpoint ``T_{sp}(t)``. Our state variables are concentration ``C_A(t)`` and reactor temperature ``T(t)``, while the control input is the jacket temperature ``T_c(t)``. There is also a constraint to keep input ``T_c(t)`` constant beyond the control domain ``D_c``. Overall, this results in a dynamic model based on time ``t`` over the prediction horizon ``\mathcal{D_t}``.
-
-## Parameter Specification
+## Problem setup
+### Parameter specification
 Before moving on, we'll need to define the necessary constants and problem 
 parameters. We'll define the following in our 
 Julia session (these could also be put into a script as shown later on):
 ```jldoctest quick
-julia> Δt = 0.1; t0 = 0; tf = 2;   # set MPC simulation parameters
+julia> Δt = 0.1; t0 = 0; tf = 2; tp = 3; tc = 2.5; # set MPC simulation parameters
 
-julia> Dt = 3; Dc = 2.5; # set time domain parameters 
+julia> Dmpc = t0:Δt:tf; Dp = 0:Δt:tp; # set problem domains
 
-julia> init = [0.9, 305, 300]; # set the initial conditions
+julia> states = [0.9, 305]; # set the initial conditions for state
 
-julia> p = [100, 100, 1000, 0.239, 5e4, 8750, 7.2e10, 5e4, 1.0, 350]; # set the problem parameters
-
-julia> F, V, rho, cp, Hr, E, k₀, Ua, cf, Tf = p; # assign variables to each parameter
+julia> F, V, rho, cp, Hr, E, k₀, Ua, cf, Tf = [100, 100, 1000, 0.239, 5e4, 8750, 7.2e10, 5e4, 1.0, 350]; # set the problem parameters
 ```
 
-We'll also define a function for the temperature setpoint:
+We'll also create a function for our temperature setpoint ``T_{sp}(t)``, which is defined below:
+```math
+T_{sp}(t) = 
+\left\{
+\begin{aligned}
+&& 310, & \quad t_0 \leq t < 0.7 \\
+&& 323, & \quad 0.7 \leq t < 1.3 \\
+&& 318, & \quad 1.3 \leq t \leq t_f \\
+\end{aligned}
+\right.
+```
 ```jldoctest quick
 julia> function setpoint(t, offset)
         t += offset
@@ -74,10 +85,8 @@ julia> function setpoint(t, offset)
 ```
 Note that an `offset` argument is added to ensure the setpoint function returns accurate values depending on what control step ``t_k`` the problem is posed at. 
 
-## Optimal Control Problem
-### Model Initialization 
-First, we'll initialize our `InfiniteModel` and assign an 
-appropriate optimizer that will be used to solve its transcripted variant. Here, let's choose to use Ipopt:
+### Problem model 
+From here, we'll initialize our `InfiniteModel`, using Ipopt as the optimizer:
 ```jldoctest quick
 julia> using InfiniteOpt, Ipopt;
 
@@ -94,98 +103,36 @@ Transformation backend information:
   Solver: Ipopt
   Transformation built and up-to-date: false
 ```
-Note that `update_parameter_functions` is set to true to enable setpoint function updates for ``T_{sp}(t)`` later on. Learn more about `InfiniteModel`s and optimizers on our 
-[Infinite Models](@ref infinite_model_docs) page.
+Note that we also set the keyword argument `update_parameter_functions = true`. This is only necessary if you plan on updating parameter functions while working with `TranscriptionBackend`s. In this case, we will need it to update our setpoint function ``T_{sp}(t)``. Learn more about `TranscriptionBackend`s on our 
+[Model Transcription](@ref transcription_docs) page.
 
-Before moving on, let's make finite parameters via [`@finite_parameter`](@ref) 
-to represent initial conditions for ``C_A`` and ``T`` since we'll want to update them between solves: 
+Continuing on, we define our InfiniteOpt problem as normal:
 ```jldoctest quick
-julia> @finite_parameter(model, Ca0 == init[1]);
+julia> @finite_parameter(model, Ca0 == states[1]);
 
-julia> @finite_parameter(model, T0 == init[2]);
-```
-Learn more about finite parameters on our [Finite Parameters](@ref finite_param_docs) 
-page.
+julia> @finite_parameter(model, T0 == states[2]);
 
-### Infinite Parameters 
-The next thing we need to do is identify the infinite domain for our problem 
-and define an infinite parameter for it via [`@infinite_parameter`](@ref). For 
-this problem, we have the time domain ``t \in \mathcal{D}_t``:
-```jldoctest quick
-julia> @infinite_parameter(model, t in [0, Dt], supports = collect(0:Δt:Dt), 
+julia> @infinite_parameter(model, t in [0, tp], supports = collect(Dp), 
                            derivative_method = OrthogonalCollocation(3));
-```
-We specify the domain the parameter depends on via `in`.
-Here, we directly provide the supports
-that will be used to reformulate and solve the problem (i.e., discretize).
-We also specify the derivative evaluation method associated with `t` that will be 
-used to evaluate the derivatives numerically. See more information about parameters 
-on our [Infinite Parameters](@ref inf_par_docs) page. Also learn more about 
-derivative methods on our [Derivative Operators](@ref deriv_docs) page.
 
-### Variables 
-Now that we have an `InfiniteModel` with infinite parameters, let's define our 
-decision variables. First, infinite variables (ones that depend on infinite 
-parameters) are defined via 
-[`@variable`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.@variable) 
-with the addition of the [`Infinite`](@ref) variable type argument to specify the 
-infinite parameters it depends on:
- ```jldoctest quick
-julia> @variable(model, 0 ≤ Ca, Infinite(t), start = init[1])
-Ca(t)
+julia> @variable(model, 0 ≤ Ca, Infinite(t), start = states[1]);
 
-julia> @variable(model, 273.15 ≤ T ≤ 400, Infinite(t), start = init[2])
-T(t)
+julia> @variable(model, 273.15 ≤ T ≤ 400, Infinite(t), start = states[2]);
 
-julia> @variable(model, 250 ≤ Tc ≤ 350, Infinite(t), start = init[3])
-Tc(t)
-```
-Notice that we specify the initial guess for all of them via `start`, which are the same as the initial conditions in this case. We can also symbolically define variable bounds in the same line.
+julia> @variable(model, 250 ≤ Tc ≤ 350, Infinite(t), start = 300);
 
-We'll also define a parameter function for the setpoint via [`@parameter_function`](@ref):
-```jldoctest quick
 julia> @parameter_function(model, Tsp == t -> setpoint(t, tk))
 Tsp(t)
-```
-For more information, please see the [Parameter Function](@ref par_func_docs) page.
 
-That's it for this example, but other problems might also employ the following:
-- Finite variables: variables that do not depend on infinite parameters 
-  (defined using `@variable`)
-- Semi-infinite variables: infinite variables where 1 or more parameters are 
-  set a particular point (defined via [Restricted Variables](@ref)).
-- Point variables: infinite variables at a particular point (defined via [Restricted Variables](@ref)).
-
-### Objective & Constraints 
-Now that the variables and parameters are ready to go, let's define our problem. 
-We can define the objective using 
-[`@objective`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.@objective):
- ```jldoctest quick
 julia> @objective(model, Min, integral((T - Tsp)^2, t))
 ∫{t ∈ [0, 3]}[T(t)² - 2 Tsp(t)*T(t) + Tsp(t)²]
-```
-Here, we employ [`integral`](@ref) to define the integral. Note that 
-objectives must evaluate over all included infinite domains. 
 
-Now let's define the initial conditions using 
-[`@constraint`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.@constraint) 
-in combination with [Restricted Variables](@ref) which will restrict the domain 
-of the variables to only be enforced at the initial time:
- ```jldoctest quick
 julia> @constraint(model, Ca(0) == Ca0)
 Ca(0) - Ca0 = 0
 
 julia> @constraint(model, T(0) == T0)
 T(0) - T0 = 0
-```
-Note that it is important that we include appropriate boundary conditions when using 
-derivatives in our model. For more information, please see 
-[Derivative Operators](@ref deriv_docs).
 
-Next, we add our model constraints that have derivatives using 
-[`@constraint`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.@constraint) 
-and [`deriv`](@ref):
- ```jldoctest quick
 julia> @expression(model, k, k₀ * exp(-E/T))
 7.2e10 * exp(-8750.0 / T(t))
 
@@ -197,26 +144,22 @@ julia> @constraint(model, deriv(Ca, t) == (F*(cf - Ca) - V*rate)/V);
 julia> @constraint(model, deriv(T, t) == (1/(rho * cp * V)) * (F * rho * cp * (Tf - T) + V * Hr * rate + Ua * (Tc - T)));
 ```
 
-We can also use [`DomainRestriction`](@ref) to add a constraint for the control horizon.
+To add a constraint for the control horizon, we can use [`DomainRestriction`](@ref).
  ```jldoctest quick
-julia> controlFunc(t_c) = (Dc ≤ t_c ≤ Dt); # Function for domain values
+julia> control_func(t_c) = (tc ≤ t_c ≤ tp); # Function for domain values
 
-julia> controlDomain = DomainRestriction(controlFunc, t);   # Create domain restriction for infinite parameter t
+julia> control_domain = DomainRestriction(control_func, t);   # Create domain restriction for infinite parameter t
 
-julia> @constraint(model, Tc == Tc(Dc), controlDomain);  # Add constraint defined on restricted domain
+julia> @constraint(model, Tc == Tc(tc), control_domain);  # Add constraint defined on restricted domain
 ```
 
-Finally, to address any unwanted degrees of freedom introduced by internal collocation 
-nodes with [`OrthogonalCollocation`](@ref). We should call [`constant_over_collocation`](@ref constant_over_collocation(::InfiniteVariableRef, ::GeneralVariableRef)) 
-on any control variables:
+We also call [`constant_over_collocation`](@ref constant_over_collocation(::InfiniteVariableRef, ::GeneralVariableRef)) 
+on our control variable `Tc` to address any unwanted degrees of freedom introduced by internal collocation 
+nodes from [`OrthogonalCollocation`](@ref):
 ```jldoctest quick
 julia> constant_over_collocation.(Tc, t);
 ``` 
-That's it, now we have our problem defined in `InfiniteOpt`!
-
-## Solution & Queries
-### Optimize 
-Now that our model is defined, let's optimize it via [`optimize!`](@ref):
+That's it for defining our `InfiniteOpt` problem! Now, let's solve via [`optimize!`](@ref):
 ```jldoctest quick; setup = :(set_attribute(model, "print_level", 0))
 julia> tk = 0;   # Offset for first control step
 
@@ -278,17 +221,17 @@ EXIT: Optimal Solution Found.
 ```
 As shown in the solver output, we've converged in 11 iterations!
 
-### Simulate the system
-Now that we've solved the optimal control problem, we'll extract the input for the next control step. This can be done via
-[`value`](@ref JuMP.value(::GeneralVariableRef)):
+### Simulating the system
+Now we'll extract the input for the next control step via
+[`value`](@ref JuMP.value(::GeneralVariableRef)), which will be used to simulate the system forward:
 ```jldoctest quick
 julia> Tc_opt = value.(Tc)[2];
 ```
-Next, the optimal input is used to simulate the system forward. Here, we choose to set up an ODE problem via `DifferentialEquations.jl`. Start by creating a function for the CSTR dynamics:
+To simulate our system, we choose to set up an ODE problem via `DifferentialEquations.jl`. Start by creating a function for the CSTR dynamics:
 ```jldoctest quick
 julia> using DifferentialEquations
 
-julia> function cstrDynamics!(dx, x, p, t)
+julia> function cstr_dynamics!(dx, x, p, t)
         Ca, T, Tc = x
         k = k₀ * exp(-E/T)
         rate = k * Ca
@@ -298,51 +241,54 @@ julia> function cstrDynamics!(dx, x, p, t)
 ```
 Then create a function that solves the ODE problem and returns the updated state:
 ```jldoctest quick
-julia> function cstrSim(x0, tspan)
-        prob = ODEProblem(cstrDynamics!, x0, tspan)
+julia> function cstr_sim(x0, tspan)
+        prob = ODEProblem(cstr_dynamics!, x0, tspan)
         sol = solve(prob, Tsit5(), reltol=1e-6, abstol=1e-8)
         xsol = sol.u[end]
         return xsol
         end;
 ```
-Now let's simulate the system forward!
+Now we simulate the system forward to get our updated states. These will become the initial conditions for the next optimal control solve.
 ```jldoctest quick
 julia> tspan = (tk, tk + Δt); # Timespan to integrate over
 
-julia> xk = [init[1], init[2], Tc_opt];  # Current state + input
+julia> xk = [states..., Tc_opt];  # Current state + input
 
-julia> xsol = cstrSim(xk, tspan);    # Integrate the ODE problem
+julia> xsol = cstr_sim(xk, tspan);    # Integrate the ODE problem
 
-julia> Ca_opt, T_opt = xsol[1:2];    # Obtain updated states
+julia> states[1:2] = xsol[1:2];       # Obtain updated states
 ```
-Note that the updated states `Ca_opt` and `T_opt` will become the initial conditions for the next optimal control solve.
 
 ## Re-solves
 ### Updating the model
-Now we need to update our model for the next solve. First, we update some parameters accordingly:
+Now we need to update our model for the next solve. First, we update our control step accordingly:
 ```jldoctest quick
-julia> tk += Δt;     # Updated offset for the next control step
+julia> tk += Δt;
 ```
-We'll then update the initial guesses in the model using the previous solution via [`warmstart_backend_start_values`](@ref).
+We then update the start values via [`warmstart_backend_start_values`](@ref). This will use the previous solution to warmstart all possible variables (e.g., primal, dual, etc...).
 ```jldoctest quick
 julia> warmstart_backend_start_values(model);
 ```
+!!! note
+    This will only update the start values in the backend.
+    The start values in the `InfiniteModel` will remain the same.
+
 We'll also update the initial condition parameters using [`set_parameter_value`](@ref).
 ```jldoctest quick
-julia> set_parameter_value(Ca0, Ca_opt);
+julia> set_parameter_value(Ca0, states[1]);
 
-julia> set_parameter_value(T0, T_opt);
+julia> set_parameter_value(T0, states[2]);
 ```
-Lastly, we'll need to update the setpoint parameter function, which can also be done via [`set_parameter_value`](@ref). In this case, we'll need to create a new function with an updated offset value.
+Lastly, we'll need to update the setpoint parameter function, which can also be done via [`set_parameter_value`](@ref). We'll create a new function `Tsp_new` with an updated offset value for the new control step. Then we can update `Tsp` with `Tsp_new`.
 ```jldoctest quick
-julia> newTsp = (t) -> setpoint(t, tk);
+julia> Tsp_new = (t) -> setpoint(t, tk);
 
-julia> set_parameter_value(Tsp, newTsp);
+julia> set_parameter_value(Tsp, Tsp_new);
 ```
-!!! warning
-    The framework's efficiency is based on the idea that the problem structure remains the same between consecutive solves (AKA no new variables or constraints are added). If changing the structure or using APIs other than `warmstart_backend_start_values` or `set_parameter_value` for updating, then a new backend and solver instance must be made from scratch.
+!!! note
+    The new function must have the same infinite parameter format as the original parameter function.
 
-Now we can solve our updated model! 
+Now we can call `optimize!` again to solve our updated model! 
 ```jldoctest quick
 julia> optimize!(model)
 ```
@@ -400,9 +346,12 @@ Total seconds in IPOPT                               = 0.009
 
 EXIT: Optimal Solution Found.
 ```
+!!! warning
+    The re-solve framework's efficiency is based on the idea that the problem structure remains the same between solves (AKA no new variables or constraints are added).
+    If changing the structure or using APIs other than `warmstart_backend_start_values` or `set_parameter_value` for updating, then a new backend and solver instance will be made from scratch.
 
-### Performance tips
-Given a warmstart, we can also reduce the number of iterations by decreasing certain solver options via [`set_optimizer_attribute`](https://jump.dev/JuMP.jl/stable/api/JuMP/#set_optimizer_attribute).
+### [Performance tips](@id resolve_performance)
+Given a warmstart, we can also reduce the number of iterations by decreasing certain solver options via [`set_optimizer_attribute`](https://jump.dev/JuMP.jl/stable/api/JuMP/#set_optimizer_attribute). Here, `bound_push` and `bound_frac` are solver options that determine how much the initial point might have to be adjusted to be sufficiently inside the problem bounds. Since our warmstart is presumably close to the actual solution, we can decrease both values for better performance. We can also decrease the initial barrier parameter `mu_init` for the same reason.
 ```jldoctest quick
 julia> set_optimizer_attribute(model, "bound_push", 1e-8); # Desired minimum distance from intial point to bounds
 
@@ -410,7 +359,7 @@ julia> set_optimizer_attribute(model, "bound_frac", 1e-8); # Desired minimum rel
 
 julia> set_optimizer_attribute(model, "mu_init", 1e-11); # Initial barrier parameter value
 ```
-Solving with these new solver parameters reduces the number of iterations to 8:
+Note that the chosen values here are not always good, as optimal values are problem dependent. Moving on, solving with these new solver options reduces the number of iterations to 8:
 ```jldoctest quick
 julia> optimize!(model)
 ```
@@ -464,40 +413,34 @@ Total seconds in IPOPT                               = 0.005
 
 EXIT: Optimal Solution Found.
 ```
-Alternatively, `InfiniteExaModels.jl` can be used with `NLPModelsIpopt.jl` to cut down on both model and automatic differentiation (AD) time. When initializing the model, we specify an `ExaTranscriptionBackend` which will transcribe the InfiniteOpt problem into an ExaModel that exploits recurrent structure for performance. (Make sure to install these packages before importing!)
-```julia
-julia> using InfiniteExaModels, NLPModelsIpopt
-
-julia> model = InfiniteModel(ExaTranscriptionBackend(NLPModelsIpopt.IpoptSolver));
-```
-From here, we follow the same steps as above to define and solve the problem.
 
 ## Model Predictive Control Script 
-The steps outlined in the sections above can be captured in a loop. This is summarized in the script below:
+The steps outlined in the sections above can be captured in an MPC loop. This is summarized in the script below:
 ```julia
 using InfiniteOpt, Ipopt, DifferentialEquations
 
 # DEFINE THE PROBLEM CONSTANTS
 F = 100       # m³/s
 V = 100       # m³
-rho = 1000      # kg/m³
+rho = 1000    # kg/m³
 cp = 0.239    # J/kg K
-Hr = 5e4       # Heat of reaction J/mol
-E = 8750     # E/R K
+Hr = 5e4      # Heat of reaction J/mol
+E = 8750      # E/R K
 k₀ = 7.2e10   # Pre-exponential factor 1/s
 Ua = 5e4      # Heat transfer coefficient J/s K
-cf = 1.0     # Feed concentration mol/m³
-Tf = 350     # Feed temperature K
-init = [0.9, 305, 300]  # Initial conditions
-Ca_k, T_k = init[1:2]
+cf = 1.0      # Feed concentration mol/m³
+Tf = 350      # Feed temperature K
+states = [0.9, 305]  # Initial conditions
 
 # DEFINE MPC PARAMETERS
-t0 = 0        # Initial simulation time
-tf = 2        # Final simulation time
-Δt = 0.1      # Control interval
-Dt = 3        # Prediction horizon
-Dc = 2.5      # Control horizon
-t_vals = collect(t0:Δt:tf)
+t0 = 0            # Initial simulation time
+tf = 2            # Final simulation time
+Δt = 0.1          # Control interval
+tp = 3            # Prediction endpoint
+tc = 2.5          # Control endpoint
+Dmpc = t0:Δt:tf   # MPC Simulation domain
+Dp = 0:Δt:tp      # Prediction horizon
+Dc = 0:Δt:tc      # Control horizon
 
 # INITIALIZE RELEVANT FUNCTIONS
 function setpoint(t, offset)
@@ -511,7 +454,7 @@ function setpoint(t, offset)
     end
 end
 
-function cstrDynamics!(dx, x, p, t)
+function cstr_dynamics!(dx, x, p, t)
     Ca, T, Tc = x
     k = k₀ * exp(-E/T)
     rate = k * Ca
@@ -519,8 +462,8 @@ function cstrDynamics!(dx, x, p, t)
     dx[2] = (1/(rho * cp * V)) * (F * rho * cp * (Tf - T) + V * Hr * rate + Ua * (Tc - T))
 end
 
-function cstrSim(x0, tspan)
-    prob = ODEProblem(cstrDynamics!, x0, tspan)
+function cstr_sim(x0, tspan)
+    prob = ODEProblem(cstr_dynamics!, x0, tspan)
     sol = solve(prob, Tsit5(), reltol=1e-6, abstol=1e-8)
     xsol = sol.u[end]
     return xsol
@@ -529,19 +472,19 @@ end
 # INITIALIZE THE MODEL
 model = InfiniteModel(TranscriptionBackend(Ipopt.Optimizer, update_parameter_functions = true))
 
-# INITIALIZE THE PARAMETERS
-@infinite_parameter(model, t ∈ [0, Dt],
-                supports = collect(0:Δt:Dt),
+# INITIALIZE PARAMETERS & PARAMETER FUNCTIONS
+@infinite_parameter(model, t ∈ [0, tp],
+                supports = collect(Dp),
                 derivative_method = OrthogonalCollocation(3))
-@finite_parameter(model, Ca0 == init[1])
-@finite_parameter(model, T0 == init[2])
+@finite_parameter(model, Ca0 == states[1])
+@finite_parameter(model, T0 == states[2])
 @parameter_function(model, Tsp == t -> setpoint(t, 0))
 
 # INITIALIZE THE VARIABLES
 @variables(model, begin
-    0 ≤ Ca, Infinite(t), (start = init[1])
-    273.15 ≤ T ≤ 400, Infinite(t), (start = init[2])
-    250 ≤ Tc ≤ 350, Infinite(t), (start = init[3])
+    0 ≤ Ca, Infinite(t), (start = states[1])
+    273.15 ≤ T ≤ 400, Infinite(t), (start = states[2])
+    250 ≤ Tc ≤ 350, Infinite(t), (start = 300)
 end)
 
 # SET THE OBJECTIVE
@@ -558,15 +501,15 @@ end)
 @constraint(model, ∂(T, t) == (1/(rho * cp * V)) * (F * rho * cp * (Tf - T) + V * Hr * rate + Ua * (Tc - T)))
 
 # SET THE CONTROL HORIZON CONSTRAINT
-controlFunc(t_c) = (Dc ≤ t_c ≤ Dt)
-controlDomain = DomainRestriction(controlFunc, t)
-@constraint(model, Tc == Tc(Dc), controlDomain)
+control_func(t_c) = (tc ≤ t_c ≤ tp)
+control_domain = DomainRestriction(control_func, t)
+@constraint(model, Tc == Tc(tc), control_domain)
 
 # ADJUST DEGREES OF FREEDOM FOR CONTROL VARIABLES
 constant_over_collocation.(Tc, t)
 
 # MPC LOOP
-for i in eachindex(t_vals)
+for tk in Dmpc
     # SOLVE THE MODEL
     optimize!(model)
 
@@ -574,20 +517,19 @@ for i in eachindex(t_vals)
     Tc_opt = value.(Tc)[2]
     
     # SIMULATE SYSTEM FORWARD
-    tk = t_vals[i]  # Offset
     tspan = (tk, tk + Δt)
-    xk = [Ca_k, T_k, Tc_opt]
-    xsol = cstrSim(xk, tspan)
-    global Ca_k, T_k = xsol[1:2]
+    xk = [states..., Tc_opt]
+    xsol = cstr_sim(xk, tspan)
+    states[1:2] = xsol[1:2]
 
     # WARMSTART MODEL FOR NEXT SOLVE
     warmstart_backend_start_values(model)
 
     # UPDATE PARAMETERS
-    set_parameter_value(Ca0, Ca_k)
-    set_parameter_value(T0, T_k)
-    newTsp = (t) -> setpoint(t, tk + Δt)
-    set_parameter_value(Tsp, newTsp)
+    set_parameter_value(Ca0, states[1])
+    set_parameter_value(T0, states[2])
+    Tsp_new = (t) -> setpoint(t, tk + Δt)
+    set_parameter_value(Tsp, Tsp_new)
 
     # ADJUST SOLVER PARAMETERS
     set_optimizer_attribute(model, "bound_push", 1e-8)
@@ -596,18 +538,31 @@ for i in eachindex(t_vals)
 end
 ```
 
-## GPU-Accelerated Re-solves
+## [Re-solves with InfiniteExaModels.jl](@id examodels_solves)
 ### Software Setup
-We can further improve re-solve performance with GPU acceleration! First, we'll need to ensure the following packages are installed:
+Alternatively, [`InfiniteExaModels.jl`](https://github.com/infiniteopt/InfiniteExaModels.jl) can be used to improve performance. Instead of a `JuMP` model, we can work with an `ExaModel` that exploits recurrent problem structure, cutting down on both model and automatic differentiation (AD) time. First, we'll need to ensure the following packages are installed:
 - `InfiniteExaModels.jl`
+- `NLPModelsIpopt.jl` (if solving on CPU)
+
+If solving on GPU, we'll also need to install:
 - `MadNLP.jl`
 - `CUDA.jl`
+- `CUDSS.jl`
 
 !!! note
-    Currently, this workflow is only available on NVIDIA GPUs that support CUDA.
+    Currently, the GPU workflow is only available on NVIDIA GPUs that support CUDA.
 
-### Problem setup
-Now, we'll need to initialize our model with an `ExaTranscriptionBackend` that employs a `CUDABackend`. This will transcribe the InfiniteOpt problem into an ExaModel that is GPU compatible. We'll also use the `MadNLPGPU` module from `MadNLP.jl` for solving.
+### Solving on CPU
+When initializing the model, we specify an `ExaTranscriptionBackend` which will transcribe the `InfiniteOpt` problem into an `ExaModel`. For solving on CPU specifically, we use `NLPModelsIpopt` as the solver.
+
+```julia
+julia> using InfiniteExaModels, NLPModelsIpopt
+
+julia> model = InfiniteModel(ExaTranscriptionBackend(NLPModelsIpopt.IpoptSolver));
+```
+
+### Solving on GPU
+For GPU, we'll want to define an `ExaTranscriptionBackend` that employs a `CUDABackend`. We'll also use the `MadNLPGPU` module from `MadNLP.jl` for solving.
 ```julia
 julia> using InfiniteExaModels, MadNLPGPU, CUDA
 
@@ -617,11 +572,11 @@ Since we'll be indexing `Tc` for the optimal control input, we'll also need to s
 ```julia
 julia> CUDA.allowscalar(true);
 ```
-We can also change solver options for more efficiency.
+As mentioned in the [`Performance tips`](@ref resolve_performance) section earlier, we can be more performant by adjusting `MadNLP` solver options when given a warmstart. Note that the numerical value chosen here is different than what we originally chose when warmstarting with `Ipopt`. This highlights that the optimal value is not only problem-dependent, but also depends on the chosen solver.
 ```
 julia> set_optimizer_attribute(model, "mu_init", 2E-2)
 ```
-That's all we need to change for the GPU setup! From here, we follow the same steps as above to formulate our problem.
+That's all we need to change for the GPU setup! From here, we follow the same steps as the sections above to define the rest of our problem & solve.
 
 !!! note
-    Although `MadNLP.jl` does support `bound_push` and `bound_fac` as options, they currently do not have an effect in re-solves.
+    Although `MadNLP.jl` does support `bound_push` and `bound_fac` as solver options, they currently do not have an effect in re-solves.
