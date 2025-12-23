@@ -27,6 +27,8 @@ Consider a model predictive control (MPC) problem over a time domain ``D_{mpc} =
 
 ![mpc](../assets/mpc_diagram.png)
 
+![ocp](../assets/ocp_diagram.png)
+
 We define our optimal control problem over the prediction horizon ``\mathcal{D_p} = [0, t_p]``, where the objective is set to track a setpoint ``T_{sp}(t)``. We also define the control horizon ``\mathcal{D_c} = [0, t_c]``, where ``t_c \leq t_p``, representing the subset of ``\mathcal{D_p}`` over which the control input is allowed to vary. Here is the full optimal control formulation:
 ```math
 \begin{aligned}
@@ -38,9 +40,9 @@ We define our optimal control problem over the prediction horizon ``\mathcal{D_p
 	&&&&& \frac{\partial C_A(t)}{\partial t} = \frac{F(C_f - C_A(t)) - Vr_A}{V}, & \forall t \in \mathcal{D_p}\\
     &&&&& \frac{\partial T(t)}{\partial t} = \frac{F\rho c_p(T_f - T(t)) + r_AH_RV + U_A(T_c(t) - T(t))}{\rho c_p V}, & \forall t \in \mathcal{D_p}\\
     &&&&& T_c(t) = T_c(t_c), & \forall t \in \mathcal{D_p} \setminus \mathcal{D_c}\\
-    &&&&& C_A(t) \geq 0\\
-    &&&&& 273.15 \leq T(t) \leq 400\\
-    &&&&& 250 \leq T_c(t) \leq 350\\
+    &&&&& C_A(t) \geq 0, & \forall t \in \mathcal{D_p}\\
+    &&&&& 273.15 \leq T(t) \leq 400, & \forall t \in \mathcal{D_p}\\
+    &&&&& 250 \leq T_c(t) \leq 350, & \forall t \in \mathcal{D_p}\\
 \end{aligned}
 ```
 Here, our state variables are concentration ``C_A(t)`` and reactor temperature ``T(t)``, while the control input is the jacket temperature ``T_c(t)``. There is also a constraint to keep input ``T_c(t)`` constant beyond the control horizon ``D_c``. Overall, this results in a dynamic model based on time ``t``.
@@ -59,7 +61,6 @@ julia> states = [0.9, 305]; # set the initial conditions for state
 
 julia> F, V, rho, cp, Hr, E, k₀, Ua, cf, Tf = [100, 100, 1000, 0.239, 5e4, 8750, 7.2e10, 5e4, 1.0, 350]; # set the problem parameters
 ```
-
 We'll also create a function for our temperature setpoint ``T_{sp}(t)``, which is defined below:
 ```math
 T_{sp}(t) = 
@@ -106,23 +107,29 @@ Transformation backend information:
 Note that we also set the keyword argument `update_parameter_functions = true`. This is only necessary if you plan on updating parameter functions while working with `TranscriptionBackend`s. In this case, we will need it to update our setpoint function ``T_{sp}(t)``. Learn more about `TranscriptionBackend`s on our 
 [Model Transcription](@ref transcription_docs) page.
 
-Continuing on, we define our InfiniteOpt problem as normal:
+Next, let's make finite parameters via [`@finite_parameter`](@ref) to represent initial conditions for ``C_A`` and ``T``. This will allow us to update them between solves via [`set_parameter_value`](@ref):
 ```jldoctest quick
 julia> @finite_parameter(model, Ca0 == states[1]);
 
 julia> @finite_parameter(model, T0 == states[2]);
-
+```
+Next, we'll create an infinite parameter `t` to represent our time domain via [`@infinite_parameter`](@ref).
+```jldoctest quick
 julia> @infinite_parameter(model, t in [0, tp], supports = collect(Dp), 
                            derivative_method = OrthogonalCollocation(3));
-
+```
+Now we'll create a parameter function for ``T_{sp}(t)`` via [`@parameter_function`](@ref), enabling setpoint updates between solves. Here, we embed the `setpoint` function we created earlier and basing it off the infinite parameter `t`. Note that `tk` is also included as the control step offset:
+```jldoctest quick
+julia> @parameter_function(model, Tsp == t -> setpoint(t, tk))
+Tsp(t)
+```
+Continuing on, we define our InfiniteOpt problem as normal:
+```jldoctest quick
 julia> @variable(model, 0 ≤ Ca, Infinite(t), start = states[1]);
 
 julia> @variable(model, 273.15 ≤ T ≤ 400, Infinite(t), start = states[2]);
 
 julia> @variable(model, 250 ≤ Tc ≤ 350, Infinite(t), start = 300);
-
-julia> @parameter_function(model, Tsp == t -> setpoint(t, tk))
-Tsp(t)
 
 julia> @objective(model, Min, integral((T - Tsp)^2, t))
 ∫{t ∈ [0, 3]}[T(t)² - 2 Tsp(t)*T(t) + Tsp(t)²]
@@ -146,7 +153,7 @@ julia> @constraint(model, deriv(T, t) == (1/(rho * cp * V)) * (F * rho * cp * (T
 
 To add a constraint for the control horizon, we can use [`DomainRestriction`](@ref).
  ```jldoctest quick
-julia> control_func(t_c) = (tc ≤ t_c ≤ tp); # Function for domain values
+julia> control_func(t_c) = (tc < t_c ≤ tp); # Function for domain values
 
 julia> control_domain = DomainRestriction(control_func, t);   # Create domain restriction for infinite parameter t
 
@@ -168,7 +175,7 @@ julia> optimize!(model)
 ```
 This is Ipopt version 3.14.19, running with linear solver MUMPS 5.8.1.
 
-Number of nonzeros in equality constraint Jacobian...:      969
+Number of nonzeros in equality constraint Jacobian...:      965
 Number of nonzeros in inequality constraint Jacobian.:        0
 Number of nonzeros in Lagrangian Hessian.............:      427
 
@@ -176,36 +183,36 @@ Total number of variables............................:      305
                      variables with only lower bounds:       61
                 variables with lower and upper bounds:      122
                      variables with only upper bounds:        0
-Total number of equality constraints.................:      274
+Total number of equality constraints.................:      285
 Total number of inequality constraints...............:        0
         inequality constraints with only lower bounds:        0
    inequality constraints with lower and upper bounds:        0
         inequality constraints with only upper bounds:        0
 
 iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
-   0  5.0280000e+02 3.92e+01 6.25e-01  -1.0 0.00e+00    -  0.00e+00 0.00e+00   0
-   1  2.7236558e+01 5.22e+00 5.37e+00  -1.0 3.92e+01    -  7.04e-01 1.00e+00f  1
-   2  9.0788361e+00 8.53e-01 5.57e-01  -1.0 2.14e+01    -  8.38e-01 1.00e+00f  1
-   3  4.2566639e+00 3.38e-01 1.78e-01  -1.0 3.33e+01    -  9.02e-01 1.00e+00f  1
-   4  3.1557133e+00 7.86e-02 2.07e-02  -1.0 2.14e+01    -  1.00e+00 1.00e+00h  1
-   5  2.8579262e+00 2.42e-02 2.30e-03  -1.7 1.46e+01    -  1.00e+00 1.00e+00h  1
-   6  2.7627030e+00 1.23e-02 1.58e-04  -2.5 8.72e+00    -  1.00e+00 1.00e+00h  1
-   7  2.7341074e+00 3.13e-03 4.70e-05  -3.8 4.18e+00    -  1.00e+00 1.00e+00h  1
-   8  2.7262156e+00 4.54e-04 8.51e-06  -3.8 1.55e+00    -  1.00e+00 1.00e+00h  1
-   9  2.7245921e+00 2.43e-05 4.28e-07  -5.7 3.59e-01    -  1.00e+00 1.00e+00h  1
+   0  5.0280000e+02 3.92e+01 1.80e+00  -1.0 0.00e+00    -  0.00e+00 0.00e+00   0
+   1  3.3245030e+01 4.66e+00 1.79e+00  -1.0 3.92e+01    -  7.14e-01 1.00e+00f  1
+   2  9.1455568e+00 1.05e+00 7.82e-01  -1.0 2.24e+01    -  8.22e-01 1.00e+00f  1
+   3  4.2533979e+00 3.66e-01 2.05e-01  -1.0 3.32e+01    -  9.02e-01 1.00e+00f  1
+   4  3.1557492e+00 7.79e-02 2.06e-02  -1.0 2.13e+01    -  1.00e+00 1.00e+00h  1
+   5  2.8576232e+00 2.40e-02 2.29e-03  -1.7 1.46e+01    -  1.00e+00 1.00e+00h  1
+   6  2.7626143e+00 1.22e-02 1.58e-04  -2.5 8.71e+00    -  1.00e+00 1.00e+00h  1
+   7  2.7340812e+00 3.12e-03 4.68e-05  -3.8 4.17e+00    -  1.00e+00 1.00e+00h  1
+   8  2.7262098e+00 4.52e-04 8.47e-06  -3.8 1.54e+00    -  1.00e+00 1.00e+00h  1
+   9  2.7245920e+00 2.41e-05 4.25e-07  -5.7 3.58e-01    -  1.00e+00 1.00e+00h  1
 iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
-  10  2.7245135e+00 6.10e-08 1.14e-09  -5.7 1.78e-02    -  1.00e+00 1.00e+00h  1
-  11  2.7245096e+00 1.38e-10 1.74e-12  -8.6 8.88e-04    -  1.00e+00 1.00e+00h  1
+  10  2.7245139e+00 6.02e-08 1.13e-09  -5.7 1.77e-02    -  1.00e+00 1.00e+00h  1
+  11  2.7245100e+00 1.38e-10 1.74e-12  -8.6 8.87e-04    -  1.00e+00 1.00e+00h  1
 
 Number of Iterations....: 11
 
                                    (scaled)                 (unscaled)
-Objective...............:   2.7245096440910856e+00    2.7245096440910856e+00
-Dual infeasibility......:   1.7412247422617024e-12    1.7412247422617024e-12
-Constraint violation....:   1.3787371244688984e-10    1.3787371244688984e-10
-Variable bound violation:   2.8948174417564587e-06    2.8948174417564587e-06
-Complementarity.........:   2.7463356154477961e-09    2.7463356154477961e-09
-Overall NLP error.......:   2.7463356154477961e-09    2.7463356154477961e-09
+Objective...............:   2.7245100343448030e+00    2.7245100343448030e+00
+Dual infeasibility......:   1.7391414545635351e-12    1.7391414545635351e-12
+Constraint violation....:   1.3756107364315540e-10    1.3756107364315540e-10
+Variable bound violation:   2.8948873023182387e-06    2.8948873023182387e-06
+Complementarity.........:   2.7460183036212597e-09    2.7460183036212597e-09
+Overall NLP error.......:   2.7460183036212597e-09    2.7460183036212597e-09
 
 
 Number of objective function evaluations             = 12
@@ -215,7 +222,7 @@ Number of inequality constraint evaluations          = 0
 Number of equality constraint Jacobian evaluations   = 12
 Number of inequality constraint Jacobian evaluations = 0
 Number of Lagrangian Hessian evaluations             = 11
-Total seconds in IPOPT                               = 0.009
+Total seconds in IPOPT                               = 0.014
 
 EXIT: Optimal Solution Found.
 ```
@@ -223,45 +230,44 @@ As shown in the solver output, we've converged in 11 iterations!
 
 ### Simulating the system
 Now we'll extract the input for the next control step via
-[`value`](@ref JuMP.value(::GeneralVariableRef)), which will be used to simulate the system forward:
+[`value`](@ref JuMP.value(::GeneralVariableRef)):
 ```jldoctest quick
 julia> Tc_opt = value.(Tc)[2];
 ```
-To simulate our system, we choose to set up an ODE problem via `DifferentialEquations.jl`. Start by creating a function for the CSTR dynamics:
-```jldoctest quick
-julia> using DifferentialEquations
+From here, the input can be fed into a ready-made model to simulate the system forward. For example, one could choose to set up and solve an ODE problem via `DifferentialEquations.jl`:
+```julia
+using DifferentialEquations
 
-julia> function cstr_dynamics!(dx, x, p, t)
+# Create a function for the system dynamics
+function cstr_dynamics!(dx, x, p, t)
         Ca, T, Tc = x
         k = k₀ * exp(-E/T)
         rate = k * Ca
         dx[1] = F/V * (cf - Ca) - V * rate
         dx[2] = (1/(rho * cp * V)) * (F * rho * cp * (Tf - T) + V * Hr * rate + Ua * (Tc - T))
-        end;
-```
-Then create a function that solves the ODE problem and returns the updated state:
-```jldoctest quick
-julia> function cstr_sim(x0, tspan)
+        end
+
+# Create a function that solves the ODE problem & returns updated states
+function cstr_sim(x0, tspan)
         prob = ODEProblem(cstr_dynamics!, x0, tspan)
         sol = solve(prob, Tsit5(), reltol=1e-6, abstol=1e-8)
         xsol = sol.u[end]
         return xsol
-        end;
+        end
+
+tspan = (tk, tk + Δt)         # Timespan to integrate over
+xk = [states..., Tc_opt]      # Current state + input
+xsol = cstr_sim(xk, tspan)    # Integrate the ODE problem
+states[1:2] = xsol[1:2]       # Obtain updated states
 ```
-Now we simulate the system forward to get our updated states. These will become the initial conditions for the next optimal control solve.
+For this tutorial, we manually provide the updated states to reduce precompilation time. These will be used to update the initial conditions later:
 ```jldoctest quick
-julia> tspan = (tk, tk + Δt); # Timespan to integrate over
-
-julia> xk = [states..., Tc_opt];  # Current state + input
-
-julia> xsol = cstr_sim(xk, tspan);    # Integrate the ODE problem
-
-julia> states[1:2] = xsol[1:2];       # Obtain updated states
+julia> states = [0.6622989256721806, 310.78179413782993];
 ```
 
 ## Re-solves
 ### Updating the model
-Now we need to update our model for the next solve. First, we update our control step accordingly:
+Now we need to update our model for the next solve! First, we update our control step accordingly:
 ```jldoctest quick
 julia> tk += Δt;
 ```
@@ -295,7 +301,7 @@ julia> optimize!(model)
 ```
 This is Ipopt version 3.14.19, running with linear solver MUMPS 5.8.1.
 
-Number of nonzeros in equality constraint Jacobian...:      989
+Number of nonzeros in equality constraint Jacobian...:      965
 Number of nonzeros in inequality constraint Jacobian.:        0
 Number of nonzeros in Lagrangian Hessian.............:      427
 
@@ -310,29 +316,29 @@ Total number of inequality constraints...............:        0
         inequality constraints with only upper bounds:        0
 
 iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
-   0  5.0280000e+02 3.92e+01 1.80e+00  -1.0 0.00e+00    -  0.00e+00 0.00e+00   0
-   1  3.3245030e+01 4.66e+00 1.79e+00  -1.0 3.92e+01    -  7.14e-01 1.00e+00f  1
-   2  9.1455568e+00 1.05e+00 7.82e-01  -1.0 2.24e+01    -  8.22e-01 1.00e+00f  1
-   3  4.2533979e+00 3.66e-01 2.05e-01  -1.0 3.32e+01    -  9.02e-01 1.00e+00f  1
-   4  3.1557492e+00 7.79e-02 2.06e-02  -1.0 2.13e+01    -  1.00e+00 1.00e+00h  1
-   5  2.8576232e+00 2.40e-02 2.29e-03  -1.7 1.46e+01    -  1.00e+00 1.00e+00h  1
-   6  2.7626143e+00 1.22e-02 1.58e-04  -2.5 8.71e+00    -  1.00e+00 1.00e+00h  1
-   7  2.7340812e+00 3.12e-03 4.68e-05  -3.8 4.17e+00    -  1.00e+00 1.00e+00h  1
-   8  2.7262098e+00 4.52e-04 8.47e-06  -3.8 1.54e+00    -  1.00e+00 1.00e+00h  1
-   9  2.7245920e+00 2.41e-05 4.25e-07  -5.7 3.58e-01    -  1.00e+00 1.00e+00h  1
+   0  1.7342046e+01 5.78e+00 1.45e+00  -1.0 0.00e+00    -  0.00e+00 0.00e+00   0
+   1  1.5695334e+01 2.93e-01 4.67e-01  -1.0 2.10e+01    -  8.40e-01 1.00e+00f  1
+   2  8.5451363e+00 3.45e-01 1.03e-01  -1.0 2.80e+01    -  6.84e-01 1.00e+00f  1
+   3  4.8006059e+00 2.56e-01 5.18e-02  -1.0 3.46e+01    -  5.42e-01 1.00e+00f  1
+   4  2.7071613e+00 3.70e-01 8.80e-02  -1.0 4.89e+01    -  9.70e-01 1.00e+00f  1
+   5  2.1446516e+00 3.26e-02 5.31e-03  -1.7 1.83e+01    -  9.79e-01 1.00e+00h  1
+   6  1.9800871e+00 1.98e-02 3.84e-04  -2.5 1.15e+01    -  1.00e+00 1.00e+00h  1
+   7  1.9351546e+00 4.18e-03 9.26e-05  -2.5 5.15e+00    -  1.00e+00 1.00e+00h  1
+   8  1.9200948e+00 8.60e-04 1.66e-05  -3.8 2.35e+00    -  1.00e+00 1.00e+00h  1
+   9  1.9170037e+00 5.12e-05 1.22e-06  -3.8 5.59e-01    -  1.00e+00 1.00e+00h  1
 iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
-  10  2.7245139e+00 6.02e-08 1.13e-09  -5.7 1.77e-02    -  1.00e+00 1.00e+00h  1
-  11  2.7245100e+00 1.38e-10 1.74e-12  -8.6 8.87e-04    -  1.00e+00 1.00e+00h  1
+  10  1.9165249e+00 1.25e-06 2.11e-08  -5.7 9.03e-02    -  1.00e+00 1.00e+00h  1
+  11  1.9165162e+00 4.24e-10 8.01e-12  -8.6 1.65e-03    -  1.00e+00 1.00e+00h  1
 
 Number of Iterations....: 11
 
                                    (scaled)                 (unscaled)
-Objective...............:   2.7245100343448030e+00    2.7245100343448030e+00
-Dual infeasibility......:   1.7391275767757273e-12    1.7391275767757273e-12
-Constraint violation....:   1.3756107364315540e-10    1.3756107364315540e-10
-Variable bound violation:   2.8948873023182387e-06    2.8948873023182387e-06
-Complementarity.........:   2.7460183036212907e-09    2.7460183036212907e-09
-Overall NLP error.......:   2.7460183036212907e-09    2.7460183036212907e-09
+Objective...............:   1.9165161697178519e+00    1.9165161697178519e+00
+Dual infeasibility......:   8.0098655610935405e-12    8.0098655610935405e-12
+Constraint violation....:   4.2381032017146936e-10    4.2381032017146936e-10
+Variable bound violation:   2.8903907605126733e-06    2.8903907605126733e-06
+Complementarity.........:   3.3292965777106392e-09    3.3292965777106392e-09
+Overall NLP error.......:   3.3292965777106392e-09    3.3292965777106392e-09
 
 
 Number of objective function evaluations             = 12
@@ -342,7 +348,7 @@ Number of inequality constraint evaluations          = 0
 Number of equality constraint Jacobian evaluations   = 12
 Number of inequality constraint Jacobian evaluations = 0
 Number of Lagrangian Hessian evaluations             = 11
-Total seconds in IPOPT                               = 0.009
+Total seconds in IPOPT                               = 0.013
 
 EXIT: Optimal Solution Found.
 ```
@@ -366,7 +372,7 @@ julia> optimize!(model)
 ```
 This is Ipopt version 3.14.19, running with linear solver MUMPS 5.8.1.
 
-Number of nonzeros in equality constraint Jacobian...:      989
+Number of nonzeros in equality constraint Jacobian...:      965
 Number of nonzeros in inequality constraint Jacobian.:        0
 Number of nonzeros in Lagrangian Hessian.............:      427
 
@@ -389,17 +395,17 @@ iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
    5  1.9537673e+00 9.30e-01 4.58e-02 -11.0 7.46e+01    -  6.12e-02 8.36e-01f  1
    6  1.9164754e+00 2.85e-02 2.87e-03 -11.0 8.29e+00    -  9.28e-01 1.00e+00h  1
    7  1.9165162e+00 2.77e-06 2.29e-06 -11.0 1.21e-01    -  9.99e-01 1.00e+00h  1
-   8  1.9165162e+00 3.04e-12 8.34e-14 -11.0 1.24e-04    -  1.00e+00 1.00e+00h  1
+   8  1.9165162e+00 3.10e-12 8.33e-14 -11.0 1.24e-04    -  1.00e+00 1.00e+00h  1
 
 Number of Iterations....: 8
 
                                    (scaled)                 (unscaled)
 Objective...............:   1.9165161630626244e+00    1.9165161630626244e+00
-Dual infeasibility......:   8.3353452221015503e-14    8.3353452221015503e-14
-Constraint violation....:   3.0420110874729289e-12    3.0420110874729289e-12
+Dual infeasibility......:   8.3327431368875851e-14    8.3327431368875851e-14
+Constraint violation....:   3.1024072200125374e-12    3.1024072200125374e-12
 Variable bound violation:   3.4981688941115863e-06    3.4981688941115863e-06
-Complementarity.........:   1.3620439999832149e-11    1.3620439999832149e-11
-Overall NLP error.......:   1.3620439999832149e-11    1.3620439999832149e-11
+Complementarity.........:   1.3620439999139647e-11    1.3620439999139647e-11
+Overall NLP error.......:   1.3620439999139647e-11    1.3620439999139647e-11
 
 
 Number of objective function evaluations             = 9
@@ -409,7 +415,7 @@ Number of inequality constraint evaluations          = 0
 Number of equality constraint Jacobian evaluations   = 9
 Number of inequality constraint Jacobian evaluations = 0
 Number of Lagrangian Hessian evaluations             = 8
-Total seconds in IPOPT                               = 0.005
+Total seconds in IPOPT                               = 0.011
 
 EXIT: Optimal Solution Found.
 ```
