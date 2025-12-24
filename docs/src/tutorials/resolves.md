@@ -18,7 +18,6 @@ Below, we demonstrate how to do efficient re-solves via model predictive control
 First, we need to make sure everything is installed. This will include:
 - installing Julia 
 - installing `InfiniteOpt.jl`
-- installing `DifferentialEquations.jl` to simulate our system via an ODE problem
 - installing wanted optimizers e.g., `Ipopt.jl`
 See [Installation](@ref) for more information.
 
@@ -118,7 +117,7 @@ Next, we'll create an infinite parameter `t` to represent our time domain via [`
 julia> @infinite_parameter(model, t in [0, tp], supports = collect(Dp), 
                            derivative_method = OrthogonalCollocation(3));
 ```
-Now we'll create a parameter function for ``T_{sp}(t)`` via [`@parameter_function`](@ref), enabling setpoint updates between solves. Here, we embed the `setpoint` function we created earlier and basing it off the infinite parameter `t`. Note that `tk` is also included as the control step offset:
+Now we'll create a parameter function for ``T_{sp}(t)`` via [`@parameter_function`](@ref), enabling setpoint updates between solves. Here, we embed the `setpoint` function we created earlier, basing it off the infinite parameter `t`. Note that `tk` is also included as the control step offset:
 ```jldoctest quick
 julia> @parameter_function(model, Tsp == t -> setpoint(t, tk))
 Tsp(t)
@@ -234,36 +233,21 @@ Now we'll extract the input for the next control step via
 ```jldoctest quick
 julia> Tc_opt = value.(Tc)[2];
 ```
-From here, the input can be fed into a ready-made model to simulate the system forward. For example, one could choose to set up and solve an ODE problem via `DifferentialEquations.jl`:
-```julia
-using DifferentialEquations
-
-# Create a function for the system dynamics
-function cstr_dynamics!(dx, x, p, t)
-        Ca, T, Tc = x
+From here, `Tc_opt` will be used to simulate the system forward and get up-to-date states for updating initial conditions. For this tutorial, we'll use a dummy function as follows:
+```jldoctest quick
+julia> function sim_func(x, u, dt)
+        Ca, T = x
+        Tc = u
         k = k₀ * exp(-E/T)
         rate = k * Ca
-        dx[1] = F/V * (cf - Ca) - V * rate
-        dx[2] = (1/(rho * cp * V)) * (F * rho * cp * (Tf - T) + V * Hr * rate + Ua * (Tc - T))
-        end
+        dCa = F/V * (cf - Ca) - V * rate
+        dT = (1/(rho * cp * V)) * (F * rho * cp * (Tf - T) + V * Hr * rate + Ua * (Tc - T))
+        return x .+ dt .* [dCa, dT]
+        end;
 
-# Create a function that solves the ODE problem & returns updated states
-function cstr_sim(x0, tspan)
-        prob = ODEProblem(cstr_dynamics!, x0, tspan)
-        sol = solve(prob, Tsit5(), reltol=1e-6, abstol=1e-8)
-        xsol = sol.u[end]
-        return xsol
-        end
-
-tspan = (tk, tk + Δt)         # Timespan to integrate over
-xk = [states..., Tc_opt]      # Current state + input
-xsol = cstr_sim(xk, tspan)    # Integrate the ODE problem
-states[1:2] = xsol[1:2]       # Obtain updated states
+julia> states = sim_func(states, Tc_opt, Δt);   # update states
 ```
-For this tutorial, we manually provide the updated states to reduce precompilation time. These will be used to update the initial conditions later:
-```jldoctest quick
-julia> states = [0.6622989256721806, 310.78179413782993];
-```
+Outside of this tutorial, users should replace `sim_func` with their system model. For example, one could choose to set up and solve an ODE problem via `DifferentialEquations.jl`.
 
 ## Re-solves
 ### Updating the model
@@ -423,7 +407,7 @@ EXIT: Optimal Solution Found.
 ## Model Predictive Control Script 
 The steps outlined in the sections above can be captured in an MPC loop. This is summarized in the script below:
 ```julia
-using InfiniteOpt, Ipopt, DifferentialEquations
+using InfiniteOpt, Ipopt
 
 # DEFINE THE PROBLEM CONSTANTS
 F = 100       # m³/s
@@ -460,19 +444,14 @@ function setpoint(t, offset)
     end
 end
 
-function cstr_dynamics!(dx, x, p, t)
-    Ca, T, Tc = x
+function sim_func(x, u, dt)
+    Ca, T = x
+    Tc = u
     k = k₀ * exp(-E/T)
     rate = k * Ca
-    dx[1] = F/V * (cf - Ca) - V * rate
-    dx[2] = (1/(rho * cp * V)) * (F * rho * cp * (Tf - T) + V * Hr * rate + Ua * (Tc - T))
-end
-
-function cstr_sim(x0, tspan)
-    prob = ODEProblem(cstr_dynamics!, x0, tspan)
-    sol = solve(prob, Tsit5(), reltol=1e-6, abstol=1e-8)
-    xsol = sol.u[end]
-    return xsol
+    dCa = F/V * (cf - Ca) - V * rate
+    dT = (1/(rho * cp * V)) * (F * rho * cp * (Tf - T) + V * Hr * rate + Ua * (Tc - T))
+    return x .+ dt .* [dCa, dT]
 end
 
 # INITIALIZE THE MODEL
@@ -523,10 +502,7 @@ for tk in Dmpc
     Tc_opt = value.(Tc)[2]
     
     # SIMULATE SYSTEM FORWARD
-    tspan = (tk, tk + Δt)
-    xk = [states..., Tc_opt]
-    xsol = cstr_sim(xk, tspan)
-    states[1:2] = xsol[1:2]
+    states[1:2] = sim_func(states, Tc_opt, Δt)
 
     # WARMSTART MODEL FOR NEXT SOLVE
     warmstart_backend_start_values(model)
@@ -561,7 +537,7 @@ If solving on GPU, we'll also need to install:
 ### Solving on CPU
 When initializing the model, we specify an `ExaTranscriptionBackend` which will transcribe the `InfiniteOpt` problem into an `ExaModel`. For solving on CPU specifically, we use `NLPModelsIpopt` as the solver.
 
-```julia
+```jldoctest quick
 julia> using InfiniteExaModels, NLPModelsIpopt
 
 julia> model = InfiniteModel(ExaTranscriptionBackend(NLPModelsIpopt.IpoptSolver));
