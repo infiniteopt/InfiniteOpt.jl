@@ -19,6 +19,7 @@ First, we need to make sure everything is installed. This will include:
 - installing Julia 
 - installing `InfiniteOpt.jl`
 - installing wanted optimizers e.g., `Ipopt.jl`
+- installing `Plots.jl` for plotting results
 See [Installation](@ref) for more information.
 
 ### Problem Formulation
@@ -52,7 +53,7 @@ Before moving on, we'll need to define the necessary constants and problem
 parameters. We'll define the following in our 
 Julia session (these could also be put into a script as shown later on):
 ```jldoctest quick
-julia> Δt = 0.1; t0 = 0; tf = 2; tp = 3; tc = 2.5; # set MPC simulation parameters
+julia> Δt = 0.1; t0 = 0; tf = 1; tp = 3; tc = 2.5; # set MPC simulation parameters
 
 julia> Dmpc = t0:Δt:tf; Dp = 0:Δt:tp; # set problem domains
 
@@ -74,7 +75,7 @@ T_{sp}(t) =
 ```jldoctest quick
 julia> function setpoint(t, offset)
         t += offset
-        if t < 0.7
+        if t < 0.5
             return 310
         elseif t < 1.3
             return 323
@@ -189,29 +190,29 @@ Total number of inequality constraints...............:        0
         inequality constraints with only upper bounds:        0
 
 iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
-   0  5.0280000e+02 3.92e+01 1.80e+00  -1.0 0.00e+00    -  0.00e+00 0.00e+00   0
-   1  3.3245030e+01 4.66e+00 1.79e+00  -1.0 3.92e+01    -  7.14e-01 1.00e+00f  1
-   2  9.1455568e+00 1.05e+00 7.82e-01  -1.0 2.24e+01    -  8.22e-01 1.00e+00f  1
-   3  4.2533979e+00 3.66e-01 2.05e-01  -1.0 3.32e+01    -  9.02e-01 1.00e+00f  1
-   4  3.1557492e+00 7.79e-02 2.06e-02  -1.0 2.13e+01    -  1.00e+00 1.00e+00h  1
-   5  2.8576232e+00 2.40e-02 2.29e-03  -1.7 1.46e+01    -  1.00e+00 1.00e+00h  1
-   6  2.7626143e+00 1.22e-02 1.58e-04  -2.5 8.71e+00    -  1.00e+00 1.00e+00h  1
-   7  2.7340812e+00 3.12e-03 4.68e-05  -3.8 4.17e+00    -  1.00e+00 1.00e+00h  1
-   8  2.7262098e+00 4.52e-04 8.47e-06  -3.8 1.54e+00    -  1.00e+00 1.00e+00h  1
-   9  2.7245920e+00 2.41e-05 4.25e-07  -5.7 3.58e-01    -  1.00e+00 1.00e+00h  1
+   0  5.6260000e+02 3.92e+01 1.80e+00  -1.0 0.00e+00    -  0.00e+00 0.00e+00   0
+   1  3.7406835e+01 4.92e+00 1.84e+00  -1.0 3.92e+01    -  7.09e-01 1.00e+00f  1
+   2  8.6190948e+00 1.14e+00 8.08e-01  -1.0 2.04e+01    -  8.28e-01 1.00e+00f  1
+   3  4.3130048e+00 3.44e-01 2.01e-01  -1.0 3.15e+01    -  9.21e-01 1.00e+00f  1
+   4  3.1480633e+00 8.80e-02 2.07e-02  -1.0 2.23e+01    -  1.00e+00 1.00e+00f  1
+   5  2.8580605e+00 2.40e-02 2.26e-03  -1.7 1.44e+01    -  1.00e+00 1.00e+00h  1
+   6  2.7628832e+00 1.21e-02 1.53e-04  -2.5 8.70e+00    -  1.00e+00 1.00e+00h  1
+   7  2.7343091e+00 3.07e-03 4.63e-05  -3.8 4.15e+00    -  1.00e+00 1.00e+00h  1
+   8  2.7264647e+00 4.35e-04 8.25e-06  -3.8 1.52e+00    -  1.00e+00 1.00e+00h  1
+   9  2.7248808e+00 2.23e-05 3.95e-07  -5.7 3.45e-01    -  1.00e+00 1.00e+00h  1
 iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
-  10  2.7245139e+00 6.02e-08 1.13e-09  -5.7 1.77e-02    -  1.00e+00 1.00e+00h  1
-  11  2.7245100e+00 1.38e-10 1.74e-12  -8.6 8.87e-04    -  1.00e+00 1.00e+00h  1
+  10  2.7248082e+00 4.99e-08 9.45e-10  -5.7 1.62e-02    -  1.00e+00 1.00e+00h  1
+  11  2.7248043e+00 1.29e-10 1.64e-12  -8.6 8.66e-04    -  1.00e+00 1.00e+00h  1
 
 Number of Iterations....: 11
 
                                    (scaled)                 (unscaled)
-Objective...............:   2.7245100343448030e+00    2.7245100343448030e+00
-Dual infeasibility......:   1.7391414545635351e-12    1.7391414545635351e-12
-Constraint violation....:   1.3756107364315540e-10    1.3756107364315540e-10
-Variable bound violation:   2.8948873023182387e-06    2.8948873023182387e-06
-Complementarity.........:   2.7460183036212597e-09    2.7460183036212597e-09
-Overall NLP error.......:   2.7460183036212597e-09    2.7460183036212597e-09
+Objective...............:   2.7248043203499037e+00    2.7248043203499037e+00
+Dual infeasibility......:   1.6416257946353025e-12    1.6416257946353025e-12
+Constraint violation....:   1.2933298876305344e-10    1.2933298876305344e-10
+Variable bound violation:   2.9075268912492902e-06    2.9075268912492902e-06
+Complementarity.........:   2.7342425566515287e-09    2.7342425566515287e-09
+Overall NLP error.......:   2.7342425566515287e-09    2.7342425566515287e-09
 
 
 Number of objective function evaluations             = 12
@@ -221,7 +222,7 @@ Number of inequality constraint evaluations          = 0
 Number of equality constraint Jacobian evaluations   = 12
 Number of inequality constraint Jacobian evaluations = 0
 Number of Lagrangian Hessian evaluations             = 11
-Total seconds in IPOPT                               = 0.014
+Total seconds in IPOPT                               = 0.013
 
 EXIT: Optimal Solution Found.
 ```
@@ -300,29 +301,29 @@ Total number of inequality constraints...............:        0
         inequality constraints with only upper bounds:        0
 
 iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
-   0  1.7342046e+01 5.78e+00 1.45e+00  -1.0 0.00e+00    -  0.00e+00 0.00e+00   0
-   1  1.5695334e+01 2.93e-01 4.67e-01  -1.0 2.10e+01    -  8.40e-01 1.00e+00f  1
-   2  8.5451363e+00 3.45e-01 1.03e-01  -1.0 2.80e+01    -  6.84e-01 1.00e+00f  1
-   3  4.8006059e+00 2.56e-01 5.18e-02  -1.0 3.46e+01    -  5.42e-01 1.00e+00f  1
-   4  2.7071613e+00 3.70e-01 8.80e-02  -1.0 4.89e+01    -  9.70e-01 1.00e+00f  1
-   5  2.1446516e+00 3.26e-02 5.31e-03  -1.7 1.83e+01    -  9.79e-01 1.00e+00h  1
-   6  1.9800871e+00 1.98e-02 3.84e-04  -2.5 1.15e+01    -  1.00e+00 1.00e+00h  1
-   7  1.9351546e+00 4.18e-03 9.26e-05  -2.5 5.15e+00    -  1.00e+00 1.00e+00h  1
-   8  1.9200948e+00 8.60e-04 1.66e-05  -3.8 2.35e+00    -  1.00e+00 1.00e+00h  1
-   9  1.9170037e+00 5.12e-05 1.22e-06  -3.8 5.59e-01    -  1.00e+00 1.00e+00h  1
+   0  1.7341828e+01 6.65e+00 1.45e+00  -1.0 0.00e+00    -  0.00e+00 0.00e+00   0
+   1  1.5507558e+01 2.21e-01 5.84e-01  -1.0 2.29e+01    -  8.21e-01 1.00e+00f  1
+   2  9.7048644e+00 1.52e-01 9.51e-02  -1.0 2.55e+01    -  7.03e-01 1.00e+00f  1
+   3  4.9836783e+00 2.78e-01 6.45e-02  -1.0 4.08e+01    -  5.54e-01 1.00e+00f  1
+   4  2.7968059e+00 3.87e-01 9.09e-02  -1.0 4.96e+01    -  9.75e-01 1.00e+00f  1
+   5  2.2170065e+00 3.52e-02 6.15e-03  -1.7 1.80e+01    -  9.84e-01 1.00e+00h  1
+   6  2.0526882e+00 1.85e-02 3.18e-04  -2.5 1.15e+01    -  1.00e+00 1.00e+00h  1
+   7  2.0085405e+00 3.85e-03 8.78e-05  -2.5 5.02e+00    -  1.00e+00 1.00e+00h  1
+   8  1.9937642e+00 7.68e-04 1.52e-05  -3.8 2.26e+00    -  1.00e+00 1.00e+00h  1
+   9  1.9908794e+00 4.06e-05 1.01e-06  -3.8 5.05e-01    -  1.00e+00 1.00e+00h  1
 iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
-  10  1.9165249e+00 1.25e-06 2.11e-08  -5.7 9.03e-02    -  1.00e+00 1.00e+00h  1
-  11  1.9165162e+00 4.24e-10 8.01e-12  -8.6 1.65e-03    -  1.00e+00 1.00e+00h  1
+  10  1.9904340e+00 9.65e-07 1.60e-08  -5.7 8.10e-02    -  1.00e+00 1.00e+00h  1
+  11  1.9904263e+00 2.98e-10 5.56e-12  -8.6 1.41e-03    -  1.00e+00 1.00e+00h  1
 
 Number of Iterations....: 11
 
                                    (scaled)                 (unscaled)
-Objective...............:   1.9165161697178519e+00    1.9165161697178519e+00
-Dual infeasibility......:   8.0098655610935405e-12    8.0098655610935405e-12
-Constraint violation....:   4.2381032017146936e-10    4.2381032017146936e-10
-Variable bound violation:   2.8903907605126733e-06    2.8903907605126733e-06
-Complementarity.........:   3.3292965777106392e-09    3.3292965777106392e-09
-Overall NLP error.......:   3.3292965777106392e-09    3.3292965777106392e-09
+Objective...............:   1.9904262916243169e+00    1.9904262916243169e+00
+Dual infeasibility......:   5.5617656357834612e-12    5.5617656357834612e-12
+Constraint violation....:   2.9773161713819718e-10    2.9773161713819718e-10
+Variable bound violation:   2.9522764748435293e-06    2.9522764748435293e-06
+Complementarity.........:   3.1070715177779954e-09    3.1070715177779954e-09
+Overall NLP error.......:   3.1070715177779954e-09    3.1070715177779954e-09
 
 
 Number of objective function evaluations             = 12
@@ -332,7 +333,7 @@ Number of inequality constraint evaluations          = 0
 Number of equality constraint Jacobian evaluations   = 12
 Number of inequality constraint Jacobian evaluations = 0
 Number of Lagrangian Hessian evaluations             = 11
-Total seconds in IPOPT                               = 0.013
+Total seconds in IPOPT                               = 0.014
 
 EXIT: Optimal Solution Found.
 ```
@@ -371,25 +372,25 @@ Total number of inequality constraints...............:        0
         inequality constraints with only upper bounds:        0
 
 iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
-   0  1.7342046e+01 5.78e+00 1.45e+00 -11.0 0.00e+00    -  0.00e+00 0.00e+00   0
-   1  1.5717415e+01 2.93e-01 6.72e-01 -11.0 2.10e+01    -  8.46e-01 1.00e+00f  1
-   2  3.8283977e+00 2.28e+00 5.69e-01 -11.0 9.30e+01    -  3.94e-01 1.00e+00f  1
-   3  3.8665197e+00 6.46e-03 5.07e-02 -11.0 6.13e+00    -  6.15e-01 1.00e+00h  1
-   4  3.6493980e+00 4.97e-03 9.58e-02 -11.0 4.58e+00    -  9.45e-07 1.00e+00f  1
-   5  1.9537673e+00 9.30e-01 4.58e-02 -11.0 7.46e+01    -  6.12e-02 8.36e-01f  1
-   6  1.9164754e+00 2.85e-02 2.87e-03 -11.0 8.29e+00    -  9.28e-01 1.00e+00h  1
-   7  1.9165162e+00 2.77e-06 2.29e-06 -11.0 1.21e-01    -  9.99e-01 1.00e+00h  1
-   8  1.9165162e+00 3.10e-12 8.33e-14 -11.0 1.24e-04    -  1.00e+00 1.00e+00h  1
+   0  1.7341828e+01 6.65e+00 1.45e+00 -11.0 0.00e+00    -  0.00e+00 0.00e+00   0
+   1  1.5532886e+01 2.29e-01 7.91e-01 -11.0 2.30e+01    -  8.27e-01 1.00e+00f  1
+   2  3.9002827e+00 1.82e+00 3.40e-01 -11.0 9.64e+01    -  3.85e-01 1.00e+00f  1
+   3  3.9117878e+00 8.21e-03 5.03e-02 -11.0 6.85e+00    -  6.21e-01 1.00e+00h  1
+   4  3.6206371e+00 9.17e-03 9.29e-02 -11.0 6.25e+00    -  7.01e-07 1.00e+00f  1
+   5  2.0302712e+00 8.28e-01 4.43e-02 -11.0 7.24e+01    -  8.61e-02 8.23e-01f  1
+   6  1.9903822e+00 3.01e-02 3.02e-03 -11.0 8.61e+00    -  9.25e-01 1.00e+00h  1
+   7  1.9904263e+00 2.79e-06 2.29e-06 -11.0 1.23e-01    -  9.99e-01 1.00e+00h  1
+   8  1.9904263e+00 3.50e-12 9.26e-14 -11.0 1.28e-04    -  1.00e+00 1.00e+00h  1
 
 Number of Iterations....: 8
 
                                    (scaled)                 (unscaled)
-Objective...............:   1.9165161630626244e+00    1.9165161630626244e+00
-Dual infeasibility......:   8.3327431368875851e-14    8.3327431368875851e-14
-Constraint violation....:   3.1024072200125374e-12    3.1024072200125374e-12
-Variable bound violation:   3.4981688941115863e-06    3.4981688941115863e-06
-Complementarity.........:   1.3620439999139647e-11    1.3620439999139647e-11
-Overall NLP error.......:   1.3620439999139647e-11    1.3620439999139647e-11
+Objective...............:   1.9904262854406625e+00    1.9904262854406625e+00
+Dual infeasibility......:   9.2570262300853065e-14    9.2570262300853065e-14
+Constraint violation....:   3.5020875088775938e-12    3.5020875088775938e-12
+Variable bound violation:   3.4982371062142192e-06    3.4982371062142192e-06
+Complementarity.........:   1.4197768858146798e-11    1.4197768858146798e-11
+Overall NLP error.......:   1.4197768858146798e-11    1.4197768858146798e-11
 
 
 Number of objective function evaluations             = 9
@@ -399,15 +400,15 @@ Number of inequality constraint evaluations          = 0
 Number of equality constraint Jacobian evaluations   = 9
 Number of inequality constraint Jacobian evaluations = 0
 Number of Lagrangian Hessian evaluations             = 8
-Total seconds in IPOPT                               = 0.011
+Total seconds in IPOPT                               = 0.010
 
 EXIT: Optimal Solution Found.
 ```
 
 ## Model Predictive Control Script 
-The steps outlined in the sections above can be captured in an MPC loop. This is summarized in the script below:
-```julia
-using InfiniteOpt, Ipopt
+The steps outlined in the sections above can be captured in an MPC loop. This is summarized in the script below, along with a plot of the MPC solution values:
+```@example
+using InfiniteOpt, Ipopt, Plots
 
 # DEFINE THE PROBLEM CONSTANTS
 F = 100       # m³/s
@@ -424,7 +425,7 @@ states = [0.9, 305]  # Initial conditions
 
 # DEFINE MPC PARAMETERS
 t0 = 0            # Initial simulation time
-tf = 2            # Final simulation time
+tf = 1            # Final simulation time; keep it small with 10 iterations
 Δt = 0.1          # Control interval
 tp = 3            # Prediction endpoint
 tc = 2.5          # Control endpoint
@@ -432,10 +433,13 @@ Dmpc = t0:Δt:tf   # MPC Simulation domain
 Dp = 0:Δt:tp      # Prediction horizon
 Dc = 0:Δt:tc      # Control horizon
 
+# DEFINE ARRAYS TO STORE SOLUTION VALUES
+Ca_vals, T_vals, Tc_vals = [], [], []
+
 # INITIALIZE RELEVANT FUNCTIONS
 function setpoint(t, offset)
     t += offset
-    if t < 0.7
+    if t < 0.5
         return 310
     elseif t < 1.3
         return 323
@@ -493,16 +497,22 @@ control_domain = DomainRestriction(control_func, t)
 # ADJUST DEGREES OF FREEDOM FOR CONTROL VARIABLES
 constant_over_collocation.(Tc, t)
 
+# SET MODEL TO SILENT MODE TO REPRESS SOLVER OUTPUT
+set_silent(model)
+
 # MPC LOOP
 for tk in Dmpc
     # SOLVE THE MODEL
     optimize!(model)
 
-    # GET THE OPTIMAL INPUT
+    # GET THE OPTIMAL INPUT & STORE IN ARRAY
     Tc_opt = value.(Tc)[2]
+    push!(Tc_vals, Tc_opt)
     
-    # SIMULATE SYSTEM FORWARD
+    # SIMULATE SYSTEM FORWARD & STORE STATES
     states[1:2] = sim_func(states, Tc_opt, Δt)
+    push!(Ca_vals, states[1])
+    push!(T_vals, states[2])
 
     # WARMSTART MODEL FOR NEXT SOLVE
     warmstart_backend_start_values(model)
@@ -518,6 +528,17 @@ for tk in Dmpc
     set_optimizer_attribute(model, "bound_frac", 1e-8)
     set_optimizer_attribute(model, "mu_init", 1e-11)
 end
+
+# PLOT THE RESULTS
+t_vals = collect(Dmpc)
+Tsp_vals = setpoint.(t_vals, 0)
+p1 = plot(t_vals, Ca_vals, ylabel="Concentration", label="Ca", lw=2)
+p2 = plot(t_vals, Array{Float64}([T_vals Tc_vals Tsp_vals]), 
+        ylabel="Temperature", 
+        label=["Reactor T" "Coolant Tc" "Setpoint Tsp"],
+        lw=2, ls=[:solid :dot :dash])
+combinedPlot = plot(p1, p2, layout = (2, 1), xlabel="Time", 
+    title="CSTR MPC Control", legend=:right)
 ```
 
 ## [Re-solves with InfiniteExaModels.jl](@id examodels_solves)
