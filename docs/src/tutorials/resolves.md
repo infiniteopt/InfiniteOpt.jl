@@ -236,7 +236,7 @@ Now we can call `optimize!` again to solve our updated model!
 julia> optimize!(model)
 
 julia> barrier_iterations(model)
-11
+16
 ```
 !!! warning
     The re-solve framework's efficiency is based on the idea that the problem structure remains the same between solves (AKA no new variables or constraints are added).
