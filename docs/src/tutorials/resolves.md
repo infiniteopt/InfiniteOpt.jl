@@ -170,63 +170,15 @@ That's it for defining our `InfiniteOpt` problem! Now, let's solve via [`optimiz
 ```jldoctest quick; setup = :(set_attribute(model, "print_level", 0))
 julia> tk = 0;   # Offset for first control step
 
+julia> set_silent(model);   # Repress solver output
+
 julia> optimize!(model)
 ```
+We can check how many iterations the solver took via [`barrier_iterations`](@ref):
+```jldoctest quick
+julia> barrier_iterations(model)
+11
 ```
-This is Ipopt version 3.14.19, running with linear solver MUMPS 5.8.1.
-
-Number of nonzeros in equality constraint Jacobian...:      965
-Number of nonzeros in inequality constraint Jacobian.:        0
-Number of nonzeros in Lagrangian Hessian.............:      427
-
-Total number of variables............................:      305
-                     variables with only lower bounds:       61
-                variables with lower and upper bounds:      122
-                     variables with only upper bounds:        0
-Total number of equality constraints.................:      285
-Total number of inequality constraints...............:        0
-        inequality constraints with only lower bounds:        0
-   inequality constraints with lower and upper bounds:        0
-        inequality constraints with only upper bounds:        0
-
-iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
-   0  5.6260000e+02 3.92e+01 1.80e+00  -1.0 0.00e+00    -  0.00e+00 0.00e+00   0
-   1  3.7406835e+01 4.92e+00 1.84e+00  -1.0 3.92e+01    -  7.09e-01 1.00e+00f  1
-   2  8.6190948e+00 1.14e+00 8.08e-01  -1.0 2.04e+01    -  8.28e-01 1.00e+00f  1
-   3  4.3130048e+00 3.44e-01 2.01e-01  -1.0 3.15e+01    -  9.21e-01 1.00e+00f  1
-   4  3.1480633e+00 8.80e-02 2.07e-02  -1.0 2.23e+01    -  1.00e+00 1.00e+00f  1
-   5  2.8580605e+00 2.40e-02 2.26e-03  -1.7 1.44e+01    -  1.00e+00 1.00e+00h  1
-   6  2.7628832e+00 1.21e-02 1.53e-04  -2.5 8.70e+00    -  1.00e+00 1.00e+00h  1
-   7  2.7343091e+00 3.07e-03 4.63e-05  -3.8 4.15e+00    -  1.00e+00 1.00e+00h  1
-   8  2.7264647e+00 4.35e-04 8.25e-06  -3.8 1.52e+00    -  1.00e+00 1.00e+00h  1
-   9  2.7248808e+00 2.23e-05 3.95e-07  -5.7 3.45e-01    -  1.00e+00 1.00e+00h  1
-iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
-  10  2.7248082e+00 4.99e-08 9.45e-10  -5.7 1.62e-02    -  1.00e+00 1.00e+00h  1
-  11  2.7248043e+00 1.29e-10 1.64e-12  -8.6 8.66e-04    -  1.00e+00 1.00e+00h  1
-
-Number of Iterations....: 11
-
-                                   (scaled)                 (unscaled)
-Objective...............:   2.7248043203499037e+00    2.7248043203499037e+00
-Dual infeasibility......:   1.6416257946353025e-12    1.6416257946353025e-12
-Constraint violation....:   1.2933298876305344e-10    1.2933298876305344e-10
-Variable bound violation:   2.9075268912492902e-06    2.9075268912492902e-06
-Complementarity.........:   2.7342425566515287e-09    2.7342425566515287e-09
-Overall NLP error.......:   2.7342425566515287e-09    2.7342425566515287e-09
-
-
-Number of objective function evaluations             = 12
-Number of objective gradient evaluations             = 12
-Number of equality constraint evaluations            = 12
-Number of inequality constraint evaluations          = 0
-Number of equality constraint Jacobian evaluations   = 12
-Number of inequality constraint Jacobian evaluations = 0
-Number of Lagrangian Hessian evaluations             = 11
-Total seconds in IPOPT                               = 0.013
-
-EXIT: Optimal Solution Found.
-```
-As shown in the solver output, we've converged in 11 iterations!
 
 ### Simulating the system
 Now we'll extract the input for the next control step via
@@ -282,60 +234,9 @@ julia> set_parameter_value(Tsp, Tsp_new);
 Now we can call `optimize!` again to solve our updated model! 
 ```jldoctest quick
 julia> optimize!(model)
-```
-```
-This is Ipopt version 3.14.19, running with linear solver MUMPS 5.8.1.
 
-Number of nonzeros in equality constraint Jacobian...:      965
-Number of nonzeros in inequality constraint Jacobian.:        0
-Number of nonzeros in Lagrangian Hessian.............:      427
-
-Total number of variables............................:      305
-                     variables with only lower bounds:       61
-                variables with lower and upper bounds:      122
-                     variables with only upper bounds:        0
-Total number of equality constraints.................:      285
-Total number of inequality constraints...............:        0
-        inequality constraints with only lower bounds:        0
-   inequality constraints with lower and upper bounds:        0
-        inequality constraints with only upper bounds:        0
-
-iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
-   0  1.7341828e+01 6.65e+00 1.45e+00  -1.0 0.00e+00    -  0.00e+00 0.00e+00   0
-   1  1.5507558e+01 2.21e-01 5.84e-01  -1.0 2.29e+01    -  8.21e-01 1.00e+00f  1
-   2  9.7048644e+00 1.52e-01 9.51e-02  -1.0 2.55e+01    -  7.03e-01 1.00e+00f  1
-   3  4.9836783e+00 2.78e-01 6.45e-02  -1.0 4.08e+01    -  5.54e-01 1.00e+00f  1
-   4  2.7968059e+00 3.87e-01 9.09e-02  -1.0 4.96e+01    -  9.75e-01 1.00e+00f  1
-   5  2.2170065e+00 3.52e-02 6.15e-03  -1.7 1.80e+01    -  9.84e-01 1.00e+00h  1
-   6  2.0526882e+00 1.85e-02 3.18e-04  -2.5 1.15e+01    -  1.00e+00 1.00e+00h  1
-   7  2.0085405e+00 3.85e-03 8.78e-05  -2.5 5.02e+00    -  1.00e+00 1.00e+00h  1
-   8  1.9937642e+00 7.68e-04 1.52e-05  -3.8 2.26e+00    -  1.00e+00 1.00e+00h  1
-   9  1.9908794e+00 4.06e-05 1.01e-06  -3.8 5.05e-01    -  1.00e+00 1.00e+00h  1
-iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
-  10  1.9904340e+00 9.65e-07 1.60e-08  -5.7 8.10e-02    -  1.00e+00 1.00e+00h  1
-  11  1.9904263e+00 2.98e-10 5.56e-12  -8.6 1.41e-03    -  1.00e+00 1.00e+00h  1
-
-Number of Iterations....: 11
-
-                                   (scaled)                 (unscaled)
-Objective...............:   1.9904262916243169e+00    1.9904262916243169e+00
-Dual infeasibility......:   5.5617656357834612e-12    5.5617656357834612e-12
-Constraint violation....:   2.9773161713819718e-10    2.9773161713819718e-10
-Variable bound violation:   2.9522764748435293e-06    2.9522764748435293e-06
-Complementarity.........:   3.1070715177779954e-09    3.1070715177779954e-09
-Overall NLP error.......:   3.1070715177779954e-09    3.1070715177779954e-09
-
-
-Number of objective function evaluations             = 12
-Number of objective gradient evaluations             = 12
-Number of equality constraint evaluations            = 12
-Number of inequality constraint evaluations          = 0
-Number of equality constraint Jacobian evaluations   = 12
-Number of inequality constraint Jacobian evaluations = 0
-Number of Lagrangian Hessian evaluations             = 11
-Total seconds in IPOPT                               = 0.014
-
-EXIT: Optimal Solution Found.
+julia> barrier_iterations(model)
+11
 ```
 !!! warning
     The re-solve framework's efficiency is based on the idea that the problem structure remains the same between solves (AKA no new variables or constraints are added).
@@ -350,59 +251,12 @@ julia> set_optimizer_attribute(model, "bound_frac", 1e-8); # Desired minimum rel
 
 julia> set_optimizer_attribute(model, "mu_init", 1e-11); # Initial barrier parameter value
 ```
-Note that the chosen values here are not always good, as optimal values are problem dependent. Moving on, solving with these new solver options reduces the number of iterations to 8:
+Note that the chosen values here are not always good, as optimal values are problem dependent. Moving on, solving with these new solver options reduces the number of iterations:
 ```jldoctest quick
 julia> optimize!(model)
-```
-```
-This is Ipopt version 3.14.19, running with linear solver MUMPS 5.8.1.
 
-Number of nonzeros in equality constraint Jacobian...:      965
-Number of nonzeros in inequality constraint Jacobian.:        0
-Number of nonzeros in Lagrangian Hessian.............:      427
-
-Total number of variables............................:      305
-                     variables with only lower bounds:       61
-                variables with lower and upper bounds:      122
-                     variables with only upper bounds:        0
-Total number of equality constraints.................:      285
-Total number of inequality constraints...............:        0
-        inequality constraints with only lower bounds:        0
-   inequality constraints with lower and upper bounds:        0
-        inequality constraints with only upper bounds:        0
-
-iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
-   0  1.7341828e+01 6.65e+00 1.45e+00 -11.0 0.00e+00    -  0.00e+00 0.00e+00   0
-   1  1.5532886e+01 2.29e-01 7.91e-01 -11.0 2.30e+01    -  8.27e-01 1.00e+00f  1
-   2  3.9002827e+00 1.82e+00 3.40e-01 -11.0 9.64e+01    -  3.85e-01 1.00e+00f  1
-   3  3.9117878e+00 8.21e-03 5.03e-02 -11.0 6.85e+00    -  6.21e-01 1.00e+00h  1
-   4  3.6206371e+00 9.17e-03 9.29e-02 -11.0 6.25e+00    -  7.01e-07 1.00e+00f  1
-   5  2.0302712e+00 8.28e-01 4.43e-02 -11.0 7.24e+01    -  8.61e-02 8.23e-01f  1
-   6  1.9903822e+00 3.01e-02 3.02e-03 -11.0 8.61e+00    -  9.25e-01 1.00e+00h  1
-   7  1.9904263e+00 2.79e-06 2.29e-06 -11.0 1.23e-01    -  9.99e-01 1.00e+00h  1
-   8  1.9904263e+00 3.50e-12 9.26e-14 -11.0 1.28e-04    -  1.00e+00 1.00e+00h  1
-
-Number of Iterations....: 8
-
-                                   (scaled)                 (unscaled)
-Objective...............:   1.9904262854406625e+00    1.9904262854406625e+00
-Dual infeasibility......:   9.2570262300853065e-14    9.2570262300853065e-14
-Constraint violation....:   3.5020875088775938e-12    3.5020875088775938e-12
-Variable bound violation:   3.4982371062142192e-06    3.4982371062142192e-06
-Complementarity.........:   1.4197768858146798e-11    1.4197768858146798e-11
-Overall NLP error.......:   1.4197768858146798e-11    1.4197768858146798e-11
-
-
-Number of objective function evaluations             = 9
-Number of objective gradient evaluations             = 9
-Number of equality constraint evaluations            = 9
-Number of inequality constraint evaluations          = 0
-Number of equality constraint Jacobian evaluations   = 9
-Number of inequality constraint Jacobian evaluations = 0
-Number of Lagrangian Hessian evaluations             = 8
-Total seconds in IPOPT                               = 0.010
-
-EXIT: Optimal Solution Found.
+julia> barrier_iterations(model)
+8
 ```
 
 ## Model Predictive Control Script 
