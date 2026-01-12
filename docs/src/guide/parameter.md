@@ -180,7 +180,7 @@ via the basic constructor for [`DependentParameters`](@ref) and then invoking
 [`add_parameters`](@ref). Note that this should be done with caution since most 
 error checking will be omitted in this case.
 
-## [Macro Definition] (@id param_macro)
+## [Macro Definition](@id param_macro)
 ### One-Dimensional Parameters
 One user-friendly way of defining infinite parameters is by macro 
 [`@infinite_parameter`](@ref). The macro executes the same process as the 

@@ -55,7 +55,10 @@ makedocs(;
     pages = [
         "Home" => "index.md",
         "Installation" => "install.md",
-        "Tutorials" => ["Quick Start" => "tutorials/quick_start.md"], # TODO add more tutorials
+        "Tutorials" => [
+            "Quick Start" => "tutorials/quick_start.md",
+            "Re-solves" => "tutorials/resolves.md"
+            ], # TODO add more tutorials
         "Examples" =>  section_entry(EXAMPLE_DIR),
         # "Background" => [], # TODO add the background
         "User Guide" => [

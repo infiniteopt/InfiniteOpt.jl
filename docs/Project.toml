@@ -14,6 +14,8 @@ Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
 MathOptAI = "e52c2cb8-508e-4e12-9dd2-9c4755b60e73"
 Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
+InfiniteExaModels = "ffdf776e-a381-4021-b00a-97884d4c0dcd"
+NLPModelsIpopt = "f4238b75-b362-5c4c-b852-0801c9a21d71"
 
 [compat]
 Distributions = "0.25"

@@ -451,6 +451,12 @@ end
         @test dual_start_value(c1t) == -1
         @test_throws ErrorException warmstart_backend_start_values(TestBackend())
     end
+    # test set_start_values
+    @testset "set_start_values" begin
+        @test_throws ErrorException map_value_to_start(inf, tb)
+        @test_throws ErrorException map_value_to_start(inf, 42)
+        @test_throws ErrorException set_start_values(m) # Interpolations not loaded
+    end
     # test model not up to date
     set_objective_sense(m, MOI.MAX_SENSE)
     @testset "Not up-to-date" begin 

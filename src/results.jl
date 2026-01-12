@@ -422,6 +422,68 @@ function JuMP.value(cref::InfOptConstraintRef; kwargs...)
 end
 
 ################################################################################
+#                               WARMSTART UPDATES
+################################################################################
+"""
+    map_value_to_start(
+        vref::GeneralVariableRef,
+        backend::AbstractTransformationBackend;
+        [kwargs...]
+    )::Function
+
+Map the optimized values of the infinite variable `vref` (obtained with `backend`) 
+to a function that can be used to set the start value of `vref`. If `Interpolations`
+is loaded, this will default to returning an interpolation function based on the
+optimized values (assuming they are discretized).
+"""
+function map_value_to_start(vref::GeneralVariableRef, backend; kwargs...)
+    error("`map_value_to_start` for a transformation backend of type " *
+          "`$(typeof(backend))`. If you are called `set_start_values` and " *
+          "get this message, try importing Interpolations to enable this. "*
+          "If you are writing an extension be sure to extend `map_value_to_start`.")
+end
+
+"""
+    JuMP.set_start_values(
+        model::InfiniteModel;
+        [degree::Interpolations.Degree = Interpolations.Linear()],
+        [kwargs...]
+    )::Nothing
+
+Set the start values of all variables in `model` based on its optimized values. For
+transcription backends, this will create `degree` interpolation functions for infinite 
+variables. Note that the Interpolations.jl package must be loaded. This is useful for
+warmstarts. See also [`warmstart_backend_start_values`](@ref) to update backend 
+primal and dual start values efficiently without rebuilding the backend.
+
+**Example**
+```julia
+using Interpolations
+optimize!(model)
+set_start_values(model)
+```
+"""
+function JuMP.set_start_values(model::InfiniteModel; kwargs...)
+    # get the finite variable values
+    fvrefs = JuMP.all_variables(model, FiniteVariable)
+    fstarts = JuMP.value.(fvrefs)
+    # get the infinite variable values
+    ivrefs = JuMP.all_variables(model, InfiniteVariable)
+    append!(ivrefs, all_derivatives(model))
+    backend = transformation_backend(model)
+    istarts = map(v -> map_value_to_start(v, backend; kwargs...), ivrefs)
+    # set the start values
+    for (vref, start) in zip(fvrefs, fstarts)
+        JuMP.set_start_value(vref, start)
+    end
+    for (vref, start) in zip(ivrefs, istarts)
+        JuMP.set_start_value(vref, start)
+    end
+    # TODO account for dual starts once support is added
+    return
+end
+
+################################################################################
 #                            BOILERPLATE REF QUERIES
 ################################################################################
 for (Ref, func, mapper) in (
