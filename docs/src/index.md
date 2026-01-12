@@ -73,8 +73,8 @@ Accepted infinite/finite problem forms currently include:
 
 ### Infinite-Dimensional Optimization with InfiniteOpt.jl
 See our YouTube overview of infinite-dimensional programming and InfiniteOpt.jl's 
-capabilities from JuliaCon 2021 (note that nonlinear support has since been added): 
-[![youtube](assets/youtube.PNG)](https://www.youtube.com/watch?v=z03Fjvz90os&t=1s "Infinite-Dimensional Optimization with InfiniteOpt.jl")
+capabilities from our JuMP-dev 2025 talk: 
+[![youtube](assets/youtube.jpg)](https://www.youtube.com/watch?v=oug8ttdzc2g&t=0s "The State of InfiniteOpt.jl")
 
 ## Installation
 `InfiniteOpt.jl` is a registered `Julia` package and can be added simply by 

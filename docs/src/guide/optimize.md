@@ -73,6 +73,7 @@ julia> set_optimizer(model, Ipopt.Optimizer)
     set_parameter_value(p, 42)
     optimize!(model)
     ```
+    To learn more about efficent resolves, please see the [Re-solve Tutorial](@ref).
 
 A number of methods also exist to adjust the optimizer settings such as 
 suppressing output. This is explained below in the 
