@@ -3,7 +3,7 @@
 <img class="display-dark-only" src="assets/full_logo-dark.png" alt="InfiniteOpt logo"/>
 ```
 
-A `JuMP` extension for expressing and solving infinite-dimensional optimization 
+A `JuMP` extension for modeling and efficiently solving infinite-dimensional optimization 
 problems.
 
 !!! note
@@ -12,38 +12,30 @@ problems.
     largely the same.
 
 ## What is InfiniteOpt?
-`InfiniteOpt.jl` provides a general mathematical abstraction to express and solve 
-infinite-dimensional optimization problems (i.e., problems with decision 
-functions). Such problems stem from areas such as space-time programming and 
-stochastic programming. `InfiniteOpt` is meant to facilitate intuitive model 
-definition, automatic transcription into solvable models, permit a wide range 
-of user-defined extensions/behavior, and more. 
+`InfiniteOpt.jl` provides a general modeling environment to express and efficiently solve 
+infinite-dimensional optimization problems (e.g., dynamic, stochastic, and 
+PDE-constrained optimization). `InfiniteOpt` is meant to facilitate intuitive model 
+definition that is compatible with a large suite of solution techniques 
+(including automatic transcription) to tackle large-scale real world problems. 
 
 It builds upon `JuMP` to add support for many complex modeling objects which 
 include:
-- Infinite parameters (e.g., time, space, uncertainty, etc.)
-- Finite parameters (similar to `ParameterJuMP`)
+- Infinite parameters (e.g., time, space, uncertainty, etc)
 - Infinite variables (e.g., ``y(t, x)``)
 - Derivatives (e.g., ``\frac{\partial y(t, x)}{\partial t}``)
 - Measures (e.g., ``\int_{t \in \mathcal{D}_t}y(t,x) dt``, ``\mathbb{E}[y(\xi)]``)
+- Chance constraints
 - More
 
-!!! note 
-    `InfiniteOpt` is intended to be used for infinite-dimensional optimization 
-    problems. Finite problems (e.g., directly modeling a discrete time model) 
-    should instead be modeled using [`JuMP`](https://jump.dev/JuMP.jl/stable/).
-
-Moreover, `InfiniteOpt` decouples the infinite-dimensional formulations from the 
-finite transformations typically used to solve them. This readily enables diverse 
-techniques be used to solve these types of problems. By default, we employ 
-direct transcription (i.e., discretization) transformations whose features 
-include:
-- Efficient implementations that scale **linearly**!
-- Diverse integral approximations (e.g., quadratures, sampling)
-- Diverse derivative approximations (e.g., finite difference, orthogonal 
-  collocation)
-- Sophisticated support point management system
+Moreover, `InfiniteOpt` modeling interface decouples infinite-dimensional 
+formulations from the solution/transformations used to solve them. This enables rapid 
+diverse switching between techniques with state-of-the-art implementations. 
+By default, we employ direct transcription (i.e., discretization) transformations 
+whose features include:
+- Highly efficient automatic transformation that scales linearly 
+- Large suite of approximation schemes (e.g., quadratures, orthogonal collocation)
 - Compatible with all [JuMP-supported solvers](https://jump.dev/JuMP.jl/v1/installation/#Supported-solvers)
+- Compatible with GPU solvers via [InfiniteExaModels](https://github.com/infiniteopt/InfiniteExaModels.jl) that make InfiniteOpt **orders-of-magnitude faster than state-of-the-art** alternatives.
 
 Accepted infinite/finite problem forms currently include:
 - Variables
@@ -70,6 +62,8 @@ Accepted infinite/finite problem forms currently include:
     - Semi-definite
     - Indicator
     - Anything else supported by JuMP
+- Machine learning surrogate models (via [InfiniteMathOptAI](@ref))
+- Generalized disjunctive programming (via [DisjunctiveProgramming.jl](https://github.com/infiniteopt/DisjunctiveProgramming.jl))
 
 ### Infinite-Dimensional Optimization with InfiniteOpt.jl
 See our YouTube overview of infinite-dimensional programming and InfiniteOpt.jl's 

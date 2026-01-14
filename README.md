@@ -1,13 +1,15 @@
 ![Logo](full_logo.png)
 ---
 
-A `JuMP` extension for expressing and solving infinite-dimensional optimization
-problems. Such areas include [stochastic programming](https://en.wikipedia.org/wiki/Stochastic_programming),
+A `JuMP` extension for intuitively modeling general infinite-dimensional optimization
+problems and efficiently solving them. Such areas include [stochastic programming](https://en.wikipedia.org/wiki/Stochastic_programming),
 [dynamic programming](https://en.wikipedia.org/wiki/Dynamic_programming),
-space-time optimization, and more. `InfiniteOpt` serves as an easy-to-use modeling
-interface for these advanced problem types that can be used by those with little
+space-time optimization, and more. `InfiniteOpt` serves as an **easy-to-use modeling
+interface** for these advanced problem types that can be used by those with little
 to no background in these areas. It also it contains a wealth of capabilities
-making it a powerful and convenient tool for advanced users.  
+making it a powerful and convenient tool for advanced users. Notably, it can 
+**significantly reduce solution times** via highly efficient CPU and GPU solution methods 
+with its [InfiniteExaModels](https://github.com/infiniteopt/InfiniteExaModels.jl) backend.
 
 **Current Version:** [![](https://docs.juliahub.com/InfiniteOpt/version.svg)](https://juliahub.com/ui/Packages/InfiniteOpt/p3GvY) [![](https://docs.juliahub.com/InfiniteOpt/pkgeval.svg)](https://juliahub.com/ui/Packages/InfiniteOpt/p3GvY)
 
