@@ -53,7 +53,7 @@ Note we could have equivalently used `value(y, Linear())`.
     when Interpolations is loaded in (typically when `JuMP.DenseAxisArray`s are used). 
     Hence, we recommend using `Array` containers when using this extension.
 
-## InfiniteMathOptAI
+## [InfiniteMathOptAI](@id mathoptai_guide)
 This extension allows us to import machine learning models into `InfiniteModels`
 via [MathOptAI](https://lanl-ansi.github.io/MathOptAI.jl/stable/). This is enabled by
 importing InfiniteOpt and MathOptAI:

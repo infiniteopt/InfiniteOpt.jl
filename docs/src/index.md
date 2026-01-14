@@ -62,7 +62,7 @@ Accepted infinite/finite problem forms currently include:
     - Semi-definite
     - Indicator
     - Anything else supported by JuMP
-- Machine learning surrogate models (via [InfiniteMathOptAI](@ref))
+- Machine learning surrogate models (via [MathOptAI](@ref mathoptai_guide))
 - Generalized disjunctive programming (via [DisjunctiveProgramming.jl](https://github.com/infiniteopt/DisjunctiveProgramming.jl))
 
 ### Infinite-Dimensional Optimization with InfiniteOpt.jl
