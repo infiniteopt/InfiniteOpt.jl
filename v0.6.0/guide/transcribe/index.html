@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Model Transcription · InfiniteOpt.jl</title><meta name="title" content="Model Transcription · InfiniteOpt.jl"/><meta property="og:title" content="Model Transcription · InfiniteOpt.jl"/><meta property="twitter:title" content="Model Transcription · InfiniteOpt.jl"/><meta name="description" content="Documentation for InfiniteOpt.jl."/><meta property="og:description" content="Documentation for InfiniteOpt.jl."/><meta property="twitter:description" content="Documentation for InfiniteOpt.jl."/><script async src="https://www.googletagmanager.com/gtag/js?id=UA-178297470-1"></script><script>  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'UA-178297470-1', {'page_path': location.pathname + location.search + location.hash});
+</script><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/extra_styles.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img class="docs-light-only" src="../../assets/logo.png" alt="InfiniteOpt.jl logo"/><img class="docs-dark-only" src="../../assets/logo-dark.png" alt="InfiniteOpt.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">InfiniteOpt.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../install/">Installation</a></li><li><input class="collapse-toggle" id="menuitem-3" type="checkbox"/><label class="tocitem" for="menuitem-3"><span class="docs-label">Tutorials</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tutorials/quick_start/">Quick Start</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4" type="checkbox"/><label class="tocitem" for="menuitem-4"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-4-1" type="checkbox"/><label class="tocitem" for="menuitem-4-1"><span class="docs-label">Optimal Control</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../examples/Optimal Control/Fishing/">Fishing Optimal Control</a></li><li><a class="tocitem" href="../../examples/Optimal Control/Hanging Chain/">Hanging Chain Problem</a></li><li><a class="tocitem" href="../../examples/Optimal Control/Jennings/">Minimizing Final Time (Jennings Problem)</a></li><li><a class="tocitem" href="../../examples/Optimal Control/consumption_savings/">Consumption Savings Problem</a></li><li><a class="tocitem" href="../../examples/Optimal Control/hovercraft/">Hovercraft Path Planning</a></li><li><a class="tocitem" href="../../examples/Optimal Control/pandemic_control/">Pandemic Control</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-2" type="checkbox"/><label class="tocitem" for="menuitem-4-2"><span class="docs-label">Stochastic Optimization</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../examples/Stochastic Optimization/farmer/">Two-Stage Stochastic Program</a></li><li><a class="tocitem" href="../../examples/Stochastic Optimization/flexible_design/">Power Network Flexibility Design</a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-5" type="checkbox" checked/><label class="tocitem" for="menuitem-5"><span class="docs-label">User Guide</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../model/">Infinite Models</a></li><li><a class="tocitem" href="../domains/">Infinite Domains</a></li><li><a class="tocitem" href="../parameter/">Infinite Parameters</a></li><li><a class="tocitem" href="../finite_parameter/">Finite Parameters</a></li><li><a class="tocitem" href="../variable/">Variables</a></li><li><a class="tocitem" href="../derivative/">Derivatives</a></li><li><a class="tocitem" href="../expression/">Expressions</a></li><li><a class="tocitem" href="../measure/">Measures</a></li><li><a class="tocitem" href="../objective/">Objectives</a></li><li><a class="tocitem" href="../constraint/">Constraints</a></li><li class="is-active"><a class="tocitem" href>Model Transcription</a><ul class="internal"><li><a class="tocitem" href="#Overview"><span>Overview</span></a></li><li><a class="tocitem" href="#Basic-Usage"><span>Basic Usage</span></a></li><li><a class="tocitem" href="#Transcription-Theory"><span>Transcription Theory</span></a></li><li><a class="tocitem" href="#TranscriptionOpt"><span>TranscriptionOpt</span></a></li></ul></li><li><a class="tocitem" href="../optimize/">Optimization</a></li><li><a class="tocitem" href="../result/">Results</a></li><li><a class="tocitem" href="../extensions/">Extensions</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-6" type="checkbox"/><label class="tocitem" for="menuitem-6"><span class="docs-label">API Manual</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../manual/model/">Infinite Models</a></li><li><a class="tocitem" href="../../manual/domains/">Infinite Domains</a></li><li><a class="tocitem" href="../../manual/parameter/">Infinite Parameters</a></li><li><a class="tocitem" href="../../manual/finite_parameter/">Finite Parameters</a></li><li><a class="tocitem" href="../../manual/variable/">Variables</a></li><li><a class="tocitem" href="../../manual/derivative/">Derivatives</a></li><li><a class="tocitem" href="../../manual/expression/">Expressions</a></li><li><a class="tocitem" href="../../manual/measure/">Measures</a></li><li><a class="tocitem" href="../../manual/objective/">Objectives</a></li><li><a class="tocitem" href="../../manual/constraint/">Constraints</a></li><li><a class="tocitem" href="../../manual/backend/">Backends</a></li><li><a class="tocitem" href="../../manual/transcribe/">TranscriptionOpt</a></li><li><a class="tocitem" href="../../manual/result/">Results</a></li><li><a class="tocitem" href="../../manual/extensions/">Extensions</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-7" type="checkbox"/><label class="tocitem" for="menuitem-7"><span class="docs-label">Development</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../develop/extensions/">Extensions</a></li><li><a class="tocitem" href="../../develop/start_guide/">Getting Started</a></li><li><a class="tocitem" href="../../develop/style/">Style Guide</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">User Guide</a></li><li class="is-active"><a href>Model Transcription</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Model Transcription</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/infiniteopt/InfiniteOpt.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/infiniteopt/InfiniteOpt.jl/blob/master/docs/src/guide/transcribe.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="transcription_docs"><a class="docs-heading-anchor" href="#transcription_docs">Model Transcription</a><a id="transcription_docs-1"></a><a class="docs-heading-anchor-permalink" href="#transcription_docs" title="Permalink"></a></h1><p>A guide for transcribing infinite models in <code>InfiniteOpt</code>. See the respective  <a href="../../manual/transcribe/#transcription_manual">technical manual</a> for more details.</p><h2 id="Overview"><a class="docs-heading-anchor" href="#Overview">Overview</a><a id="Overview-1"></a><a class="docs-heading-anchor-permalink" href="#Overview" title="Permalink"></a></h2><p>All infinite models need to be transformed into a form that can be solved. A common approach is direct transcription (e.g., discretize-then-optimize) where  the domain of an infinite parameter is approximated by a collection of support  points. This is the idea behind <code>TranscriptionOpt</code> (which implements  <a href="../../manual/transcribe/#InfiniteOpt.TranscriptionOpt.TranscriptionBackend"><code>TranscriptionBackend</code></a>) which is InfiniteOpt&#39;s default transformation backend as discussed in the <a href="../model/#infinite_model_docs">Infinite Models</a> section. This page will detail the transcription models based in <code>InfiniteOpt.TranscriptionOpt</code>.</p><h2 id="Basic-Usage"><a class="docs-heading-anchor" href="#Basic-Usage">Basic Usage</a><a id="Basic-Usage-1"></a><a class="docs-heading-anchor-permalink" href="#Basic-Usage" title="Permalink"></a></h2><p>Most users will not need to employ the capabilities of <code>TranscriptionOpt</code> directly  since they are employed implicitly with the call of  <a href="../../manual/backend/#JuMP.optimize!-Tuple{InfiniteModel}"><code>optimize!</code></a> on an infinite model. This  occurs since <code>TranscriptionBackend</code>s are the default backend. </p><p>However, some users may wish to use <code>TranscriptionOpt</code> to extract a fully  discretized/transcribed version of an infinite model that is conveniently output  as a typical <code>JuMP</code> model and can then be treated as such. This is principally  accomplished via <a href="../../manual/backend/#InfiniteOpt.build_transformation_backend!-Tuple{InfiniteModel}"><code>build_transformation_backend!</code></a>. To illustrate how this is done,  let&#39;s first define a basic infinite model with a simple support structure for the  sake of example:</p><pre><code class="language-julia-repl hljs">julia&gt; using InfiniteOpt
+
+julia&gt; inf_model = InfiniteModel();
+
+julia&gt; @infinite_parameter(inf_model, t in [0, 10], supports = [0, 5, 10])
+t
+
+julia&gt; @variable(inf_model, y &gt;= 0, Infinite(t))
+y(t)
+
+julia&gt; @variable(inf_model, z, Bin)
+z
+
+julia&gt; @objective(inf_model, Min, 2z + support_sum(y, t))
+2 z + support_sum{t}[y(t)]
+
+julia&gt; @constraint(inf_model, initial, y(0) == 1)
+initial : y(0) = 1
+
+julia&gt; @constraint(inf_model, constr, y^2 - z &lt;= 42)
+constr : y(t)² - z ≤ 42, ∀ t ∈ [0, 10]
+
+julia&gt; print(inf_model)
+Min 2 z + support_sum{t}[y(t)]
+Subject to
+ y(t) ≥ 0, ∀ t ∈ [0, 10]
+ z binary
+ initial : y(0) = 1
+ constr : y(t)² - z ≤ 42, ∀ t ∈ [0, 10]</code></pre><p>Now we can make <code>JuMP</code> model containing the transcribed version of <code>inf_model</code>  via <a href="../../manual/backend/#InfiniteOpt.build_transformation_backend!-Tuple{InfiniteModel}"><code>build_transformation_backend!</code></a> and then extract it via  <a href="../../manual/backend/#InfiniteOpt.transformation_model-Tuple{InfiniteModel}"><code>transformation_model</code></a>:</p><pre><code class="language-julia-repl hljs">julia&gt; build_transformation_backend!(inf_model)
+
+julia&gt; trans_model = transformation_model(inf_model)
+A JuMP Model
+├ solver: none
+├ objective_sense: MIN_SENSE
+│ └ objective_function_type: AffExpr
+├ num_variables: 4
+├ num_constraints: 8
+│ ├ AffExpr in MOI.EqualTo{Float64}: 1
+│ ├ QuadExpr in MOI.LessThan{Float64}: 3
+│ ├ VariableRef in MOI.GreaterThan{Float64}: 3
+│ └ VariableRef in MOI.ZeroOne: 1
+└ Names registered in the model: none
+
+julia&gt; print(trans_model)
+Min 2 z + y(0.0) + y(5.0) + y(10.0)
+Subject to
+ initial : y(0.0) = 1
+ constr[1] : y(0.0)² - z ≤ 42
+ constr[2] : y(5.0)² - z ≤ 42
+ constr[3] : y(10.0)² - z ≤ 42
+ y(0.0) ≥ 0
+ y(5.0) ≥ 0
+ y(10.0) ≥ 0
+ z binary</code></pre><p>Thus, we have a transcribed <code>JuMP</code> model. To be precise, data on the mapping between  the transcribed variables/constraints and their infinite counterparts is also generated  as part of the <code>TranscriptionBackend</code> that <code>trans_model</code> is part of. Notice, that  multiple finite variables have been introduced to discretize <code>y(t)</code> at supports 0, 5, and 10 which we can can also query via <code>supports</code>:</p><pre><code class="language-julia-repl hljs">julia&gt; supports(y)
+3-element Vector{Tuple}:
+ (0.0,)
+ (5.0,)
+ (10.0,)</code></pre><p>Also, notice how the constraints are transcribed in accordance with these supports  except the initial condition which naturally is only invoked for the first support  point. Furthermore, the transcription variable(s) of any variable associated with  the infinite model can be determined via <a href="../../manual/backend/#InfiniteOpt.transformation_variable-Tuple{GeneralVariableRef}"><code>transformation_variable</code></a>:</p><pre><code class="language-julia-repl hljs">julia&gt; transformation_variable(y)
+3-element Vector{VariableRef}:
+ y(0.0)
+ y(5.0)
+ y(10.0)
+
+julia&gt; transformation_variable(z)
+z</code></pre><p>Similarly, the transcription constraints associated with infinite model constraints  can be queried via <a href="../../manual/backend/#InfiniteOpt.transformation_constraint-Tuple{InfOptConstraintRef}"><code>transformation_constraint</code></a> and the associated supports  and infinite parameters can be found via <code>supports</code> and <code>parameter_refs</code>:</p><pre><code class="language-julia-repl hljs">julia&gt; transformation_constraint(initial)
+initial : y(0.0) = 1
+
+julia&gt; transformation_constraint(constr)
+3-element Vector{ConstraintRef}:
+ constr[1] : y(0.0)² - z ≤ 42
+ constr[2] : y(5.0)² - z ≤ 42
+ constr[3] : y(10.0)² - z ≤ 42
+
+julia&gt; supports(constr)
+3-element Vector{Tuple}:
+ (0.0,)
+ (5.0,)
+ (10.0,)
+
+julia&gt; parameter_refs(constr)
+(t,)</code></pre><p>Note the parameter reference tuple corresponds to the support tuples. </p><div class="admonition is-info" id="Note-9403e422d2729f9d"><header class="admonition-header">Note<a class="admonition-anchor" href="#Note-9403e422d2729f9d" title="Permalink"></a></header><div class="admonition-body"><p>Methods that query the transcription objects (e.g., <code>transcformation_variable</code>)  and the respective supports via <code>supports</code> also accept the keyword argument  <code>label</code> to specify which that transcription objects are desired in accordance  to the support labels that are inherited from and/or are equal to <code>label</code>. By  default, this will return any supports that are public (i.e., will hide anything  solely associated with internal supports). The full query response can always  be obtained via <code>label = All</code>.</p></div></div><p>Now we have a transcribed JuMP model that can be optimized via traditional  JuMP compatible optimizers whose variables and constraints can be accessed using  the methods mentioned above.</p><h2 id="Transcription-Theory"><a class="docs-heading-anchor" href="#Transcription-Theory">Transcription Theory</a><a id="Transcription-Theory-1"></a><a class="docs-heading-anchor-permalink" href="#Transcription-Theory" title="Permalink"></a></h2><p>A given infinite-dimensional optimization problem is parameterized according to  infinite parameters following our abstraction. In general, most solution strategies  transcribe the problem according to certain finite parameter values (supports) and  thus represent the problem in terms of these supports (e.g., using discrete time  points in dynamic optimization). This methodology can be generalized into the  following steps:</p><ol><li>define supports for each infinite parameter if not already defined,</li><li>add any additional support needed for derivative evaluation,</li><li>expand any measures according to their underlying numerical representation  using transcribed infinite variables as appropriate,</li><li>replace any remaining infinite variables/derivatives with transcribed  variables supported over each unique combination of the underlying parameter  supports,</li><li>replace any remaining infinite constraints with transcribed ones supported over  all the unique support combinations stemming from the infinite parameters they  depend on,</li><li>and add on the transcribed versions of the auxiliary derivative evaluation  equations. </li></ol><p>For example, let&#39;s consider a space-time optimization problem of the form:</p><p class="math-container">\[\begin{aligned}
+	&amp;&amp;\min_{y(t), g(t, x)} &amp;&amp;&amp; \int_0^{10} y^2(t) dt \\
+	&amp;&amp;\text{s.t.} &amp;&amp;&amp; y(0) = 1 \\
+	&amp;&amp;&amp;&amp;&amp; \int_{x \in [-1, 1]^2} \frac{\partial g(t, x)}{\partial t} dx = 42, &amp;&amp; \forall t \in [0, 10] \\
+  &amp;&amp;&amp;&amp;&amp; 3g(t, x) + 2y^2(t) \leq 2, &amp;&amp; \forall t \in T, \ x \in [-1, 1]^2. \\
+\end{aligned}\]</p><p>Thus, we have an optimization problem whose decision space is infinite with  respect to time <span>$t$</span> and position <span>$x$</span>. Now let&#39;s transcribe it following the  above steps. First, we need to specify the infinite parameter supports and for  simplicity let&#39;s choose the following sparse sets:</p><ul><li><span>$t \in \{0, 5, 10\}$</span></li><li><span>$x \in \{[-1, -1]^T, [-1, 1]^T, [1, -1]^T, [1, 1]^T\}$</span>.</li></ul><p>To handle the derivative <span>$\frac{\partial g(t, x)}{\partial t}$</span>, we&#39;ll use    backward finite difference, so no additional supports will need to be added.</p><p>Now we expand the two integrals (measures) via a finite approximation using only  the above supports and term coefficients of 1 (note this is not numerically  correct but is done for conciseness in example). Doing this, we obtain the  form:</p><p class="math-container">\[\begin{aligned}
+	&amp;&amp;\min_{y(t), g(t, x)} &amp;&amp;&amp; y^2(0) + y^2(5) + y^2(10) \\
+	&amp;&amp;\text{s.t.} &amp;&amp;&amp; y(0) = 1 \\
+  &amp;&amp;&amp;&amp;&amp; g(0, x) = 0 \\
+	&amp;&amp;&amp;&amp;&amp; \frac{\partial g(t, [-1, -1])}{\partial t} + \frac{\partial g(t, [-1, 1])}{\partial t} + \frac{\partial g(t, [1, -1])}{\partial t} + \frac{\partial g(t, [1, 1])}{\partial t} = 42, &amp;&amp; \forall t \in [0, 10] \\
+  &amp;&amp;&amp;&amp;&amp; 3g(t, x) + 2y^2(t) \leq 2, &amp;&amp; \forall t \in T, \ x \in [-1, 1]^2. \\
+\end{aligned}\]</p><p>Notice that the infinite variable <span>$y(t)$</span> in the objective measure has been  replaced with finite transcribed variables <span>$y(0)$</span>, <span>$y(5)$</span>, <span>$y(10)$</span>. Also, the  infinite derivative <span>$\frac{\partial g(t, x)}{\partial t}$</span> was replaced with   partially transcribed variables in the second constraint in accordance with the  measure over the positional domain <span>$x$</span>.</p><p>Now we need to transcribe the remaining infinite and semi-infinite variables  with finite variables and duplicate the remaining infinite constraints accordingly.  This means that the second constraint needs to be transcribed over the time domain  and the third constraint needs to be transcribed for each unique combination  of the time and position supports. Applying this transcription yields: </p><p class="math-container">\[\begin{aligned}
+	&amp;&amp;\min_{y(t), g(t, x)} &amp;&amp;&amp; y^2(0) + y^2(5) + y^2(10) \\
+	&amp;&amp;\text{s.t.} &amp;&amp;&amp; y(0) = 1 \\
+  &amp;&amp;&amp;&amp;&amp; g(0, [-1, -1]) = 0 \\
+  &amp;&amp;&amp;&amp;&amp; g(0, [-1, 1]) = 0 \\
+  &amp;&amp;&amp;&amp;&amp; g(0, [1, -1]) = 0 \\
+  &amp;&amp;&amp;&amp;&amp; g(0, [1, 1]) = 0 \\
+	&amp;&amp;&amp;&amp;&amp; \frac{\partial g(0, [-1, -1])}{\partial t} + \frac{\partial g(0, [-1, 1])}{\partial t} + \frac{\partial g(0, [1, -1])}{\partial t} + \frac{\partial g(0, [1, 1])}{\partial t} = 42\\
+  &amp;&amp;&amp;&amp;&amp; \frac{\partial g(5, [-1, -1])}{\partial t} + \frac{\partial g(5, [-1, 1])}{\partial t} + \frac{\partial g(5, [1, -1])}{\partial t} + \frac{\partial g(5, [1, 1])}{\partial t} = 42\\
+  &amp;&amp;&amp;&amp;&amp; \frac{\partial g(10, [-1, -1])}{\partial t} + \frac{\partial g(10, [-1, 1])}{\partial t} + \frac{\partial g(10, [1, -1])}{\partial t} + \frac{\partial g(10, [1, 1])}{\partial t} = 42\\
+  &amp;&amp;&amp;&amp;&amp; 3g(0, [-1, -1]) + 2y^2(0) \leq 2 \\
+  &amp;&amp;&amp;&amp;&amp; 3g(0, [-1, 1]) + 2y^2(0) \leq 2 \\
+  &amp;&amp;&amp;&amp;&amp; \vdots \\
+  &amp;&amp;&amp;&amp;&amp; 3g(10, [1, 1]) + 2y^2(10) \leq 2.
+\end{aligned}\]</p><p>Now that the variables and constraints are transcribed, all that remains is  to add relations to define the behavior of the transcribed partial derivatives.  We can accomplish this via backward finite difference which will just add one  infinite equation in this case this we only have 2 supports in the time domain  is then transcribed over the spatial domain to yield:</p><p class="math-container">\[\begin{aligned}
+&amp;&amp;&amp; g(5, [-1, -1]) = g(0, [-1, -1]) + 5\frac{\partial g(5, [-1, -1])}{\partial t} \\
+&amp;&amp;&amp; g(5, [-1, 1]) = g(0, [-1, 1]) + 5\frac{\partial g(5, [-1, 1])}{\partial t} \\
+&amp;&amp;&amp; g(5, [1, -1]) = g(0, [1, -1]) + 5\frac{\partial g(5, [1, -1])}{\partial t} \\
+&amp;&amp;&amp; g(5, [1, 1]) = g(0, [1, 1]) + 5\frac{\partial g(5, [1, 1])}{\partial t} \\
+&amp;&amp;&amp; g(10, [-1, -1]) = g(5, [-1, -1]) + 5\frac{\partial g(10, [-1, -1])}{\partial t} \\
+&amp;&amp;&amp; g(10, [-1, 1]) = g(5, [-1, 1]) + 5\frac{\partial g(10, [-1, 1])}{\partial t} \\
+&amp;&amp;&amp; g(10, [1, -1]) = g(5, [1, -1]) + 5\frac{\partial g(10, [1, -1])}{\partial t} \\
+&amp;&amp;&amp; g(10, [1, 1]) = g(5, [1, 1]) + 5\frac{\partial g(10, [1, 1])}{\partial t}
+\end{aligned}\]</p><p>Now the problem is fully transcribed (discretized) and can be solved as a  standard optimization problem. Note that with realistic measure evaluation  schemes more supports might be added to the support sets and these will need to  be incorporated when transcribing variables and constraints.</p><p>It is easy to imagine how the above procedure can get quite involved to do manually,  but this is precisely what <code>InfiniteOpt</code> automates behind the scenes. Let&#39;s  highlight this by repeating the same example using <code>InfiniteOpt</code> (again using  the incorrect simple representation for the integrals for conciseness).</p><pre><code class="language-julia hljs">using InfiniteOpt
+
+# Initialize model
+inf_model = InfiniteModel()
+
+# Define parameters and supports
+@infinite_parameter(inf_model, t in [0, 10], supports = [0, 5, 10])
+@infinite_parameter(inf_model, x[1:2] in [-1, 1], supports = [-1, 1], independent = true)
+
+# Define variables
+@variable(inf_model, y, Infinite(t))
+@variable(inf_model, g, Infinite(t, x...))
+
+# Set the objective (using support_sum for the integral given our simple example)
+# Note: In real problems integral should be used
+@objective(inf_model, Min, support_sum(y^2, t))
+
+# Define the constraints
+@constraint(inf_model, y(0) == 1)
+@constraint(inf_model, g(0, x...) == 0)
+@constraint(inf_model, support_sum(deriv(g, t), x) == 42) # support_sum for simplicity
+@constraint(inf_model, 3g + y^2 &lt;= 2)
+
+# Print the infinite model
+print(inf_model)
+
+# output
+Min support_sum{t}[y(t)²]
+Subject to
+ y(0) = 1
+ g(0, x[1], x[2]) = 0, ∀ x[1] ∈ [-1, 1], x[2] ∈ [-1, 1]
+ support_sum{x}[∂/∂t[g(t, x[1], x[2])]] = 42, ∀ t ∈ [0, 10]
+ y(t)² + 3 g(t, x[1], x[2]) ≤ 2, ∀ t ∈ [0, 10], x[1] ∈ [-1, 1], x[2] ∈ [-1, 1]</code></pre><p>Thus, we obtain the infinite problem in <code>InfiniteOpt</code>. As previously noted,  transcription would be handled automatically behind the scenes when the model is  optimized. However, we can directly extract the transcribed version by building a  <code>TranscriptionBackend</code>:</p><pre><code class="language-julia-repl hljs">julia&gt; build_transformation_backend!(inf_model)
+
+julia&gt; trans_model = transformation_model(inf_model);
+
+julia&gt; print(trans_model)
+Min y(0.0)² + y(5.0)² + y(10.0)²
+Subject to
+ y(0.0) = 1
+ g(0.0, -1.0, -1.0) = 0
+ g(0.0, 1.0, -1.0) = 0
+ g(0.0, -1.0, 1.0) = 0
+ g(0.0, 1.0, 1.0) = 0
+ d/dt[g(t, x[1], x[2])](0.0, -1.0, -1.0) + d/dt[g(t, x[1], x[2])](0.0, 1.0, -1.0) + d/dt[g(t, x[1], x[2])](0.0, -1.0, 1.0) + d/dt[g(t, x[1], x[2])](0.0, 1.0, 1.0) = 42
+ d/dt[g(t, x[1], x[2])](5.0, -1.0, -1.0) + d/dt[g(t, x[1], x[2])](5.0, 1.0, -1.0) + d/dt[g(t, x[1], x[2])](5.0, -1.0, 1.0) + d/dt[g(t, x[1], x[2])](5.0, 1.0, 1.0) = 42
+ d/dt[g(t, x[1], x[2])](10.0, -1.0, -1.0) + d/dt[g(t, x[1], x[2])](10.0, 1.0, -1.0) + d/dt[g(t, x[1], x[2])](10.0, -1.0, 1.0) + d/dt[g(t, x[1], x[2])](10.0, 1.0, 1.0) = 42
+ g(0.0, -1.0, -1.0) - g(5.0, -1.0, -1.0) + 5 d/dt[g(t, x[1], x[2])](5.0, -1.0, -1.0) = 0
+ g(5.0, -1.0, -1.0) - g(10.0, -1.0, -1.0) + 5 d/dt[g(t, x[1], x[2])](10.0, -1.0, -1.0) = 0
+ g(0.0, 1.0, -1.0) - g(5.0, 1.0, -1.0) + 5 d/dt[g(t, x[1], x[2])](5.0, 1.0, -1.0) = 0
+ g(5.0, 1.0, -1.0) - g(10.0, 1.0, -1.0) + 5 d/dt[g(t, x[1], x[2])](10.0, 1.0, -1.0) = 0
+ g(0.0, -1.0, 1.0) - g(5.0, -1.0, 1.0) + 5 d/dt[g(t, x[1], x[2])](5.0, -1.0, 1.0) = 0
+ g(5.0, -1.0, 1.0) - g(10.0, -1.0, 1.0) + 5 d/dt[g(t, x[1], x[2])](10.0, -1.0, 1.0) = 0
+ g(0.0, 1.0, 1.0) - g(5.0, 1.0, 1.0) + 5 d/dt[g(t, x[1], x[2])](5.0, 1.0, 1.0) = 0
+ g(5.0, 1.0, 1.0) - g(10.0, 1.0, 1.0) + 5 d/dt[g(t, x[1], x[2])](10.0, 1.0, 1.0) = 0
+ y(0.0)² + 3 g(0.0, -1.0, -1.0) ≤ 2
+ y(5.0)² + 3 g(5.0, -1.0, -1.0) ≤ 2
+ y(10.0)² + 3 g(10.0, -1.0, -1.0) ≤ 2
+ y(0.0)² + 3 g(0.0, 1.0, -1.0) ≤ 2
+ y(5.0)² + 3 g(5.0, 1.0, -1.0) ≤ 2
+ y(10.0)² + 3 g(10.0, 1.0, -1.0) ≤ 2
+ y(0.0)² + 3 g(0.0, -1.0, 1.0) ≤ 2
+ y(5.0)² + 3 g(5.0, -1.0, 1.0) ≤ 2
+ y(10.0)² + 3 g(10.0, -1.0, 1.0) ≤ 2
+ y(0.0)² + 3 g(0.0, 1.0, 1.0) ≤ 2
+ y(5.0)² + 3 g(5.0, 1.0, 1.0) ≤ 2
+ y(10.0)² + 3 g(10.0, 1.0, 1.0) ≤ 2</code></pre><p>This precisely matches what we found analytically. Note that the unique support  combinations are determined automatically.</p><h2 id="TranscriptionOpt"><a class="docs-heading-anchor" href="#TranscriptionOpt">TranscriptionOpt</a><a id="TranscriptionOpt-1"></a><a class="docs-heading-anchor-permalink" href="#TranscriptionOpt" title="Permalink"></a></h2><p><code>InfiniteOpt.TranscriptionOpt</code> is a sub-module which principally implements  <a href="../../manual/transcribe/#InfiniteOpt.TranscriptionOpt.TranscriptionBackend"><code>TranscriptionBackend</code></a>s and its related access/modification methods. Thus,  this section will detail what these are and how they work.</p><h3 id="TranscriptionBackends"><a class="docs-heading-anchor" href="#TranscriptionBackends">TranscriptionBackends</a><a id="TranscriptionBackends-1"></a><a class="docs-heading-anchor-permalink" href="#TranscriptionBackends" title="Permalink"></a></h3><p>A <code>TranscriptionBackend</code> is simply a <a href="../../manual/backend/#InfiniteOpt.JuMPBackend"><code>JuMPBackend</code></a> that uses the  <a href="../../manual/transcribe/#InfiniteOpt.TranscriptionOpt.Transcription"><code>Transcription</code></a> <code>AbstractJuMPTag</code> and <a href="../../manual/transcribe/#InfiniteOpt.TranscriptionOpt.TranscriptionData"><code>TranscriptionData</code></a> which  acts to map the transcribed model back to the original infinite model (e.g., map the  variables and constraints). Such models are constructed via a default version of  <a href="../../manual/transcribe/#InfiniteOpt.build_transformation_backend!-Tuple{InfiniteModel, TranscriptionBackend}"><code>build_transformation_backend!</code></a>  which wraps <a href="../../manual/transcribe/#InfiniteOpt.TranscriptionOpt.build_transcription_backend!"><code>build_transcription_backend!</code></a>:</p><pre><code class="language-julia-repl hljs">julia&gt; backend1 = TranscriptionBackend() # make an empty backend
+A TranscriptionBackend that uses a
+A JuMP Model
+├ solver: none
+├ objective_sense: FEASIBILITY_SENSE
+├ num_variables: 0
+├ num_constraints: 0
+└ Names registered in the model: none
+
+julia&gt; build_transformation_backend!(inf_model); 
+
+julia&gt; backend2 = transformation_backend(inf_model) # generate from an InfiniteModel
+A TranscriptionBackend that uses a
+A JuMP Model
+├ solver: none
+├ objective_sense: MIN_SENSE
+│ └ objective_function_type: AffExpr
+├ num_variables: 4
+├ num_constraints: 8
+│ ├ AffExpr in MOI.EqualTo{Float64}: 1
+│ ├ QuadExpr in MOI.LessThan{Float64}: 3
+│ ├ VariableRef in MOI.GreaterThan{Float64}: 3
+│ └ VariableRef in MOI.ZeroOne: 1
+└ Names registered in the model: none</code></pre><p>The call to <code>build_transformation_backend!</code> is the backbone  behind infinite model transformation and is what encapsulates all the methods to  transcribe measures, variables, derivatives, and constraints. This is also the  method that enables the use of <a href="../../manual/backend/#JuMP.optimize!-Tuple{InfiniteModel}"><code>optimize!</code></a>.</p><div class="admonition is-info" id="Note-bf34a31a190b0816"><header class="admonition-header">Note<a class="admonition-anchor" href="#Note-bf34a31a190b0816" title="Permalink"></a></header><div class="admonition-body"><p>To support incremental updates of parameter functions for efficient resolves, set <code>update_parameter_functions = true</code> when defining the backend:</p><pre><code class="language-julia hljs">backend = TranscriptionBackend(Ipopt.Optimizer, update_parameter_functions = true)
+model = InfiniteModel(backend)</code></pre><p>This setting has parameters functions mapped with JuMP parameters rather than just numerical values.</p></div></div><h3 id="Queries"><a class="docs-heading-anchor" href="#Queries">Queries</a><a id="Queries-1"></a><a class="docs-heading-anchor-permalink" href="#Queries" title="Permalink"></a></h3><p>In this section we highlight a number of query methods that pertain to  <code>TranscriptionBackend</code>s and their mappings. First, we can retrieve the JuMP <code>Model</code> via <a href="../../manual/backend/#InfiniteOpt.transformation_model-Tuple{InfiniteModel}"><code>transformation_model</code></a>:</p><pre><code class="language-julia-repl hljs">julia&gt; transformation_model(inf_model)
+A JuMP Model
+├ solver: none
+├ objective_sense: FEASIBILITY_SENSE
+├ num_variables: 0
+├ num_constraints: 0
+└ Names registered in the model: none</code></pre><p>Here we observe that such a model is currently empty and hasn&#39;t been populated  yet.</p><p>Next we can retrieve the <code>JuMP</code> variable(s) for a particular <code>InfiniteOpt</code>  variable via <a href="../../manual/backend/#InfiniteOpt.transformation_variable-Tuple{GeneralVariableRef}"><code>transformation_variable</code></a>. For finite variables, this will  be a one to one mapping, and for infinite variables an array will be returned that corresponds to the underlying supports. Following the initial example in  the basic usage section, this is done:</p><pre><code class="language-julia-repl hljs">julia&gt; build_transformation_backend!(inf_model); backend = transformation_backend(inf_model);
+
+julia&gt; transformation_variable(y, backend)
+3-element Vector{VariableRef}:
+ y(0.0)
+ y(5.0)
+ y(10.0)
+
+julia&gt; transformation_variable(z, backend)
+z</code></pre><p>Note that if the <code>TranscriptionBackend</code> is the current backend then,  then the 2nd argument can be omitted.</p><p>Similarly, the parameter supports corresponding to the transcription variables  (in the case of transcribed infinite variables) can be queried via  <a href="../../manual/backend/#InfiniteOpt.supports-Tuple{Union{MeasureRef, ParameterFunctionRef, DecisionVariableRef}}"><code>supports</code></a>:</p><pre><code class="language-julia-repl hljs">julia&gt; supports(y)
+3-element Vector{Tuple}:
+ (0.0,)
+ (5.0,)
+ (10.0,)</code></pre><div class="admonition is-info" id="Note-12be55e3d3da1b70"><header class="admonition-header">Note<a class="admonition-anchor" href="#Note-12be55e3d3da1b70" title="Permalink"></a></header><div class="admonition-body"><p>Note that like <code>supports</code>, the <code>transformation_[obj]</code> methods also employ the  <code>label::Type{AbstractSupportLabel} = PublicLabel</code> keyword argument that by  default will return variables/expressions/constraints associated with public  supports. The full set (e.g., ones corresponding to internal collocation nodes)  is obtained via <code>label = All</code>. </p></div></div><p>Likewise, <a href="../../manual/backend/#InfiniteOpt.transformation_constraint-Tuple{InfOptConstraintRef}"><code>transformation_constraint</code></a> and  <a href="../../manual/backend/#InfiniteOpt.supports-Tuple{InfOptConstraintRef}"><code>supports</code></a> can be used with constraints to find their transcribed equivalents in the <code>JuMP</code> model and determine their supports.</p><p>We can also do this with measures and expressions:</p><pre><code class="language-julia-repl hljs">julia&gt; meas = support_sum(y^2, t)
+support_sum{t}[y(t)²]
+
+julia&gt; build_transformation_backend!(inf_model)
+
+julia&gt; transformation_variable(meas)
+y(0.0)² + y(5.0)² + y(10.0)²
+
+julia&gt; supports(meas)
+()
+
+julia&gt; transformation_expression(y^2 + z - 42)
+3-element Vector{Union{Real, AbstractJuMPScalar}}:
+ y(0.0)² + z - 42
+ y(5.0)² + z - 42
+ y(10.0)² + z - 42
+
+julia&gt; supports(y^2 + z - 42)
+3-element Vector{Tuple}:
+ (0.0,)
+ (5.0,)
+ (10.0,)
+
+julia&gt; parameter_refs(y^2 + z - 42)
+(t,)</code></pre><p>For finite parameters, we can also retrieve their corresponding <code>JuMP</code> parameter with <code>transformation_variable</code>.</p><pre><code class="language-julia-repl hljs">julia&gt; param = @finite_parameter(inf_model, p == 42)
+p
+
+julia&gt; build_transformation_backend!(inf_model)
+
+julia&gt; transformation_variable(p)
+p</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../constraint/">« Constraints</a><a class="docs-footer-nextpage" href="../optimize/">Optimization »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.15.0 on <span class="colophon-date" title="Wednesday 5 November 2025 05:54">Wednesday 5 November 2025</span>. Using Julia version 1.10.10.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
