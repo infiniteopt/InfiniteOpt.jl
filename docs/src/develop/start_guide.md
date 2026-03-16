@@ -23,7 +23,7 @@ through step by step how this should be done.
      browsing what open issues are (especially ones with the tag `good first issue`). 
      Note that if your proposed contribution corresponds to an existing issue please 
      do not make a new issue. A guide to using issues in GitHub is located 
-     [here](https://www.w3.org/International/i18n-activity/guidelines/issues.html).
+     [here](https://docs.github.com/en/issues/guides).
   3. Fork the `InfiniteOpt` repository to your GitHub account. Only core 
      developers have permissions to modify `InfiniteOpt` directly, thus others need 
      to fork it which essentially amounts to creating their own linked copy. This is 
