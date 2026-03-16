@@ -615,7 +615,7 @@ function JuMP.constraint_string(
             bound_str *= string(_param_domain_string(print_mode, model, index), ", ")
         end
         bound_str = bound_str[1:end-2]
-        if has_domain_restrictions(cref)
+        if has_domain_restriction(cref)
             restriction = domain_restriction(cref)
             bound_str *= string("; if ", _object_string(print_mode, restriction), " = True")
         end
