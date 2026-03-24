@@ -3,7 +3,7 @@
 # constrained by fish population.
 
 # # Problem Statement and Model
-# In this system, our input is the fishing rate ``u``, and the profit
+# In this system, our input is the fishing rate ``u \in [0, 1]``, and the profit
 # ``J`` will be defined in the objective to maximize.
 # Our profit objective is represented as:
 # ```math
@@ -17,6 +17,8 @@
 # &&&&&J(0) = 0 \\
 # \end{aligned}
 # ```
+# where `x` is the number of fish in the population, `Umax` is the maximum yearly fishable population (thus ``u * Umax`` is the actual number of fish taken),
+# E is the value of each fish taken, `c` is the cost of each taken fish, `r` is the population growth rate, and `k` is the carrying capacity (maximum number of fish).
 
 # # Modeling in InfiniteOpt
 # First we must import ``InfiniteOpt`` and other packages.
