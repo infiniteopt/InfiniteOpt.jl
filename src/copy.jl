@@ -1,70 +1,13 @@
 ################################################################################
-#                              MODEL COPYING
+#                          INFINITE REFERENCE MAP DISPATCH
 ################################################################################
-"""
-    InfiniteReferenceMap
-
-Maps variable and constraint references from an original `InfiniteModel`
-to their counterparts in a copied model. Returned by
-[`JuMP.copy_model(::InfiniteModel)`](@ref).
-
-`ref_map[x]` rewrites any reference into the original model so it points
-at the new model. Supports `GeneralVariableRef`, `InfOptConstraintRef`,
-affine / quadratic / nonlinear expressions, and any `AbstractArray` of
-those. Other values pass through unchanged.
-"""
-struct InfiniteReferenceMap
-    old_model::InfiniteModel
-    new_model::InfiniteModel
-end
+# `InfiniteReferenceMap` is defined in `datatypes.jl`. Dispatched
+# `Base.getindex` methods for individual ref / expression types live in
+# their owning files (`general_variables.jl`, `constraints.jl`,
+# `expressions.jl`). Only the catch-all and array fallbacks live here.
 
 # Generic fallback: pure-data values pass through untouched
 Base.getindex(::InfiniteReferenceMap, x) = x
-
-# Extend Base.getindex for GeneralVariableRef
-function Base.getindex(m::InfiniteReferenceMap, vref::GeneralVariableRef)
-    return GeneralVariableRef(m.new_model, _raw_index(vref),
-                              _index_type(vref), _param_index(vref))
-end
-
-# Extend Base.getindex for InfOptConstraintRef
-function Base.getindex(m::InfiniteReferenceMap, cref::InfOptConstraintRef)
-    return InfOptConstraintRef(m.new_model, JuMP.index(cref))
-end
-
-# Extend Base.getindex for affine expressions
-function Base.getindex(
-    m::InfiniteReferenceMap,
-    expr::JuMP.GenericAffExpr{T, GeneralVariableRef}
-    ) where {T}
-    new_expr = zero(typeof(expr))
-    for (coef, var) in JuMP.linear_terms(expr)
-        JuMP.add_to_expression!(new_expr, coef, m[var])
-    end
-    new_expr.constant = expr.constant
-    return new_expr
-end
-
-# Extend Base.getindex for quadratic expressions
-function Base.getindex(
-    m::InfiniteReferenceMap,
-    expr::JuMP.GenericQuadExpr{T, GeneralVariableRef}
-    ) where {T}
-    new_aff = m[expr.aff]
-    new_terms = DataStructures.OrderedDict(
-        JuMP.UnorderedPair(m[k.a], m[k.b]) => v for (k, v) in expr.terms
-    )
-    return JuMP.GenericQuadExpr(new_aff, new_terms)
-end
-
-# Extend Base.getindex for nonlinear expressions
-function Base.getindex(
-    m::InfiniteReferenceMap,
-    expr::JuMP.GenericNonlinearExpr{V}
-    ) where {V}
-    return JuMP.GenericNonlinearExpr{V}(expr.head,
-                                        Any[m[a] for a in expr.args])
-end
 
 # Extend Base.getindex for arrays via broadcast
 function Base.getindex(m::InfiniteReferenceMap, val::AbstractArray)

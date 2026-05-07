@@ -922,3 +922,8 @@ function JuMP.delete(model::InfiniteModel, cref::InfOptConstraintRef)
     set_transformation_backend_ready(model, false)
     return
 end
+
+# Extend Base.getindex for InfiniteReferenceMap
+function Base.getindex(m::InfiniteReferenceMap, cref::InfOptConstraintRef)
+    return InfOptConstraintRef(m.new_model, JuMP.index(cref))
+end

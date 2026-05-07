@@ -1868,3 +1868,24 @@ struct InfOptConstraintRef
     model::InfiniteModel
     index::InfOptConstraintIndex
 end
+
+"""
+    InfiniteReferenceMap
+
+Maps variable and constraint references from an original `InfiniteModel`
+to their counterparts in a copied model. Returned by
+[`JuMP.copy_model(::InfiniteModel)`](@ref).
+
+`ref_map[x]` rewrites any reference into the original model so it points
+at the new model. Supports `GeneralVariableRef`, `InfOptConstraintRef`,
+affine / quadratic / nonlinear expressions, and any `AbstractArray` of
+those. Other values pass through unchanged.
+
+**Fields**
+- `old_model::InfiniteModel`: The source model.
+- `new_model::InfiniteModel`: The copied model.
+"""
+struct InfiniteReferenceMap
+    old_model::InfiniteModel
+    new_model::InfiniteModel
+end
