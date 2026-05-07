@@ -177,6 +177,12 @@ function _delete_data_object(cref::InfOptConstraintRef)
     return
 end
 
+# Extend Base.copy for ConstraintData
+function Base.copy(d::ConstraintData)
+    return ConstraintData(d.constraint, copy(d.group_int_idxs), d.name,
+                          copy(d.measure_indices), d.is_info_constraint)
+end
+
 ################################################################################
 #                             DEFINITION METHODS
 ################################################################################

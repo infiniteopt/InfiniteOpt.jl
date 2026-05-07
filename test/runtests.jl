@@ -97,6 +97,8 @@ println("")
 println("")
 @time @testset "Solution Queries" begin include("results.jl") end
 println("")
+@time @testset "Model Copying" begin include("copy.jl") end
+println("")
 @time @testset "Extensions" begin include("extensions.jl") end
 println("")
 @time @testset "Extension Pkgs" begin 
