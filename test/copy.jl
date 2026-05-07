@@ -222,3 +222,119 @@ end
     new_model, _ = @test_logs (:warn,) copy_model(model)
     @test ismissing(new_model.ext[:dummy])
 end
+
+@testset "copy_model Quadratic Expressions" begin
+    model = InfiniteModel()
+    @infinite_parameter(model, t in [0, 1], num_supports = 5)
+    @variable(model, x, Infinite(t))
+    @variable(model, y >= 0)
+    @constraint(model, qcon, x^2 + y^2 <= 10)
+
+    new_model, ref_map = copy_model(model)
+    new_qcon = ref_map[qcon]
+    @test JuMP.owner_model(new_qcon) === new_model
+
+    # Direct quadratic expression remap
+    qexpr = 2x^2 + 3*x*y + y
+    new_qexpr = ref_map[qexpr]
+    @test new_qexpr isa JuMP.GenericQuadExpr
+    for (pair, _) in new_qexpr.terms
+        @test JuMP.owner_model(pair.a) === new_model
+        @test JuMP.owner_model(pair.b) === new_model
+    end
+end
+
+@testset "copy_model Nonlinear Expressions" begin
+    model = InfiniteModel()
+    @infinite_parameter(model, t in [0, 1], num_supports = 5)
+    @variable(model, x, Infinite(t))
+    @constraint(model, nlcon, sin(x) <= 1)
+
+    new_model, ref_map = copy_model(model)
+    new_nlcon = ref_map[nlcon]
+    @test JuMP.owner_model(new_nlcon) === new_model
+
+    # Direct nonlinear expression remap
+    nlexpr = sin(x) + cos(x)
+    new_nlexpr = ref_map[nlexpr]
+    @test new_nlexpr isa JuMP.GenericNonlinearExpr
+end
+
+@testset "copy_model Vector Constraints" begin
+    model = InfiniteModel()
+    @infinite_parameter(model, t in [0, 1], num_supports = 5)
+    @variable(model, x, Infinite(t))
+    @variable(model, y)
+    @constraint(model, vcon, [x, y] in MOI.Zeros(2))
+
+    new_model, ref_map = copy_model(model)
+    new_vcon = ref_map[vcon]
+    @test JuMP.owner_model(new_vcon) === new_model
+    @test length(new_model.constraints) == length(model.constraints)
+end
+
+@testset "copy_model FunctionalDiscreteMeasureData" begin
+    model = InfiniteModel()
+    @infinite_parameter(model, t in [0, 1], num_supports = 5)
+    @variable(model, x, Infinite(t))
+    @objective(model, Min, support_sum(x, t))
+
+    new_model, _ = copy_model(model)
+    @test length(new_model.measures) == length(model.measures)
+
+    # Verify the FunctionalDiscreteMeasureData parameter_refs were remapped
+    found_functional = false
+    for (_, mdata) in new_model.measures
+        if mdata.measure.data isa FunctionalDiscreteMeasureData
+            found_functional = true
+            prefs = mdata.measure.data.parameter_refs
+            if prefs isa AbstractArray
+                for p in prefs
+                    @test JuMP.owner_model(p) === new_model
+                end
+            else
+                @test JuMP.owner_model(prefs) === new_model
+            end
+        end
+    end
+    @test found_functional
+end
+
+@testset "copy_model Lookup Dict Integrity" begin
+    model = InfiniteModel()
+    @infinite_parameter(model, t in [0, 1], num_supports = 5)
+    @infinite_parameter(model, s in [0, 1], num_supports = 5)
+    @variable(model, x, Infinite(t, s))
+    pv = restrict(x, 0.5, 0.5)
+    sv = restrict(x, t, 0.5)
+    dx = @deriv(x, t)
+
+    new_model, _ = copy_model(model)
+
+    @test length(new_model.semi_lookup) == length(model.semi_lookup)
+    @test length(new_model.point_lookup) == length(model.point_lookup)
+    @test length(new_model.deriv_lookup) == length(model.deriv_lookup)
+
+    for (key, _) in new_model.semi_lookup
+        @test JuMP.owner_model(key[1]) === new_model
+    end
+    for (key, _) in new_model.point_lookup
+        @test JuMP.owner_model(key[1]) === new_model
+    end
+    for (key, _) in new_model.deriv_lookup
+        @test JuMP.owner_model(key[1]) === new_model
+        @test JuMP.owner_model(key[2]) === new_model
+    end
+end
+
+@testset "copy_model Finite Parameters" begin
+    model = InfiniteModel()
+    @finite_parameter(model, fp == 3.14)
+    @variable(model, x >= 0)
+    @constraint(model, x >= fp)
+
+    new_model, ref_map = copy_model(model)
+    @test length(new_model.finite_params) == length(model.finite_params)
+    new_fp = ref_map[fp]
+    @test JuMP.owner_model(new_fp) === new_model
+end
