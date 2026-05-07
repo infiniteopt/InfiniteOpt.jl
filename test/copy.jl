@@ -338,3 +338,35 @@ end
     new_fp = ref_map[fp]
     @test JuMP.owner_model(new_fp) === new_model
 end
+
+@testset "copy_model DiscreteMeasureData" begin
+    model = InfiniteModel()
+    @infinite_parameter(model, t in [0, 1], num_supports = 5)
+    @variable(model, x, Infinite(t))
+    data = DiscreteMeasureData(t, [0.5, 0.5], [0.0, 1.0])
+    m = measure(x, data)
+    @objective(model, Min, m)
+
+    new_model, _ = copy_model(model)
+    found_discrete = false
+    for (_, mdata) in new_model.measures
+        if mdata.measure.data isa DiscreteMeasureData
+            found_discrete = true
+            @test JuMP.owner_model(mdata.measure.data.parameter_refs) === new_model
+        end
+    end
+    @test found_discrete
+end
+
+@testset "copy_model Generic Fallbacks" begin
+    # The `_rewrite_measure_data` and `_rewrite_constraint` helpers have
+    # generic fallbacks for types not covered by their specific methods
+    # (e.g., a future extension's custom AbstractMeasureData or
+    # AbstractConstraint subtype). Verify the fallbacks pass values through.
+    model = InfiniteModel()
+    ref_map = InfiniteOpt.InfiniteReferenceMap(model, model)
+    @test InfiniteOpt._rewrite_measure_data("not measure data", ref_map) ==
+          "not measure data"
+    @test InfiniteOpt._rewrite_constraint(:not_a_constraint, ref_map) ===
+          :not_a_constraint
+end
