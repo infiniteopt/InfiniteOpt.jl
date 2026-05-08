@@ -653,11 +653,13 @@ end
     @variable(m, y, Infinite(t, x))
     @variable(m, q, Infinite(x, t))
     @variable(m, w, Infinite(t))
+    @variable(m, w2, Infinite(t))
     @variable(m, z)
     # test AffExpr
     @testset "AffExpr" begin
         @test (2z + y + 42)(0, -1) == 2z + y(0, -1) + 42
         @test (2z + y + 42)(0, x) == 2z + y(0, x) + 42
+        @test (w + w2)(0) == w(0) + w2(0)
         @test_throws ErrorException (y + q)(0, 0)
         @test_throws ErrorException (y + t)(0, x)
     end
