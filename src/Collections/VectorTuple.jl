@@ -128,6 +128,11 @@ function Base.copy(vt::VectorTuple)
     )
 end
 
+# Extend Base.hash
+function Base.hash(vt::VectorTuple, h::UInt)
+    return hash(vt.values, hash(vt.ranges, hash(vt.dimensions, hash(vt.num_columns, h))))
+end
+
 ## Extend first and last indices
 # Base.firstindex (linear)
 Base.firstindex(vt::VectorTuple) = firstindex(vt.values)
