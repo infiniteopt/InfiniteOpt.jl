@@ -1,6 +1,6 @@
 ```@meta
 DocTestFilters = [r"≥|>=", r" == | = ", r" ∈ | in ", r" for all | ∀ ", r"d|∂", 
-                  r"integral|∫", r"\d+"]
+                  r"integral|∫", r".*scalar_parameters\.jl:\d+"]
 ```
 
 # [Derivative Operators](@id deriv_docs)
