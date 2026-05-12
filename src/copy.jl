@@ -133,14 +133,18 @@ Return a copy of `model` and an [`InfiniteReferenceMap`](@ref) that
 can be used to obtain the variable and constraint references of the
 new model corresponding to references from the original model.
 
-The copied model has a fresh `TranscriptionBackend` and
-`ready_to_optimize = false`. An optimizer must be set on the new
-model before calling `optimize!`.
+The copied model carries an empty backend of the same type as the
+source's (built via [`copy_empty_backend`](@ref)), preserving the
+source's solver and configuration but none of its transformation
+data. `ready_to_optimize` is `false`.
 
-The implementation walks `model`'s registries and reconstructs each
-entry inline, using `ref_map[...]` for ref-bearing pieces and
-`Base.copy(...)` for shallow clones of the data wrappers. It does
-not call `Base.deepcopy` on the model.
+The implementation walks `model`'s registries, rebuilds each entry
+inline with `ref_map[...]` for ref-bearing pieces, and inserts the
+result into `new_model` via the standard `_add_data_object` dispatch
+(which calls `MOIUC.add_item`). This relies on the source model
+having no `CleverDict` gaps from prior deletions, so the new model's
+indices line up with the source — `InfiniteReferenceMap` resolves
+copied refs by reusing the old `_raw_index`.
 
 !!! note
     Unlike `JuMP.copy_model(::JuMP.GenericModel)`, this method does
@@ -165,32 +169,34 @@ julia> new_c = ref_map[c];
 ```
 """
 function JuMP.copy_model(model::InfiniteModel)
-    new_model = InfiniteModel()
+    new_model = InfiniteModel(copy_empty_backend(model.backend))
     ref_map = InfiniteReferenceMap(model, new_model)
 
-    # Independent parameters
-    for (idx, data) in model.independent_params
-        new_data = copy(data)
-        new_data.parameter = copy(data.parameter)
-        new_model.independent_params[idx] = new_data
-    end
-    # Dependent parameters
-    for (idx, data) in model.dependent_params
-        new_data = copy(data)
-        new_data.parameters = copy(data.parameters)
-        new_model.dependent_params[idx] = new_data
+    # Parameters: iterate in original creation order so that the
+    # `param_group_indices` vector is rebuilt by `_add_data_object`'s
+    # `push!` in the same order as the source model.
+    for grp_idx in model.param_group_indices
+        if grp_idx isa IndependentParameterIndex
+            data = model.independent_params[grp_idx]
+            new_data = copy(data)
+            new_data.parameter = copy(data.parameter)
+        else
+            data = model.dependent_params[grp_idx]
+            new_data = copy(data)
+            new_data.parameters = copy(data.parameters)
+        end
+        _add_data_object(new_model, new_data)
     end
     # Finite parameters (FiniteParameter is just Float64; aliasing is fine)
-    for (idx, data) in model.finite_params
-        new_model.finite_params[idx] = copy(data)
+    for (_, data) in model.finite_params
+        _add_data_object(new_model, copy(data))
     end
-    new_model.param_group_indices = copy(model.param_group_indices)
 
     # Parameter functions
-    for (idx, data) in model.param_functions
+    for (_, data) in model.param_functions
         new_data = copy(data)
         new_data.func = _rewrite_param_function(data.func, ref_map)
-        new_model.param_functions[idx] = new_data
+        _add_data_object(new_model, new_data)
     end
 
     # piecewise_vars: Dict{Idx, Set{Idx}}, all immutable; clone the Sets
@@ -198,73 +204,73 @@ function JuMP.copy_model(model::InfiniteModel)
         Dict(k => copy(v) for (k, v) in model.piecewise_vars)
 
     # Infinite variables
-    for (idx, data) in model.infinite_vars
+    for (_, data) in model.infinite_vars
         new_data = copy(data)
         var = data.variable
         new_data.variable = InfiniteVariable(
             _rewrite_info(var.info, ref_map),
             _rewrite_param_refs(var.parameter_refs, ref_map),
             copy(var.group_int_idxs))
-        new_model.infinite_vars[idx] = new_data
+        _add_data_object(new_model, new_data)
     end
 
     # Semi-infinite variables
-    for (idx, data) in model.semi_infinite_vars
+    for (_, data) in model.semi_infinite_vars
         new_data = copy(data)
         var = data.variable
         new_data.variable = SemiInfiniteVariable(
             var.info, ref_map[var.infinite_variable_ref],
             copy(var.eval_support), copy(var.group_int_idxs))
-        new_model.semi_infinite_vars[idx] = new_data
+        _add_data_object(new_model, new_data)
     end
     new_model.semi_lookup = _rewrite_var_lookup(model.semi_lookup, ref_map)
 
     # Point variables
-    for (idx, data) in model.point_vars
+    for (_, data) in model.point_vars
         new_data = copy(data)
         var = data.variable
         new_data.variable = PointVariable(
             var.info, ref_map[var.infinite_variable_ref],
             copy(var.parameter_values))
-        new_model.point_vars[idx] = new_data
+        _add_data_object(new_model, new_data)
     end
     new_model.point_lookup = _rewrite_var_lookup(model.point_lookup, ref_map)
 
     # Finite variables (ScalarVariable holds only Float64 bounds; no refs)
-    for (idx, data) in model.finite_vars
-        new_model.finite_vars[idx] = copy(data)
+    for (_, data) in model.finite_vars
+        _add_data_object(new_model, copy(data))
     end
 
     # Derivatives
-    for (idx, data) in model.derivatives
+    for (_, data) in model.derivatives
         new_data = copy(data)
         var = data.variable
         new_data.variable = Derivative(
             _rewrite_info(var.info, ref_map),
             ref_map[var.variable_ref],
             ref_map[var.parameter_ref], var.order)
-        new_model.derivatives[idx] = new_data
+        _add_data_object(new_model, new_data)
     end
     new_model.deriv_lookup = Dict(
         (ref_map[k[1]], ref_map[k[2]], k[3]) => v
         for (k, v) in model.deriv_lookup)
 
     # Measures
-    for (idx, data) in model.measures
+    for (_, data) in model.measures
         new_data = copy(data)
         meas = data.measure
         new_data.measure = Measure(
             ref_map[meas.func],
             _rewrite_measure_data(meas.data, ref_map),
             copy(meas.group_int_idxs), meas.constant_func)
-        new_model.measures[idx] = new_data
+        _add_data_object(new_model, new_data)
     end
 
     # Constraints
-    for (idx, data) in model.constraints
+    for (_, data) in model.constraints
         new_data = copy(data)
         new_data.constraint = _rewrite_constraint(data.constraint, ref_map)
-        new_model.constraints[idx] = new_data
+        _add_data_object(new_model, new_data)
     end
 
     # Objective

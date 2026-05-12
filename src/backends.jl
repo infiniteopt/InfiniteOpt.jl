@@ -286,8 +286,28 @@ empty!(transformation_data(backend))
 ```
 """
 function Base.empty!(backend::AbstractTransformationBackend)
-    error("`empty!` not implemented for transformation backends of type " * 
+    error("`empty!` not implemented for transformation backends of type " *
           "`$(typeof(backend))`.")
+end
+
+"""
+    copy_empty_backend(
+        backend::AbstractTransformationBackend
+        )::AbstractTransformationBackend
+
+Return a fresh empty backend of the same type as `backend` that preserves
+its solver and configuration but contains none of its transformation data.
+Used by `JuMP.copy_model(::InfiniteModel)` to carry the source model's
+backend configuration into the copy without copying the transformed
+problem.
+
+For new backend types, this must be defined so that
+`JuMP.copy_model(::InfiniteModel)` works.
+"""
+function copy_empty_backend(backend::AbstractTransformationBackend)
+    error("`copy_empty_backend` is not implemented for transformation " *
+          "backends of type `$(typeof(backend))`. Overload this method " *
+          "to support `JuMP.copy_model(::InfiniteModel)` for this backend.")
 end
 
 """
@@ -751,6 +771,25 @@ function Base.empty!(backend::JuMPBackend)
     empty!(transformation_model(backend))
     empty!(transformation_data(backend))
     return backend
+end
+# Subtypes may overload to carry tag-specific data settings (e.g.,
+# `TranscriptionBackend` in src/TranscriptionOpt/model.jl).
+function copy_empty_backend(
+    backend::JuMPBackend{TAG, T, D}
+    ) where {TAG, T, D}
+    moi_backend = JuMP.backend(transformation_model(backend))
+    new_model = JuMP.GenericModel{T}()
+    if !(moi_backend isa MOI.Utilities.CachingOptimizer)
+        JuMP.set_optimizer(new_model, typeof(moi_backend))  # direct mode
+    else
+        inner = moi_backend.optimizer
+        if !isnothing(inner)
+            solver_type = inner isa MOI.Bridges.AbstractBridgeOptimizer ?
+                typeof(inner.model) : typeof(inner)
+            JuMP.set_optimizer(new_model, solver_type)
+        end
+    end
+    return JuMPBackend{TAG}(new_model, D())
 end
 function JuMP.optimize!(backend::JuMPBackend)
     return JuMP.optimize!(backend.model)

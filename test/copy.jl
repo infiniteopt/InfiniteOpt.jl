@@ -1,5 +1,10 @@
 using Ipopt
 
+# Dummy backend type for testing the `copy_empty_backend` abstract error
+# stub on `AbstractTransformationBackend`.
+struct _DummyTransformationBackend <: InfiniteOpt.AbstractTransformationBackend
+end
+
 @testset "InfiniteReferenceMap" begin
     model = InfiniteModel()
     @infinite_parameter(model, t in [0, 1], num_supports = 10)
@@ -369,4 +374,96 @@ end
           "not measure data"
     @test InfiniteOpt._rewrite_constraint(:not_a_constraint, ref_map) ===
           :not_a_constraint
+end
+
+@testset "copy_empty_backend Abstract Stub" begin
+    # Unsupported backend types must hit the extension-point error and the
+    # message must name the type so the user knows what to overload.
+    err = try
+        InfiniteOpt.copy_empty_backend(_DummyTransformationBackend())
+        nothing
+    catch e
+        e
+    end
+    @test err isa ErrorException
+    @test occursin("_DummyTransformationBackend", err.msg)
+    @test occursin("copy_empty_backend", err.msg)
+end
+
+@testset "copy_empty_backend JuMPBackend No Optimizer" begin
+    # Caching mode, no optimizer attached (inner === nothing branch).
+    bk = TranscriptionBackend()
+    new_bk = InfiniteOpt.copy_empty_backend(bk)
+    @test new_bk isa TranscriptionBackend
+    @test new_bk !== bk
+    inner = JuMP.backend(InfiniteOpt.transformation_model(new_bk)).optimizer
+    @test isnothing(inner)
+end
+
+@testset "copy_empty_backend JuMPBackend With Bridges" begin
+    # Caching mode + bridge wrapper (the common path via Model(opt)).
+    bk = TranscriptionBackend(Ipopt.Optimizer)
+    new_bk = InfiniteOpt.copy_empty_backend(bk)
+    @test new_bk isa TranscriptionBackend
+    @test solver_name(InfiniteOpt.transformation_model(new_bk)) == "Ipopt"
+end
+
+@testset "copy_empty_backend JuMPBackend No Bridges" begin
+    # Caching mode without the bridge wrapper (inner is the bare optimizer).
+    no_br_model = JuMP.Model(Ipopt.Optimizer; add_bridges = false)
+    bk = InfiniteOpt.JuMPBackend{IOTO.Transcription}(
+        no_br_model, IOTO.TranscriptionData()
+    )
+    moi = JuMP.backend(no_br_model)
+    @test moi isa MOI.Utilities.CachingOptimizer
+    @test !(moi.optimizer isa MOI.Bridges.AbstractBridgeOptimizer)
+    new_bk = InfiniteOpt.copy_empty_backend(bk)
+    @test solver_name(InfiniteOpt.transformation_model(new_bk)) == "Ipopt"
+end
+
+@testset "copy_empty_backend JuMPBackend Direct Mode" begin
+    # Direct mode: backend is not a CachingOptimizer.
+    direct = direct_model(Ipopt.Optimizer())
+    bk = InfiniteOpt.JuMPBackend{IOTO.Transcription}(
+        direct, IOTO.TranscriptionData()
+    )
+    @test !(JuMP.backend(direct) isa MOI.Utilities.CachingOptimizer)
+    new_bk = InfiniteOpt.copy_empty_backend(bk)
+    @test solver_name(InfiniteOpt.transformation_model(new_bk)) == "Ipopt"
+end
+
+@testset "copy_empty_backend TranscriptionBackend Flag Carryover" begin
+    # The TranscriptionBackend overload must preserve update_parameter_functions
+    # (the only TranscriptionData field that `Base.empty!` deliberately keeps).
+    bk_true = TranscriptionBackend(update_parameter_functions = true)
+    new_true = InfiniteOpt.copy_empty_backend(bk_true)
+    @test transformation_data(new_true).update_parameter_functions == true
+
+    bk_false = TranscriptionBackend()  # default = false
+    new_false = InfiniteOpt.copy_empty_backend(bk_false)
+    @test transformation_data(new_false).update_parameter_functions == false
+
+    # Solver + flag together: confirms the invoke-delegation still recovers
+    # the solver and the patch line still applies.
+    bk_both = TranscriptionBackend(
+        Ipopt.Optimizer, update_parameter_functions = true
+    )
+    new_both = InfiniteOpt.copy_empty_backend(bk_both)
+    @test transformation_data(new_both).update_parameter_functions == true
+    @test solver_name(InfiniteOpt.transformation_model(new_both)) == "Ipopt"
+end
+
+@testset "copy_model uses copy_empty_backend" begin
+    # End-to-end: copy_model wires through copy_empty_backend, preserving
+    # the optimizer and the flag.
+    m = InfiniteModel(
+        TranscriptionBackend(Ipopt.Optimizer, update_parameter_functions = true)
+    )
+    @infinite_parameter(m, t in [0, 1], num_supports = 5)
+    @variable(m, x, Infinite(t))
+    new_m, _ = copy_model(m)
+    @test solver_name(new_m) == "Ipopt"
+    @test transformation_data(new_m).update_parameter_functions == true
+    # Backends are independent instances.
+    @test new_m.backend !== m.backend
 end

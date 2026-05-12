@@ -152,6 +152,20 @@ function TranscriptionBackend(optimizer_constructor; kwargs...)
     return backend
 end
 
+# Extend copy_empty_backend to carry over `update_parameter_functions`
+# (the generic JuMPBackend dispatch in src/backends.jl handles solver
+# recovery and fresh data; the explicit `invoke` avoids recursion).
+function InfiniteOpt.copy_empty_backend(backend::TranscriptionBackend)
+    new_backend = Base.invoke(
+        InfiniteOpt.copy_empty_backend,
+        Tuple{InfiniteOpt.JuMPBackend},
+        backend
+    )
+    new_backend.data.update_parameter_functions =
+        InfiniteOpt.transformation_data(backend).update_parameter_functions
+    return new_backend
+end
+
 # Get the solver name from MOI
 # Inspired by https://github.com/jump-dev/JuMP.jl/blob/ce946b7092c45bdac916c9b531a13a5b929d45f0/src/print.jl#L281-L291
 function _try_solver_name(model)
