@@ -766,7 +766,23 @@ transformation_data(backend::JuMPBackend) = backend.data
 function JuMP.get_attribute(backend::JuMPBackend, attr)
     return JuMP.get_attribute(backend.model, attr)
 end
+# Log of optimizer attributes set on a JuMPBackend, stored in the wrapped
+# JuMP model's `ext` dict. Used by `copy_empty_backend` to replay tuning
+# onto the copy. Stored as the attribute objects themselves so we can call
+# `MOI.get`/`MOI.set` on them at copy time.
+const _OPTIMIZER_ATTR_LOG_KEY = :_infopt_optimizer_attrs
+
+function _optimizer_attr_log(model::JuMP.GenericModel)
+    return get!(
+        model.ext, _OPTIMIZER_ATTR_LOG_KEY,
+        Set{MOI.AbstractOptimizerAttribute}()
+        )
+end
+
 function JuMP.set_attribute(backend::JuMPBackend, attr, val)
+    if attr isa MOI.AbstractOptimizerAttribute
+        push!(_optimizer_attr_log(backend.model), attr)
+    end
     return JuMP.set_attribute(backend.model, attr, val)
 end
 function Base.empty!(backend::JuMPBackend)
@@ -779,16 +795,33 @@ end
 function copy_empty_backend(
     backend::JuMPBackend{TAG, T, D}
     ) where {TAG, T, D}
-    moi_backend = JuMP.backend(transformation_model(backend))
+    src_model = transformation_model(backend)
+    moi_backend = JuMP.backend(src_model)
     new_model = JuMP.GenericModel{T}()
+    has_optimizer = true
     if !(moi_backend isa MOI.Utilities.CachingOptimizer)
-        JuMP.set_optimizer(new_model, typeof(moi_backend))  # direct mode
+        # direct mode: moi_backend IS the optimizer
+        JuMP.set_optimizer(new_model, typeof(moi_backend))
     else
         inner = moi_backend.optimizer
-        if !isnothing(inner)
+        if isnothing(inner)
+            has_optimizer = false
+        else
             solver_type = inner isa MOI.Bridges.AbstractBridgeOptimizer ?
                 typeof(inner.model) : typeof(inner)
             JuMP.set_optimizer(new_model, solver_type)
+        end
+    end
+    # Copy user-set optimizer attributes (Silent, TimeLimitSec,
+    # RawOptimizerAttribute, etc.) using the log populated by our
+    # `set_attribute` hook. Direct-MOI calls that bypass the hook are
+    # not preserved; this covers every InfiniteOpt user-facing API.
+    if has_optimizer
+        src_log = _optimizer_attr_log(src_model)
+        new_log = _optimizer_attr_log(new_model)
+        for attr in src_log
+            MOI.set(new_model, attr, MOI.get(src_model, attr))
+            push!(new_log, attr)
         end
     end
     return JuMPBackend{TAG}(new_model, D())

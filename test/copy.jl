@@ -453,6 +453,52 @@ end
     @test solver_name(InfiniteOpt.transformation_model(new_both)) == "Ipopt"
 end
 
+@testset "copy_empty_backend Attribute Carryover" begin
+    # User-set optimizer attributes (Silent, TimeLimitSec,
+    # RawOptimizerAttribute, etc.) must be replayed on the copy so that
+    # `copy_model` preserves solver tuning. Attributes go through the
+    # `set_attribute(::JuMPBackend, ...)` hook which logs them.
+
+    # Caching mode (the common path: Model(opt)).
+    bk = TranscriptionBackend(Ipopt.Optimizer)
+    JuMP.set_attribute(bk, MOI.Silent(), true)
+    JuMP.set_attribute(bk, MOI.TimeLimitSec(), 42.0)
+    JuMP.set_attribute(bk, MOI.RawOptimizerAttribute("max_iter"), 100)
+
+    new_bk = InfiniteOpt.copy_empty_backend(bk)
+    @test JuMP.get_attribute(new_bk, MOI.Silent()) == true
+    @test JuMP.get_attribute(new_bk, MOI.TimeLimitSec()) == 42.0
+    @test JuMP.get_attribute(
+        new_bk, MOI.RawOptimizerAttribute("max_iter")
+        ) == 100
+
+    # Direct mode (no CachingOptimizer wrapper).
+    direct = direct_model(Ipopt.Optimizer())
+    bk_direct = InfiniteOpt.JuMPBackend{IOTO.Transcription}(
+        direct, IOTO.TranscriptionData()
+        )
+    JuMP.set_attribute(bk_direct, MOI.Silent(), true)
+    JuMP.set_attribute(
+        bk_direct, MOI.RawOptimizerAttribute("max_iter"), 50
+        )
+    new_direct = InfiniteOpt.copy_empty_backend(bk_direct)
+    @test JuMP.get_attribute(new_direct, MOI.Silent()) == true
+    @test JuMP.get_attribute(
+        new_direct, MOI.RawOptimizerAttribute("max_iter")
+        ) == 50
+
+    # End-to-end via InfiniteModel: user-facing `set_optimizer_attribute`
+    # / `set_silent` route through the backend hook and survive `copy_model`.
+    m = InfiniteModel(Ipopt.Optimizer)
+    set_silent(m)
+    set_optimizer_attribute(m, "max_iter", 77)
+    new_m, _ = copy_model(m)
+    @test JuMP.get_attribute(new_m, MOI.Silent()) == true
+    @test JuMP.get_attribute(
+        new_m, MOI.RawOptimizerAttribute("max_iter")
+        ) == 77
+end
+
 @testset "copy_model uses copy_empty_backend" begin
     # End-to-end: copy_model wires through copy_empty_backend, preserving
     # the optimizer and the flag.
