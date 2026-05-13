@@ -493,6 +493,14 @@ mutable struct _CoverageJuMPData end
     @test new_bk2 isa InfiniteOpt.JuMPBackend{_CoverageJuMPTag}
     @test solver_name(InfiniteOpt.transformation_model(new_bk2)) == "Ipopt"
     @test JuMP.get_attribute(new_bk2, MOI.Silent()) == true
+
+    # Direct mode (the !(moi_backend isa CachingOptimizer) branch).
+    direct = direct_model(Ipopt.Optimizer())
+    bk3 = InfiniteOpt.JuMPBackend{_CoverageJuMPTag}(direct, _CoverageJuMPData())
+    @test !(JuMP.backend(direct) isa MOI.Utilities.CachingOptimizer)
+    new_bk3 = InfiniteOpt.copy_empty_backend(bk3)
+    @test new_bk3 isa InfiniteOpt.JuMPBackend{_CoverageJuMPTag}
+    @test solver_name(InfiniteOpt.transformation_model(new_bk3)) == "Ipopt"
 end
 
 @testset "copy_empty_backend TranscriptionBackend Flag Carryover" begin
