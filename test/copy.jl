@@ -81,6 +81,36 @@ end
     @test model.backend isa TranscriptionBackend
 end
 
+@testset "copy_model survives source deletions" begin
+    # Source's CleverDict gets a gap mid-stream from a delete!. The copy
+    # should still resolve remaining refs to valid copy-side refs and
+    # rebuild the registries densely (no holes carried over).
+    m = InfiniteModel()
+    @infinite_parameter(m, t in [0, 1], num_supports = 5)
+    @variable(m, x, Infinite(t))
+    @variable(m, y, Infinite(t))
+    @variable(m, z, Infinite(t))
+    @constraint(m, c_keep, x + z <= 1)
+    delete(m, y)
+
+    new_m, ref_map = copy_model(m)
+    new_x = ref_map[x]
+    new_z = ref_map[z]
+    new_c = ref_map[c_keep]
+
+    @test JuMP.owner_model(new_x) === new_m
+    @test JuMP.owner_model(new_z) === new_m
+    @test JuMP.owner_model(new_c) === new_m
+    # The new model's infinite_vars must be dense — indices 1, 2 — not 1, 3.
+    @test sort([InfiniteOpt._raw_index(new_x),
+                InfiniteOpt._raw_index(new_z)]) == [1, 2]
+    @test num_variables(new_m) == 2
+    # The kept constraint round-trips with refs pointing at the copy.
+    new_c_obj = constraint_object(new_c)
+    @test new_x in keys(new_c_obj.func.terms)
+    @test new_z in keys(new_c_obj.func.terms)
+end
+
 @testset "copy_model Derivatives" begin
     model = InfiniteModel()
     @infinite_parameter(model, s in [0, 1], num_supports = 5)

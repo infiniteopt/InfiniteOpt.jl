@@ -925,5 +925,6 @@ end
 
 # Extend Base.getindex for InfiniteReferenceMap
 function Base.getindex(m::InfiniteReferenceMap, cref::InfOptConstraintRef)
-    return InfOptConstraintRef(m.new_model, JuMP.index(cref))
+    new_idx = m.source_to_new[JuMP.index(cref)]
+    return InfOptConstraintRef(m.new_model, new_idx::InfOptConstraintIndex)
 end

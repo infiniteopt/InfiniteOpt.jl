@@ -757,6 +757,7 @@ extended using the following steps:
     - [`transformation_data`](@ref transformation_data(::AbstractTransformationBackend))
     - [`JuMP.set_attribute`](@ref JuMP.set_attribute(::AbstractTransformationBackend, ::Any, ::Any)) (including the suggested attributes)
     - [`JuMP.get_attribute`](@ref JuMP.get_attribute(::AbstractTransformationBackend, ::Any)) (including the suggested attributes)
+    - [`InfiniteOpt.copy_empty_backend`](@ref copy_empty_backend(::AbstractTransformationBackend)) (needed for [`JuMP.copy_model`](@ref JuMP.copy_model(::InfiniteModel)) to work; should produce a fresh empty backend of the same type that preserves solver choice and any user-set optimizer attributes)
     - [`JuMP.optimize!`](@ref JuMP.optimize!(::AbstractTransformationBackend))
     - [`JuMP.set_optimizer`](@ref JuMP.set_optimizer(::AbstractTransformationBackend, ::Any))
     - [`JuMP.bridge_constraints`](@ref JuMP.bridge_constraints(::AbstractTransformationBackend))
@@ -1023,8 +1024,15 @@ end
 
 ```
 Note that Step 5 can be skipped since we are using the `JuMPBackend` API which inherits 
-all the needed methods. Now we can build our backend automatically and enable the use of 
-`optimize!`:
+all the needed methods — including [`InfiniteOpt.copy_empty_backend`](@ref copy_empty_backend(::AbstractTransformationBackend)),
+which lets [`JuMP.copy_model`](@ref JuMP.copy_model(::InfiniteModel)) work for `DeterministicBackend`s without
+any further effort. If the backend's data field needs to carry settings across a copy 
+(for example, a flag toggled by the user that should survive on the new backend), 
+overload `InfiniteOpt.copy_empty_backend(::DeterministicBackend)` with a method that 
+mirrors the parent `JuMPBackend` body and constructs a `DeterministicData` carrying the 
+relevant fields — see `InfiniteOpt.copy_empty_backend(::TranscriptionBackend)` in 
+`src/TranscriptionOpt/model.jl` for a working example. Now we can build our backend 
+automatically and enable the use of `optimize!`:
 ```jldoctest opt_model
 optimize!(model)
 print(transformation_model(model))

@@ -207,8 +207,16 @@ end
     @test transformation_backend(m) === b
 
     # test making InfiniteModel with the new optimizer model
-    @test InfiniteModel(NewReformBackend()) isa InfiniteModel 
+    @test InfiniteModel(NewReformBackend()) isa InfiniteModel
     @test transformation_backend(InfiniteModel(NewReformBackend())) isa NewReformBackend
+
+    # test copy_empty_backend on the custom backend: produces a fresh
+    # NewReformBackend with no problem data and no shared identity.
+    new_b = InfiniteOpt.copy_empty_backend(b)
+    @test new_b isa NewReformBackend
+    @test new_b !== b
+    @test num_variables(transformation_model(new_b)) == 0
+    @test isempty(transformation_data(new_b).infvar_mappings)
 
     # test retrival errors
     @test_throws ErrorException transformation_variable(x)

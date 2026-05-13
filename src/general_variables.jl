@@ -886,6 +886,18 @@ end
 
 # Extend Base.getindex for InfiniteReferenceMap
 function Base.getindex(m::InfiniteReferenceMap, vref::GeneralVariableRef)
-    return GeneralVariableRef(m.new_model, _raw_index(vref),
-                              _index_type(vref), _param_index(vref))
+    if vref.index_type == DependentParameterIndex
+        old_group = DependentParametersIndex(vref.raw_index)
+        new_group = m.source_to_new[old_group]::DependentParametersIndex
+        return GeneralVariableRef(
+            m.new_model, new_group.value,
+            DependentParameterIndex, vref.param_index
+            )
+    end
+    old_idx = vref.index_type(vref.raw_index)
+    new_idx = m.source_to_new[old_idx]
+    return GeneralVariableRef(
+        m.new_model, new_idx.value,
+        vref.index_type, vref.param_index
+        )
 end

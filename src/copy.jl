@@ -25,7 +25,7 @@ Base.broadcastable(m::InfiniteReferenceMap) = Ref(m)
 
 # Rebuild a VectorTuple of refs
 function _rewrite_param_refs(
-    vt::Collections.VectorTuple,
+    vt::Collections.VectorTuple{GeneralVariableRef},
     ref_map::InfiniteReferenceMap
     )
     vals = [ref_map[v] for v in vt.values]
@@ -194,18 +194,21 @@ function JuMP.copy_model(model::InfiniteModel)
             new_data = copy(data)
             new_data.parameters = copy(data.parameters)
         end
-        _add_data_object(new_model, new_data)
+        ref_map.source_to_new[grp_idx] =
+            _add_data_object(new_model, new_data)
     end
     # Finite parameters (FiniteParameter is just Float64; aliasing is fine)
-    for (_, data) in model.finite_params
-        _add_data_object(new_model, copy(data))
+    for (idx, data) in model.finite_params
+        ref_map.source_to_new[idx] =
+            _add_data_object(new_model, copy(data))
     end
 
     # Parameter functions
-    for (_, data) in model.param_functions
+    for (idx, data) in model.param_functions
         new_data = copy(data)
         new_data.func = _rewrite_param_function(data.func, ref_map)
-        _add_data_object(new_model, new_data)
+        ref_map.source_to_new[idx] =
+            _add_data_object(new_model, new_data)
     end
 
     # piecewise_vars: Dict{Idx, Set{Idx}}, all immutable; clone the Sets
@@ -213,7 +216,7 @@ function JuMP.copy_model(model::InfiniteModel)
         Dict(k => copy(v) for (k, v) in model.piecewise_vars)
 
     # Infinite variables
-    for (_, data) in model.infinite_vars
+    for (idx, data) in model.infinite_vars
         new_data = copy(data)
         var = data.variable
         new_data.variable = InfiniteVariable(
@@ -221,40 +224,44 @@ function JuMP.copy_model(model::InfiniteModel)
             _rewrite_param_refs(var.parameter_refs, ref_map),
             copy(var.group_int_idxs)
             )
-        _add_data_object(new_model, new_data)
+        ref_map.source_to_new[idx] =
+            _add_data_object(new_model, new_data)
     end
 
     # Semi-infinite variables
-    for (_, data) in model.semi_infinite_vars
+    for (idx, data) in model.semi_infinite_vars
         new_data = copy(data)
         var = data.variable
         new_data.variable = SemiInfiniteVariable(
             var.info, ref_map[var.infinite_variable_ref],
             copy(var.eval_support), copy(var.group_int_idxs)
             )
-        _add_data_object(new_model, new_data)
+        ref_map.source_to_new[idx] =
+            _add_data_object(new_model, new_data)
     end
     new_model.semi_lookup = _rewrite_var_lookup(model.semi_lookup, ref_map)
 
     # Point variables
-    for (_, data) in model.point_vars
+    for (idx, data) in model.point_vars
         new_data = copy(data)
         var = data.variable
         new_data.variable = PointVariable(
             var.info, ref_map[var.infinite_variable_ref],
             copy(var.parameter_values)
             )
-        _add_data_object(new_model, new_data)
+        ref_map.source_to_new[idx] =
+            _add_data_object(new_model, new_data)
     end
     new_model.point_lookup = _rewrite_var_lookup(model.point_lookup, ref_map)
 
     # Finite variables (ScalarVariable holds only Float64 bounds; no refs)
-    for (_, data) in model.finite_vars
-        _add_data_object(new_model, copy(data))
+    for (idx, data) in model.finite_vars
+        ref_map.source_to_new[idx] =
+            _add_data_object(new_model, copy(data))
     end
 
     # Derivatives
-    for (_, data) in model.derivatives
+    for (idx, data) in model.derivatives
         new_data = copy(data)
         var = data.variable
         new_data.variable = Derivative(
@@ -262,7 +269,8 @@ function JuMP.copy_model(model::InfiniteModel)
             ref_map[var.variable_ref],
             ref_map[var.parameter_ref], var.order
             )
-        _add_data_object(new_model, new_data)
+        ref_map.source_to_new[idx] =
+            _add_data_object(new_model, new_data)
     end
     new_model.deriv_lookup = Dict(
         (ref_map[k[1]], ref_map[k[2]], k[3]) => v
@@ -270,7 +278,7 @@ function JuMP.copy_model(model::InfiniteModel)
         )
 
     # Measures
-    for (_, data) in model.measures
+    for (idx, data) in model.measures
         new_data = copy(data)
         meas = data.measure
         new_data.measure = Measure(
@@ -278,14 +286,16 @@ function JuMP.copy_model(model::InfiniteModel)
             _rewrite_measure_data(meas.data, ref_map),
             copy(meas.group_int_idxs), meas.constant_func
             )
-        _add_data_object(new_model, new_data)
+        ref_map.source_to_new[idx] =
+            _add_data_object(new_model, new_data)
     end
 
     # Constraints
-    for (_, data) in model.constraints
+    for (idx, data) in model.constraints
         new_data = copy(data)
         new_data.constraint = _rewrite_constraint(data.constraint, ref_map)
-        _add_data_object(new_model, new_data)
+        ref_map.source_to_new[idx] =
+            _add_data_object(new_model, new_data)
     end
 
     # Objective
@@ -298,8 +308,15 @@ function JuMP.copy_model(model::InfiniteModel)
     new_model.op_lookup = copy(model.op_lookup)
 
     # obj_dict — values whose types lack a getindex method on
-    # InfiniteReferenceMap pass through unchanged via the catch-all fallback
-    new_model.obj_dict = Dict(k => ref_map[v] for (k, v) in model.obj_dict)
+    # InfiniteReferenceMap pass through unchanged via the catch-all
+    # fallback. Symbol entries still registered on `model` that point
+    # at deleted refs are skipped (the macro keeps registrations after
+    # `delete!`, but the copy shouldn't carry dangling references).
+    new_model.obj_dict = Dict(
+        k => ref_map[v]
+        for (k, v) in model.obj_dict
+        if !(v isa GeneralVariableRef) || JuMP.is_valid(model, v)
+        )
 
     # Backend / ready_to_optimize already set fresh by InfiniteModel()
     new_model.optimize_hook = model.optimize_hook
