@@ -1023,15 +1023,15 @@ end
 # output
 
 ```
-Note that Step 5 can be skipped since we are using the `JuMPBackend` API which inherits 
-all the needed methods — including [`InfiniteOpt.copy_empty_backend`](@ref copy_empty_backend(::AbstractTransformationBackend)),
-which lets [`JuMP.copy_model`](@ref JuMP.copy_model(::InfiniteModel)) work for `DeterministicBackend`s without
-any further effort. If the backend's data field needs to carry settings across a copy 
-(for example, a flag toggled by the user that should survive on the new backend), 
-overload `InfiniteOpt.copy_empty_backend(::DeterministicBackend)` with a method that 
-mirrors the parent `JuMPBackend` body and constructs a `DeterministicData` carrying the 
-relevant fields — see `InfiniteOpt.copy_empty_backend(::TranscriptionBackend)` in 
-`src/TranscriptionOpt/model.jl` for a working example. Now we can build our backend 
+Note that most of Step 5 can be skipped since we are using the `JuMPBackend` API 
+which inherits the JuMP delegation methods. The one exception is 
+[`InfiniteOpt.copy_empty_backend`](@ref copy_empty_backend(::AbstractTransformationBackend)). 
+It builds a fresh empty backend of the same type and is necessarily 
+data-specific, so each backend type implements its own (regardless of whether it 
+is a `JuMPBackend`). Without it, [`JuMP.copy_model`](@ref JuMP.copy_model(::InfiniteModel)) 
+will not work for your backend. See `InfiniteOpt.copy_empty_backend(::TranscriptionBackend)` 
+in `src/TranscriptionOpt/model.jl` for a working example covering solver recovery, 
+optimizer attribute replay, and data-field carry-over. Now we can build our backend 
 automatically and enable the use of `optimize!`:
 ```jldoctest opt_model
 optimize!(model)

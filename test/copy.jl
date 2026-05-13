@@ -462,47 +462,6 @@ end
     @test solver_name(InfiniteOpt.transformation_model(new_bk)) == "Ipopt"
 end
 
-# Dummy tag + data for testing the generic JuMPBackend dispatch of
-# copy_empty_backend. TranscriptionBackend has its own specialized
-# overload so its tests don't exercise the generic method.
-struct _CoverageJuMPTag <: InfiniteOpt.AbstractJuMPTag end
-mutable struct _CoverageJuMPData end
-
-@testset "copy_empty_backend Generic JuMPBackend" begin
-    # Exercises `copy_empty_backend(::JuMPBackend{TAG, T, D})` — the
-    # fallback for extensions that define their own JuMP-based backend
-    # tag (e.g. the DeterministicBackend example in the dev docs).
-
-    # No optimizer attached
-    bk = InfiniteOpt.JuMPBackend{_CoverageJuMPTag}(
-        JuMP.Model(), _CoverageJuMPData()
-        )
-    new_bk = InfiniteOpt.copy_empty_backend(bk)
-    @test new_bk isa InfiniteOpt.JuMPBackend{_CoverageJuMPTag}
-    @test new_bk !== bk
-    @test InfiniteOpt.transformation_data(new_bk) isa _CoverageJuMPData
-    @test InfiniteOpt.transformation_data(new_bk) !==
-          InfiniteOpt.transformation_data(bk)
-
-    # With optimizer + attribute replay through the log hook
-    bk2 = InfiniteOpt.JuMPBackend{_CoverageJuMPTag}(
-        JuMP.Model(Ipopt.Optimizer), _CoverageJuMPData()
-        )
-    JuMP.set_attribute(bk2, MOI.Silent(), true)
-    new_bk2 = InfiniteOpt.copy_empty_backend(bk2)
-    @test new_bk2 isa InfiniteOpt.JuMPBackend{_CoverageJuMPTag}
-    @test solver_name(InfiniteOpt.transformation_model(new_bk2)) == "Ipopt"
-    @test JuMP.get_attribute(new_bk2, MOI.Silent()) == true
-
-    # Direct mode (the !(moi_backend isa CachingOptimizer) branch).
-    direct = direct_model(Ipopt.Optimizer())
-    bk3 = InfiniteOpt.JuMPBackend{_CoverageJuMPTag}(direct, _CoverageJuMPData())
-    @test !(JuMP.backend(direct) isa MOI.Utilities.CachingOptimizer)
-    new_bk3 = InfiniteOpt.copy_empty_backend(bk3)
-    @test new_bk3 isa InfiniteOpt.JuMPBackend{_CoverageJuMPTag}
-    @test solver_name(InfiniteOpt.transformation_model(new_bk3)) == "Ipopt"
-end
-
 @testset "copy_empty_backend TranscriptionBackend Flag Carryover" begin
     # The TranscriptionBackend overload must preserve update_parameter_functions
     # (the only TranscriptionData field that `Base.empty!` deliberately keeps).

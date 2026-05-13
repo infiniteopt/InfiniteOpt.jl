@@ -150,15 +150,22 @@ data. `ready_to_optimize` is `false`.
 The implementation walks `model`'s registries, rebuilds each entry
 inline with `ref_map[...]` for ref-bearing pieces, and inserts the
 result into `new_model` via the standard `_add_data_object` dispatch
-(which calls `MOIUC.add_item`). This relies on the source model
-having no `CleverDict` gaps from prior deletions, so the new model's
-indices line up with the source — `InfiniteReferenceMap` resolves
-copied refs by reusing the old `_raw_index`.
+(which calls `MOIUC.add_item`). The new index returned by each
+insertion is recorded in `ref_map.source_to_new`, an explicit
+`ObjectIndex => ObjectIndex` translation table. `InfiniteReferenceMap`
+resolves copied refs by looking up the new index in that table, so the
+copy remains valid even when the source has `CleverDict` gaps from
+prior `delete!` calls (the new model's indices are dense and may
+differ from the source's).
+
+Entries left in the source's object dictionary that point at deleted
+refs are skipped on the copy, so dangling registrations do not leak
+into `new_model.obj_dict`.
 
 !!! note
     Unlike `JuMP.copy_model(::JuMP.GenericModel)`, this method does
-    not currently accept a `filter_constraints` keyword argument —
-    all constraints are copied.
+    not currently accept a `filter_constraints` keyword argument. All
+    constraints are copied.
 
 **Example**
 ```julia-repl

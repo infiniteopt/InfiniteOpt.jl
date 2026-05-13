@@ -790,42 +790,6 @@ function Base.empty!(backend::JuMPBackend)
     empty!(transformation_data(backend))
     return backend
 end
-# Subtypes may overload to carry tag-specific data settings (e.g.,
-# `TranscriptionBackend` in src/TranscriptionOpt/model.jl).
-function copy_empty_backend(
-    backend::JuMPBackend{TAG, T, D}
-    ) where {TAG, T, D}
-    src_model = transformation_model(backend)
-    moi_backend = JuMP.backend(src_model)
-    new_model = JuMP.GenericModel{T}()
-    has_optimizer = true
-    if !(moi_backend isa MOI.Utilities.CachingOptimizer)
-        # direct mode: moi_backend IS the optimizer
-        JuMP.set_optimizer(new_model, typeof(moi_backend))
-    else
-        inner = moi_backend.optimizer
-        if isnothing(inner)
-            has_optimizer = false
-        else
-            solver_type = inner isa MOI.Bridges.AbstractBridgeOptimizer ?
-                typeof(inner.model) : typeof(inner)
-            JuMP.set_optimizer(new_model, solver_type)
-        end
-    end
-    # Copy user-set optimizer attributes (Silent, TimeLimitSec,
-    # RawOptimizerAttribute, etc.) using the log populated by our
-    # `set_attribute` hook. Direct-MOI calls that bypass the hook are
-    # not preserved; this covers every InfiniteOpt user-facing API.
-    if has_optimizer
-        src_log = _optimizer_attr_log(src_model)
-        new_log = _optimizer_attr_log(new_model)
-        for attr in src_log
-            MOI.set(new_model, attr, MOI.get(src_model, attr))
-            push!(new_log, attr)
-        end
-    end
-    return JuMPBackend{TAG}(new_model, D())
-end
 function JuMP.optimize!(backend::JuMPBackend)
     return JuMP.optimize!(backend.model)
 end
