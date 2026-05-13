@@ -29,9 +29,11 @@ function _rewrite_param_refs(
     ref_map::InfiniteReferenceMap
     )
     vals = [ref_map[v] for v in vt.values]
-    return Collections.VectorTuple{eltype(vals)}(vals, copy(vt.ranges),
-                                                 copy(vt.dimensions),
-                                                 copy(vt.num_columns))
+    return Collections.VectorTuple{eltype(vals)}(
+        vals, copy(vt.ranges),
+        copy(vt.dimensions),
+        copy(vt.num_columns)
+        )
 end
 
 # Rebuild a ParameterFunction (carries refs)
@@ -39,9 +41,11 @@ function _rewrite_param_function(
     pf::ParameterFunction,
     ref_map::InfiniteReferenceMap
     )
-    return ParameterFunction(pf.func,
-                             _rewrite_param_refs(pf.parameter_refs, ref_map),
-                             copy(pf.group_int_idxs))
+    return ParameterFunction(
+        pf.func,
+        _rewrite_param_refs(pf.parameter_refs, ref_map),
+        copy(pf.group_int_idxs)
+        )
 end
 
 ## Rebuild a JuMP.VariableInfo bound — ParameterFunction gets refs
@@ -62,7 +66,8 @@ function _rewrite_info(info::JuMP.VariableInfo, ref_map::InfiniteReferenceMap)
         info.has_ub,    _rewrite_bound(info.upper_bound, ref_map),
         info.has_fix,   _rewrite_bound(info.fixed_value, ref_map),
         info.has_start, _rewrite_bound(info.start, ref_map),
-        info.binary, info.integer)
+        info.binary, info.integer
+        )
 end
 
 # Rebuild a (ref, Vector{Float64})-keyed lookup dict
@@ -77,11 +82,13 @@ function _rewrite_measure_data(
     d::DiscreteMeasureData,
     ref_map::InfiniteReferenceMap
     )
-    return DiscreteMeasureData(ref_map[d.parameter_refs],
-                               copy(d.coefficients), copy(d.supports),
-                               d.label, d.weight_function,
-                               copy(d.lower_bounds), copy(d.upper_bounds),
-                               d.is_expect)
+    return DiscreteMeasureData(
+        ref_map[d.parameter_refs],
+        copy(d.coefficients), copy(d.supports),
+        d.label, d.weight_function,
+        copy(d.lower_bounds), copy(d.upper_bounds),
+        d.is_expect
+        )
 end
 
 # FunctionalDiscreteMeasureData
@@ -89,14 +96,16 @@ function _rewrite_measure_data(
     d::FunctionalDiscreteMeasureData,
     ref_map::InfiniteReferenceMap
     )
-    return FunctionalDiscreteMeasureData(ref_map[d.parameter_refs],
-                                         d.coeff_function,
-                                         d.min_num_supports, d.label,
-                                         d.generative_supp_info,
-                                         d.weight_function,
-                                         copy(d.lower_bounds),
-                                         copy(d.upper_bounds),
-                                         d.is_expect)
+    return FunctionalDiscreteMeasureData(
+        ref_map[d.parameter_refs],
+        d.coeff_function,
+        d.min_num_supports, d.label,
+        d.generative_supp_info,
+        d.weight_function,
+        copy(d.lower_bounds),
+        copy(d.upper_bounds),
+        d.is_expect
+        )
 end
 
 # Generic fallback
@@ -210,7 +219,8 @@ function JuMP.copy_model(model::InfiniteModel)
         new_data.variable = InfiniteVariable(
             _rewrite_info(var.info, ref_map),
             _rewrite_param_refs(var.parameter_refs, ref_map),
-            copy(var.group_int_idxs))
+            copy(var.group_int_idxs)
+            )
         _add_data_object(new_model, new_data)
     end
 
@@ -220,7 +230,8 @@ function JuMP.copy_model(model::InfiniteModel)
         var = data.variable
         new_data.variable = SemiInfiniteVariable(
             var.info, ref_map[var.infinite_variable_ref],
-            copy(var.eval_support), copy(var.group_int_idxs))
+            copy(var.eval_support), copy(var.group_int_idxs)
+            )
         _add_data_object(new_model, new_data)
     end
     new_model.semi_lookup = _rewrite_var_lookup(model.semi_lookup, ref_map)
@@ -231,7 +242,8 @@ function JuMP.copy_model(model::InfiniteModel)
         var = data.variable
         new_data.variable = PointVariable(
             var.info, ref_map[var.infinite_variable_ref],
-            copy(var.parameter_values))
+            copy(var.parameter_values)
+            )
         _add_data_object(new_model, new_data)
     end
     new_model.point_lookup = _rewrite_var_lookup(model.point_lookup, ref_map)
@@ -248,12 +260,14 @@ function JuMP.copy_model(model::InfiniteModel)
         new_data.variable = Derivative(
             _rewrite_info(var.info, ref_map),
             ref_map[var.variable_ref],
-            ref_map[var.parameter_ref], var.order)
+            ref_map[var.parameter_ref], var.order
+            )
         _add_data_object(new_model, new_data)
     end
     new_model.deriv_lookup = Dict(
         (ref_map[k[1]], ref_map[k[2]], k[3]) => v
-        for (k, v) in model.deriv_lookup)
+        for (k, v) in model.deriv_lookup
+        )
 
     # Measures
     for (_, data) in model.measures
@@ -262,7 +276,8 @@ function JuMP.copy_model(model::InfiniteModel)
         new_data.measure = Measure(
             ref_map[meas.func],
             _rewrite_measure_data(meas.data, ref_map),
-            copy(meas.group_int_idxs), meas.constant_func)
+            copy(meas.group_int_idxs), meas.constant_func
+            )
         _add_data_object(new_model, new_data)
     end
 

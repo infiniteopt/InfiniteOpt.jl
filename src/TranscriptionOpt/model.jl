@@ -160,7 +160,7 @@ function InfiniteOpt.copy_empty_backend(backend::TranscriptionBackend)
         InfiniteOpt.copy_empty_backend,
         Tuple{InfiniteOpt.JuMPBackend},
         backend
-    )
+        )
     new_backend.data.update_parameter_functions =
         InfiniteOpt.transformation_data(backend).update_parameter_functions
     return new_backend

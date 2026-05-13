@@ -305,9 +305,11 @@ For new backend types, this must be defined so that
 `JuMP.copy_model(::InfiniteModel)` works.
 """
 function copy_empty_backend(backend::AbstractTransformationBackend)
-    error("`copy_empty_backend` is not implemented for transformation " *
-          "backends of type `$(typeof(backend))`. Overload this method " *
-          "to support `JuMP.copy_model(::InfiniteModel)` for this backend.")
+    error(
+        "`copy_empty_backend` is not implemented for transformation " *
+        "backends of type `$(typeof(backend))`. Overload this method " *
+        "to support `JuMP.copy_model(::InfiniteModel)` for this backend."
+        )
 end
 
 """
