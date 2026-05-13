@@ -1120,7 +1120,6 @@ julia> start_value(vref)
 function JuMP.set_start_value(vref::DecisionVariableRef, value::Union{Real, Function})
     processed_val = _process_info_arg(vref, value)
     info = _variable_info(vref)
-    set_transformation_backend_ready(JuMP.owner_model(vref), false)
     _update_variable_info(
         vref,
         JuMP.VariableInfo(
@@ -1131,12 +1130,35 @@ function JuMP.set_start_value(vref::DecisionVariableRef, value::Union{Real, Func
             info.binary, info.integer
             )
         )
+    # update the transformation backend
+    model = JuMP.owner_model(vref)
+    if is_used(vref) && transformation_backend_ready(model)
+        successful_backend_update = update_start_value(
+            transformation_backend(model),
+            vref,
+            value
+        )
+        if !successful_backend_update
+            set_transformation_backend_ready(model, false)
+        end
+    end
     return
 end
 function JuMP.set_start_value(vref::RestrictedVariableRef, value::Real)
     info = _variable_info(vref)
     _update_variable_info(vref, RestrictedDomainInfo(info, start_value = value))
-    set_transformation_backend_ready(JuMP.owner_model(vref), false)
+    # update the transformation backend
+    model = JuMP.owner_model(vref)
+    if is_used(vref) && transformation_backend_ready(model)
+        successful_backend_update = update_start_value(
+            transformation_backend(model),
+            vref,
+            value
+        )
+        if !successful_backend_update
+            set_transformation_backend_ready(model, false)
+        end
+    end
     return
 end
 

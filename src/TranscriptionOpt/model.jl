@@ -905,6 +905,50 @@ function InfiniteOpt.update_parameter_value(
     return true
 end
 
+"""
+    InfiniteOpt.update_start_value(
+        backend::TranscriptionBackend,
+        vref::InfiniteOpt.DecisionVariableRef,
+        value::Union{Real, Function}
+    )::Bool
+
+Update the start value of the decision variable(s) referenced by `vref` in `backend`
+to `value`. Returns `true` if the variable was found and updated, `false` otherwise.
+"""
+function InfiniteOpt.update_start_value(
+    backend::TranscriptionBackend,
+    vref::InfiniteOpt.DecisionVariableRef,
+    value::Real
+    )
+    data = transcription_data(backend)
+    gvref = InfiniteOpt.GeneralVariableRef(vref)
+    if haskey(data.infvar_mappings, gvref)
+        for var in data.infvar_mappings[gvref]
+            JuMP.set_start_value(var, value)
+        end
+    elseif haskey(data.finvar_mappings, gvref)
+        JuMP.set_start_value(data.finvar_mappings[gvref], value)
+    else
+        return false
+    end
+    return true
+end
+function InfiniteOpt.update_start_value(
+    backend::TranscriptionBackend,
+    vref::InfiniteOpt.DecisionVariableRef,
+    value::Function
+    )
+    data = transcription_data(backend)
+    gvref = InfiniteOpt.GeneralVariableRef(vref)
+    haskey(data.infvar_mappings, gvref) || return false
+    vrefs = data.infvar_mappings[gvref]
+    supps = data.infvar_supports[gvref]
+    for (i, supp) in enumerate(supps)
+        JuMP.set_start_value(vrefs[i], value(supp...))
+    end
+    return true
+end
+
 ################################################################################
 #                             OTHER QUERIES
 ################################################################################

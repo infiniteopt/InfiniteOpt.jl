@@ -74,6 +74,7 @@ constraint_supports(::InfOptConstraintRef, ::AbstractTransformationBackend)
 transformation_backend_ready
 set_transformation_backend_ready
 update_parameter_value(::AbstractTransformationBackend, ::Any, ::Any)
+update_start_value(::AbstractTransformationBackend, ::DecisionVariableRef, ::Any)
 warmstart_backend_start_values(::AbstractTransformationBackend)
 map_value_to_start
 ```

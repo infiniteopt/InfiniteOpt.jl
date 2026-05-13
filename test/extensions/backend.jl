@@ -406,6 +406,36 @@ function InfiniteOpt.update_parameter_value(
     return true
 end
 
+# Extend `update_start_value` to support incremental start value updates
+function InfiniteOpt.update_start_value(
+    backend::NewReformBackend,
+    vref::GeneralVariableRef,
+    new_value::Real
+    )
+    # REPLACE BELOW WITH ACTUAL START VALUE UPDATE IN THE BACKEND
+    opt_vref = transformation_variable(GeneralVariableRef(vref), backend)
+    if opt_vref isa AbstractArray
+        for v in opt_vref
+            JuMP.set_start_value(v, new_value)
+        end
+    else
+        JuMP.set_start_value(opt_vref, new_value)
+    end
+    return true
+end
+function InfiniteOpt.update_start_value(
+    backend::NewReformBackend,
+    vref::GeneralVariableRef,
+    new_value::Function
+    )
+    # REPLACE BELOW WITH ACTUAL START VALUE UPDATE IN THE BACKEND
+    opt_vref = transformation_variable(GeneralVariableRef(vref), backend)
+    for (i, v) in enumerate(opt_vref)
+        JuMP.set_start_value(v, new_value(variable_supports(vref, backend)[i]...))
+    end
+    return true
+end
+
 # Extend `warmstart_backend_start_values` to support warmstarting
 function InfiniteOpt.warmstart_backend_start_values(
     backend::NewReformBackend;

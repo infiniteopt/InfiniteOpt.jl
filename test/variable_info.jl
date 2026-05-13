@@ -372,6 +372,15 @@ end
         @test start_value(y0) == 3
         @test isa(set_start_value(yb, 4), Nothing)
         @test start_value(yb) == 4
+        # try updating backend
+        set_transformation_backend_ready(m, true)
+        @test isa(set_start_value(vref, 0), Nothing)
+        @test start_value(vref) == 0
+        @test !transformation_backend_ready(m)
+        set_transformation_backend_ready(m, true)
+        @test isa(set_start_value(y, +), Nothing)
+        @test start_value(y)(1, -1) == 0
+        @test !transformation_backend_ready(m)
     end
 end
 

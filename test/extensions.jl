@@ -251,6 +251,12 @@ end
     @test set_parameter_value(p, 10) isa Nothing
     @test parameter_value(transformation_variable(p)) == 10
 
+    # test start updates
+    @test set_start_value(y, 1) isa Nothing
+    @test set_start_value(x, sin) isa Nothing
+    @test start_value(transformation_variable(y)) == 1
+    @test start_value.(transformation_variable(x)) == [sin(0), sin(1)]
+
     # test optimization with rebuild
     mockoptimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
                                              eval_objective_value=false)
