@@ -152,6 +152,42 @@ function TranscriptionBackend(optimizer_constructor; kwargs...)
     return backend
 end
 
+# Mirrors `InfiniteOpt.copy_empty_backend(::JuMPBackend)` from
+# `src/backends.jl`, but constructs a `TranscriptionData` that carries
+# `update_parameter_functions` from the source. If the parent body
+# changes substantively, update here too.
+function InfiniteOpt.copy_empty_backend(backend::TranscriptionBackend)
+    src_model = InfiniteOpt.transformation_model(backend)
+    moi_backend = JuMP.backend(src_model)
+    new_model = JuMP.GenericModel{Float64}()
+    has_optimizer = true
+    if !(moi_backend isa MOI.Utilities.CachingOptimizer)
+        # direct mode: moi_backend IS the optimizer
+        JuMP.set_optimizer(new_model, typeof(moi_backend))
+    else
+        inner = moi_backend.optimizer
+        if isnothing(inner)
+            has_optimizer = false
+        else
+            solver_type = inner isa MOI.Bridges.AbstractBridgeOptimizer ?
+                typeof(inner.model) : typeof(inner)
+            JuMP.set_optimizer(new_model, solver_type)
+        end
+    end
+    if has_optimizer
+        src_log = InfiniteOpt._optimizer_attr_log(src_model)
+        new_log = InfiniteOpt._optimizer_attr_log(new_model)
+        for attr in src_log
+            MOI.set(new_model, attr, MOI.get(src_model, attr))
+            push!(new_log, attr)
+        end
+    end
+    new_data = TranscriptionData()
+    new_data.update_parameter_functions =
+        InfiniteOpt.transformation_data(backend).update_parameter_functions
+    return InfiniteOpt.JuMPBackend{Transcription}(new_model, new_data)
+end
+
 # Get the solver name from MOI
 # Inspired by https://github.com/jump-dev/JuMP.jl/blob/ce946b7092c45bdac916c9b531a13a5b929d45f0/src/print.jl#L281-L291
 function _try_solver_name(model)

@@ -286,8 +286,30 @@ empty!(transformation_data(backend))
 ```
 """
 function Base.empty!(backend::AbstractTransformationBackend)
-    error("`empty!` not implemented for transformation backends of type " * 
+    error("`empty!` not implemented for transformation backends of type " *
           "`$(typeof(backend))`.")
+end
+
+"""
+    copy_empty_backend(
+        backend::AbstractTransformationBackend
+        )::AbstractTransformationBackend
+
+Return a fresh empty backend of the same type as `backend` that preserves
+its solver and configuration but contains none of its transformation data.
+Used by `JuMP.copy_model(::InfiniteModel)` to carry the source model's
+backend configuration into the copy without copying the transformed
+problem.
+
+For new backend types, this must be defined so that
+`JuMP.copy_model(::InfiniteModel)` works.
+"""
+function copy_empty_backend(backend::AbstractTransformationBackend)
+    error(
+        "`copy_empty_backend` is not implemented for transformation " *
+        "backends of type `$(typeof(backend))`. Overload this method " *
+        "to support `JuMP.copy_model(::InfiniteModel)` for this backend."
+        )
 end
 
 """
@@ -744,7 +766,23 @@ transformation_data(backend::JuMPBackend) = backend.data
 function JuMP.get_attribute(backend::JuMPBackend, attr)
     return JuMP.get_attribute(backend.model, attr)
 end
+# Log of optimizer attributes set on a JuMPBackend, stored in the wrapped
+# JuMP model's `ext` dict. Used by `copy_empty_backend` to replay tuning
+# onto the copy. Stored as the attribute objects themselves so we can call
+# `MOI.get`/`MOI.set` on them at copy time.
+const _OPTIMIZER_ATTR_LOG_KEY = :_infopt_optimizer_attrs
+
+function _optimizer_attr_log(model::JuMP.GenericModel)
+    return get!(
+        model.ext, _OPTIMIZER_ATTR_LOG_KEY,
+        Set{MOI.AbstractOptimizerAttribute}()
+        )
+end
+
 function JuMP.set_attribute(backend::JuMPBackend, attr, val)
+    if attr isa MOI.AbstractOptimizerAttribute
+        push!(_optimizer_attr_log(backend.model), attr)
+    end
     return JuMP.set_attribute(backend.model, attr, val)
 end
 function Base.empty!(backend::JuMPBackend)

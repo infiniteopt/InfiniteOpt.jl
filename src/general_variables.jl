@@ -883,3 +883,21 @@ method defined for `InfiniteVariableRef`s.
 function constant_over_collocation(vref::GeneralVariableRef, pref::GeneralVariableRef)
     return constant_over_collocation(dispatch_variable_ref(vref), pref)
 end
+
+# Extend Base.getindex for InfiniteReferenceMap
+function Base.getindex(m::InfiniteReferenceMap, vref::GeneralVariableRef)
+    if vref.index_type == DependentParameterIndex
+        old_group = DependentParametersIndex(vref.raw_index)
+        new_group = m.source_to_new[old_group]::DependentParametersIndex
+        return GeneralVariableRef(
+            m.new_model, new_group.value,
+            DependentParameterIndex, vref.param_index
+            )
+    end
+    old_idx = vref.index_type(vref.raw_index)
+    new_idx = m.source_to_new[old_idx]
+    return GeneralVariableRef(
+        m.new_model, new_idx.value,
+        vref.index_type, vref.param_index
+        )
+end

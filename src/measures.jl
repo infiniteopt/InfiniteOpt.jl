@@ -128,6 +128,13 @@ function Base.copy(data::FunctionalDiscreteMeasureData)
                                          copy(data.upper_bounds), data.is_expect)
 end
 
+# Extend Base.copy for MeasureData
+function Base.copy(d::MeasureData)
+    return MeasureData(d.measure, d.name, copy(d.measure_indices),
+                       copy(d.constraint_indices), copy(d.derivative_indices),
+                       d.in_objective)
+end
+
 """
     default_weight(t) = 1
 

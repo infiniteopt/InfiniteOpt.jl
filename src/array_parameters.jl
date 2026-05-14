@@ -65,6 +65,23 @@ function _delete_data_object(vref::DependentParameterRef)
     return
 end
 
+# Extend Base.copy for DependentParameters
+function Base.copy(p::DependentParameters)
+    new_supports = DataStructures.OrderedDict{Vector{Float64}, Set{DataType}}(
+                       copy(k) => copy(v) for (k, v) in p.supports)
+    return DependentParameters(p.domain, new_supports, p.sig_digits)
+end
+
+# Extend Base.copy for MultiParameterData
+function Base.copy(d::MultiParameterData)
+    return MultiParameterData(d.parameters, d.group_int_idx,
+                              copy(d.names), copy(d.parameter_func_indices),
+                              copy(d.infinite_var_indices),
+                              [copy(v) for v in d.measure_indices],
+                              [copy(v) for v in d.constraint_indices],
+                              d.has_internal_supports)
+end
+
 ################################################################################
 #                             PARAMETER DEFINITION
 ################################################################################
