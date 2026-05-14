@@ -336,14 +336,14 @@ end
 @testset "Start Value" begin
     # initialize model and 4 test variables
     m = InfiniteModel()
-    gvref = @variable(m, var1, start = 0)
+    gvref = @variable(m, var1 >= 0, start = 0)
     vref = dispatch_variable_ref(gvref)
     gvref2 = @variable(m, var2)
     vref2 = dispatch_variable_ref(gvref2)
     @infinite_parameter(m, t in [0, 1])
     @infinite_parameter(m, x in [-1, 1])
     f(a, b) = 42
-    @variable(m, y, Infinite(t, x), start = f)
+    @variable(m, y >= 0, Infinite(t, x), start = f)
     y0 = y(0, x)
     yb = y(0, -1)
     # start_value
@@ -372,6 +372,15 @@ end
         @test start_value(y0) == 3
         @test isa(set_start_value(yb, 4), Nothing)
         @test start_value(yb) == 4
+        # try updating backend
+        set_transformation_backend_ready(m, true)
+        @test isa(set_start_value(vref, 0), Nothing)
+        @test start_value(vref) == 0
+        @test !transformation_backend_ready(m)
+        set_transformation_backend_ready(m, true)
+        @test isa(set_start_value(y, +), Nothing)
+        @test start_value(y)(1, -1) == 0
+        @test !transformation_backend_ready(m)
     end
 end
 

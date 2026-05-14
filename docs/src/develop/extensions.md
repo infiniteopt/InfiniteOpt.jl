@@ -794,6 +794,7 @@ extended using the following steps:
     [`expand_measure`](@ref) without modifying the infinite model.
 11. Extend [`InfiniteOpt.update_parameter_value`](@ref) to enable incremental parameter updates.
 12. Extend [`map_value_to_start`](@ref) if the transformation does not return discretized values.
+13. Extend [InfiniteOpt.update_start_value`](@ref) to enable incremental start value updates.
 
 This may seem like a lot a work, but the majority of the above steps can be
 skipped for [`JuMPBackend`](@ref)s as exemplified below. A complete extension,
