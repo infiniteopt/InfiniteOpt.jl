@@ -336,7 +336,7 @@ end
 @testset "Start Value" begin
     # initialize model and 4 test variables
     m = InfiniteModel()
-    gvref = @variable(m, var1, start = 0)
+    gvref = @variable(m, var1 >= 0, start = 0)
     vref = dispatch_variable_ref(gvref)
     gvref2 = @variable(m, var2)
     vref2 = dispatch_variable_ref(gvref2)
