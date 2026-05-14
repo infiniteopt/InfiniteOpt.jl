@@ -343,7 +343,7 @@ end
     @infinite_parameter(m, t in [0, 1])
     @infinite_parameter(m, x in [-1, 1])
     f(a, b) = 42
-    @variable(m, y, Infinite(t, x), start = f)
+    @variable(m, y >= 0, Infinite(t, x), start = f)
     y0 = y(0, x)
     yb = y(0, -1)
     # start_value
