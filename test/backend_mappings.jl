@@ -187,6 +187,8 @@ end
         @test !update_start_value(TestBackend(), dx, cos)
         @test update_start_value(tb, dx, cos)
         @test start_value.(transformation_variable(x)) == [cos(0), cos(1)]
+        @test update_start_value(tb, dx, 42)
+        @test start_value.(transformation_variable(x)) == [42, 42]
         @test !update_start_value(TestBackend(), dz, 3)
         @test update_start_value(tb, dz, 3)
         @test start_value(transformation_variable(z)) == 3
