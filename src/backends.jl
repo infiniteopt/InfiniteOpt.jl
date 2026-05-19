@@ -1166,4 +1166,4 @@ more efficiently handle start value updates for resolves. This defaults to `fals
 meaning that no update occurs (forcing the backend to be rebuilt). Users should
 use [`JuMP.set_start_value`](@ref) rather than call this method directly.
 """
-update_start_value(backend::AbstractTransformationBackend, vref::DecisionVariableRef, value) = false
+update_start_value(backend::AbstractTransformationBackend, vref, value) = false
