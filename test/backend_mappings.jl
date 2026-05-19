@@ -182,13 +182,13 @@ end
         @test update_parameter_value(tb, dp, 3)
         @test parameter_value(transformation_variable(p)) == 3
     end
-    # Test update_set_start_value
-    @testset "update_set_start_value" begin
-        @test !update_set_start_value(TestBackend(), dx, cos)
-        @test update_set_start_value(tb, dx, cos)
+    # Test update_start_value
+    @testset "update_start_value" begin
+        @test !update_start_value(TestBackend(), dx, cos)
+        @test update_start_value(tb, dx, cos)
         @test start_value.(transformation_variable(x)) == [cos(0), cos(1)]
-        @test !update_set_start_value(TestBackend(), dz, 3)
-        @test update_set_start_value(tb, dz, 3)
+        @test !update_start_value(TestBackend(), dz, 3)
+        @test update_start_value(tb, dz, 3)
         @test start_value(transformation_variable(z)) == 3
     end
 end
