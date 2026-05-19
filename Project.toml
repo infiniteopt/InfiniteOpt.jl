@@ -1,6 +1,6 @@
 name = "InfiniteOpt"
 uuid = "20393b10-9daf-11e9-18c9-8db751c92c57"
-version = "0.6.1"
+version = "0.6.2"
 authors = ["Joshua Pulsipher and colleagues"]
 
 [deps]
