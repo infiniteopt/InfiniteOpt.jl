@@ -8,6 +8,7 @@ There are settings where one may want to repeatedly solve problems defined in `I
 
 - [`set_parameter_value`](@ref) for updating parameters and parameter functions
 - [`warmstart_backend_start_values`](@ref) for warmstarting the backend using a previous solution
+- [`set_start_value`](@ref) and/or [`set_start_values`](@ref) for updating start values
 
 As a result, we get a persistent backend and solver instance across subsequent solves, reducing initialization overhead and improving performance.
 
@@ -141,10 +142,10 @@ julia> @constraint(model, T(0) == T0)
 T(0) - T0 = 0
 
 julia> @expression(model, k, k₀ * exp(-E/T))
-7.2e10 * exp(-8750.0 / T(t))
+72000000000 * exp(-8750 / T(t))
 
 julia> @expression(model, rate, k*Ca)
-7.2e10 * Ca(t) * exp(-8750.0 / T(t))
+72000000000 * Ca(t) * exp(-8750 / T(t))
 
 julia> @constraint(model, deriv(Ca, t) == (F*(cf - Ca) - V*rate)/V);
 
@@ -232,7 +233,7 @@ julia> set_parameter_value(Tsp, Tsp_new);
     The new function must have the same infinite parameter format as the original parameter function.
 
 Now we can call `optimize!` again to solve our updated model! 
-```jldoctest quick
+```jldoctest quick; filter = r"\d+"
 julia> optimize!(model)
 
 julia> barrier_iterations(model)
@@ -252,7 +253,7 @@ julia> set_optimizer_attribute(model, "bound_frac", 1e-8); # Desired minimum rel
 julia> set_optimizer_attribute(model, "mu_init", 1e-11); # Initial barrier parameter value
 ```
 Note that the chosen values here are not always good, as optimal values are problem dependent. Moving on, solving with these new solver options reduces the number of iterations:
-```jldoctest quick
+```jldoctest quick; filter = r"\d+"
 julia> optimize!(model)
 
 julia> barrier_iterations(model)

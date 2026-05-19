@@ -152,6 +152,42 @@ function TranscriptionBackend(optimizer_constructor; kwargs...)
     return backend
 end
 
+# Mirrors `InfiniteOpt.copy_empty_backend(::JuMPBackend)` from
+# `src/backends.jl`, but constructs a `TranscriptionData` that carries
+# `update_parameter_functions` from the source. If the parent body
+# changes substantively, update here too.
+function InfiniteOpt.copy_empty_backend(backend::TranscriptionBackend)
+    src_model = InfiniteOpt.transformation_model(backend)
+    moi_backend = JuMP.backend(src_model)
+    new_model = JuMP.GenericModel{Float64}()
+    has_optimizer = true
+    if !(moi_backend isa MOI.Utilities.CachingOptimizer)
+        # direct mode: moi_backend IS the optimizer
+        JuMP.set_optimizer(new_model, typeof(moi_backend))
+    else
+        inner = moi_backend.optimizer
+        if isnothing(inner)
+            has_optimizer = false
+        else
+            solver_type = inner isa MOI.Bridges.AbstractBridgeOptimizer ?
+                typeof(inner.model) : typeof(inner)
+            JuMP.set_optimizer(new_model, solver_type)
+        end
+    end
+    if has_optimizer
+        src_log = InfiniteOpt._optimizer_attr_log(src_model)
+        new_log = InfiniteOpt._optimizer_attr_log(new_model)
+        for attr in src_log
+            MOI.set(new_model, attr, MOI.get(src_model, attr))
+            push!(new_log, attr)
+        end
+    end
+    new_data = TranscriptionData()
+    new_data.update_parameter_functions =
+        InfiniteOpt.transformation_data(backend).update_parameter_functions
+    return InfiniteOpt.JuMPBackend{Transcription}(new_model, new_data)
+end
+
 # Get the solver name from MOI
 # Inspired by https://github.com/jump-dev/JuMP.jl/blob/ce946b7092c45bdac916c9b531a13a5b929d45f0/src/print.jl#L281-L291
 function _try_solver_name(model)
@@ -901,6 +937,50 @@ function InfiniteOpt.update_parameter_value(
     supps = data.infvar_supports[gvref]
     for (i, supp) in enumerate(supps)
         JuMP.set_parameter_value(vrefs[i], value(supp...))
+    end
+    return true
+end
+
+"""
+    InfiniteOpt.update_start_value(
+        backend::TranscriptionBackend,
+        vref::InfiniteOpt.DecisionVariableRef,
+        value::Union{Real, Function}
+    )::Bool
+
+Update the start value of the decision variable(s) referenced by `vref` in `backend`
+to `value`. Returns `true` if the variable was found and updated, `false` otherwise.
+"""
+function InfiniteOpt.update_start_value(
+    backend::TranscriptionBackend,
+    vref::InfiniteOpt.DecisionVariableRef,
+    value::Real
+    )
+    data = transcription_data(backend)
+    gvref = InfiniteOpt.GeneralVariableRef(vref)
+    if haskey(data.infvar_mappings, gvref)
+        for var in data.infvar_mappings[gvref]
+            JuMP.set_start_value(var, value)
+        end
+    elseif haskey(data.finvar_mappings, gvref)
+        JuMP.set_start_value(data.finvar_mappings[gvref], value)
+    else
+        return false
+    end
+    return true
+end
+function InfiniteOpt.update_start_value(
+    backend::TranscriptionBackend,
+    vref::InfiniteOpt.DecisionVariableRef,
+    value::Function
+    )
+    data = transcription_data(backend)
+    gvref = InfiniteOpt.GeneralVariableRef(vref)
+    haskey(data.infvar_mappings, gvref) || return false
+    vrefs = data.infvar_mappings[gvref]
+    supps = data.infvar_supports[gvref]
+    for (i, supp) in enumerate(supps)
+        JuMP.set_start_value(vrefs[i], value(supp...))
     end
     return true
 end

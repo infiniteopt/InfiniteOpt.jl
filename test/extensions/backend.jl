@@ -198,6 +198,34 @@ function JuMP.set_optimizer(
     return
 end
 
+# Extend copy_empty_backend so that `JuMP.copy_model(::InfiniteModel)` works
+# for this backend type. Not needed for `JuMPBackend`s. Should produce a
+# fresh empty backend of the same type, preserving solver choice and any
+# user-set optimizer attributes but no problem data.
+function InfiniteOpt.copy_empty_backend(backend::NewReformBackend)
+    # REPLACE WITH ACTUAL: build an empty inner model and fresh data.
+    new_model = JuMP.Model()
+    # Recover the attached solver constructor (if any) from the source so
+    # the copy has the same solver choice. The pattern below mirrors the
+    # `JuMPBackend` implementation in `src/backends.jl`.
+    moi_backend = JuMP.backend(backend.model)
+    if !(moi_backend isa MOI.Utilities.CachingOptimizer)
+        # direct mode: moi_backend IS the optimizer
+        JuMP.set_optimizer(new_model, typeof(moi_backend))
+    else
+        inner = moi_backend.optimizer
+        if !isnothing(inner)
+            solver_type = inner isa MOI.Bridges.AbstractBridgeOptimizer ?
+                typeof(inner.model) : typeof(inner)
+            JuMP.set_optimizer(new_model, solver_type)
+        end
+    end
+    # If this backend tracks optimizer attributes (e.g. via a log
+    # populated by its `set_attribute` hook), replay them onto
+    # `new_model` here so user-set Silent/TimeLimitSec/etc. survive.
+    return NewReformBackend(new_model, NewReformData())
+end
+
 # Extend transformation_variable if appropriate to enable variable related queries
 function InfiniteOpt.transformation_variable(
     vref::GeneralVariableRef,
@@ -402,6 +430,36 @@ function InfiniteOpt.update_parameter_value(
     supps = variable_supports(pfref, backend)
     for (i, pf) in enumerate(opt_param_funcs)
         JuMP.set_parameter_value(pf, new_func(supps[i]...))
+    end
+    return true
+end
+
+# Extend `update_start_value` to support incremental start value updates
+function InfiniteOpt.update_start_value(
+    backend::NewReformBackend,
+    vref::DispatchVariableRef,
+    new_value::Real
+    )
+    # REPLACE BELOW WITH ACTUAL START VALUE UPDATE IN THE BACKEND
+    opt_vref = transformation_variable(GeneralVariableRef(vref), backend)
+    if opt_vref isa AbstractArray
+        for v in opt_vref
+            JuMP.set_start_value(v, new_value)
+        end
+    else
+        JuMP.set_start_value(opt_vref, new_value)
+    end
+    return true
+end
+function InfiniteOpt.update_start_value(
+    backend::NewReformBackend,
+    vref::DispatchVariableRef,
+    new_value::Function
+    )
+    # REPLACE BELOW WITH ACTUAL START VALUE UPDATE IN THE BACKEND
+    opt_vref = transformation_variable(GeneralVariableRef(vref), backend)
+    for (i, v) in enumerate(opt_vref)
+        JuMP.set_start_value(v, new_value(variable_supports(vref, backend)[i]...))
     end
     return true
 end

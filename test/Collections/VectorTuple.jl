@@ -64,6 +64,14 @@
             vt1 = IC.VectorTuple(a, b, c)
             @test copy(vt1) == vt1
         end
+        # test hashing
+        @testset "Base.hash" begin
+            vt1 = IC.VectorTuple(a, b, c)
+            vt2 = IC.VectorTuple(a, b, c)
+            vt3 = IC.VectorTuple(a, b, b)
+            @test hash(vt1) == hash(vt2)
+            @test hash(vt1) != hash(vt3)
+        end
     end
 
     @testset "Indexing" begin

@@ -52,6 +52,7 @@ transformation_data(::AbstractTransformationBackend)
 JuMP.get_attribute(::AbstractTransformationBackend, ::Any)
 JuMP.set_attribute(::AbstractTransformationBackend, ::Any, ::Any)
 Base.empty!(::AbstractTransformationBackend)
+copy_empty_backend(::AbstractTransformationBackend)
 build_transformation_backend!(::InfiniteModel, ::AbstractTransformationBackend)
 JuMP.optimize!(::AbstractTransformationBackend)
 JuMP.set_optimizer(::AbstractTransformationBackend, ::Any)
@@ -74,6 +75,7 @@ constraint_supports(::InfOptConstraintRef, ::AbstractTransformationBackend)
 transformation_backend_ready
 set_transformation_backend_ready
 update_parameter_value(::AbstractTransformationBackend, ::Any, ::Any)
+update_start_value(::AbstractTransformationBackend, ::Any, ::Any)
 warmstart_backend_start_values(::AbstractTransformationBackend)
 map_value_to_start
 ```

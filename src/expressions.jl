@@ -466,3 +466,39 @@ function parameter_refs(
     length(prefs) == length(group_int_idxs) && return prefs
     return Tuple(prefs[i] for i in eachindex(prefs) if i in group_int_idxs)
 end
+
+## Extend Base.getindex for InfiniteReferenceMap
+
+# Affine expressions
+function Base.getindex(
+    m::InfiniteReferenceMap,
+    expr::JuMP.GenericAffExpr{T, GeneralVariableRef}
+    ) where {T}
+    new_expr = zero(typeof(expr))
+    for (coef, var) in JuMP.linear_terms(expr)
+        JuMP.add_to_expression!(new_expr, coef, m[var])
+    end
+    new_expr.constant = expr.constant
+    return new_expr
+end
+
+# Quadratic expressions
+function Base.getindex(
+    m::InfiniteReferenceMap,
+    expr::JuMP.GenericQuadExpr{T, GeneralVariableRef}
+    ) where {T}
+    new_aff = m[expr.aff]
+    new_terms = DataStructures.OrderedDict(
+        JuMP.UnorderedPair(m[k.a], m[k.b]) => v for (k, v) in expr.terms
+    )
+    return JuMP.GenericQuadExpr(new_aff, new_terms)
+end
+
+# Nonlinear expressions
+function Base.getindex(
+    m::InfiniteReferenceMap,
+    expr::JuMP.GenericNonlinearExpr{V}
+    ) where {V}
+    return JuMP.GenericNonlinearExpr{V}(expr.head,
+                                        Any[m[a] for a in expr.args])
+end
