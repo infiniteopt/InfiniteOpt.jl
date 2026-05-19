@@ -49,6 +49,14 @@ function parameter_group_int_indices(fref::ParameterFunctionRef)
     return core_object(fref).group_int_idxs
 end
 
+# Extend Base.copy for ParameterFunctionData
+function Base.copy(d::ParameterFunctionData)
+    return ParameterFunctionData(d.func, d.name, copy(d.measure_indices),
+                                 copy(d.constraint_indices),
+                                 copy(d.semi_infinite_var_indices),
+                                 copy(d.point_var_indices))
+end
+
 ################################################################################
 #                                 DEFINITION
 ################################################################################

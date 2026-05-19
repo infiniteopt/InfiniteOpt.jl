@@ -137,11 +137,34 @@ end
 
 # Extend _set_core_object for ScalarParameterRefs
 function _set_core_object(
-    pref::ScalarParameterRef, 
+    pref::ScalarParameterRef,
     param::ScalarParameter
     )
     _adaptive_data_update(pref, param, _data_object(pref))
     return
+end
+
+# Extend Base.copy for IndependentParameter (deep-copy supports so the
+# nested Sets are not aliased)
+function Base.copy(p::IndependentParameter)
+    new_supports = DataStructures.SortedDict{Float64, Set{DataType}}(
+                       k => copy(v) for (k, v) in p.supports)
+    return IndependentParameter(p.domain, new_supports, p.sig_digits,
+                                p.derivative_method, p.generative_supp_info)
+end
+
+# Extend Base.copy for ScalarParameterData
+function Base.copy(d::ScalarParameterData)
+    return ScalarParameterData(d.parameter, d.group_int_idx, d.name,
+                               copy(d.parameter_func_indices),
+                               copy(d.infinite_var_indices),
+                               copy(d.derivative_indices),
+                               copy(d.measure_indices),
+                               copy(d.constraint_indices), d.in_objective,
+                               copy(d.generative_measures),
+                               d.has_internal_supports,
+                               d.has_generative_supports,
+                               d.has_deriv_constrs)
 end
 
 ################################################################################

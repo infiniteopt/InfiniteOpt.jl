@@ -20,3 +20,9 @@ AbstractDataObject
 AbstractInfOptIndex
 ObjectIndex
 ```
+
+## Model Copying
+```@docs
+JuMP.copy_model(::InfiniteModel)
+InfiniteReferenceMap
+```

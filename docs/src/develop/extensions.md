@@ -757,6 +757,7 @@ extended using the following steps:
     - [`transformation_data`](@ref transformation_data(::AbstractTransformationBackend))
     - [`JuMP.set_attribute`](@ref JuMP.set_attribute(::AbstractTransformationBackend, ::Any, ::Any)) (including the suggested attributes)
     - [`JuMP.get_attribute`](@ref JuMP.get_attribute(::AbstractTransformationBackend, ::Any)) (including the suggested attributes)
+    - [`InfiniteOpt.copy_empty_backend`](@ref copy_empty_backend(::AbstractTransformationBackend)) (needed for [`JuMP.copy_model`](@ref JuMP.copy_model(::InfiniteModel)) to work; should produce a fresh empty backend of the same type that preserves solver choice and any user-set optimizer attributes)
     - [`JuMP.optimize!`](@ref JuMP.optimize!(::AbstractTransformationBackend))
     - [`JuMP.set_optimizer`](@ref JuMP.set_optimizer(::AbstractTransformationBackend, ::Any))
     - [`JuMP.bridge_constraints`](@ref JuMP.bridge_constraints(::AbstractTransformationBackend))
@@ -1023,9 +1024,16 @@ end
 # output
 
 ```
-Note that Step 5 can be skipped since we are using the `JuMPBackend` API which inherits 
-all the needed methods. Now we can build our backend automatically and enable the use of 
-`optimize!`:
+Note that most of Step 5 can be skipped since we are using the `JuMPBackend` API 
+which inherits the JuMP delegation methods. The one exception is 
+[`InfiniteOpt.copy_empty_backend`](@ref copy_empty_backend(::AbstractTransformationBackend)). 
+It builds a fresh empty backend of the same type and is necessarily 
+data-specific, so each backend type implements its own (regardless of whether it 
+is a `JuMPBackend`). Without it, [`JuMP.copy_model`](@ref JuMP.copy_model(::InfiniteModel)) 
+will not work for your backend. See `InfiniteOpt.copy_empty_backend(::TranscriptionBackend)` 
+in `src/TranscriptionOpt/model.jl` for a working example covering solver recovery, 
+optimizer attribute replay, and data-field carry-over. Now we can build our backend 
+automatically and enable the use of `optimize!`:
 ```jldoctest opt_model
 optimize!(model)
 print(transformation_model(model))

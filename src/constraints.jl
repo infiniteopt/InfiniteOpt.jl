@@ -177,6 +177,12 @@ function _delete_data_object(cref::InfOptConstraintRef)
     return
 end
 
+# Extend Base.copy for ConstraintData
+function Base.copy(d::ConstraintData)
+    return ConstraintData(d.constraint, copy(d.group_int_idxs), d.name,
+                          copy(d.measure_indices), d.is_info_constraint)
+end
+
 ################################################################################
 #                             DEFINITION METHODS
 ################################################################################
@@ -915,4 +921,10 @@ function JuMP.delete(model::InfiniteModel, cref::InfOptConstraintRef)
     # reset transformation backend status
     set_transformation_backend_ready(model, false)
     return
+end
+
+# Extend Base.getindex for InfiniteReferenceMap
+function Base.getindex(m::InfiniteReferenceMap, cref::InfOptConstraintRef)
+    new_idx = m.source_to_new[JuMP.index(cref)]
+    return InfOptConstraintRef(m.new_model, new_idx::InfOptConstraintIndex)
 end

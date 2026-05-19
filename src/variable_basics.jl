@@ -161,6 +161,18 @@ function JuMP.add_variable(
     return shaped_vrefs
 end
 
+# Extend Base.copy for VariableData
+function Base.copy(d::VariableData)
+    return VariableData(d.variable, d.name, d.lower_bound_index,
+                        d.upper_bound_index, d.fix_index, d.zero_one_index,
+                        d.integrality_index, copy(d.measure_indices),
+                        copy(d.constraint_indices), d.in_objective,
+                        copy(d.point_var_indices),
+                        copy(d.semi_infinite_var_indices),
+                        copy(d.derivative_indices),
+                        copy(d.deriv_constr_indices))
+end
+
 ################################################################################
 #                            VARIABLE DEPENDENCIES
 ################################################################################

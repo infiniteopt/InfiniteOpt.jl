@@ -227,3 +227,54 @@ corresponding symbols in the object dictionary are not removed by default. This
 can be accomplished by use of 
 [`JuMP.unregister`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.unregister) 
 (please click on its link for usage information).
+
+## Copying Models
+An `InfiniteModel` can be duplicated via 
+[`JuMP.copy_model`](@ref JuMP.copy_model(::InfiniteModel)). This is useful for 
+scenario analysis, branching off variations of a base problem, or running 
+independent solves of related problems in parallel.
+
+`copy_model(model)` returns a tuple `(new_model, ref_map)`: the new model has its 
+own parameters, variables, constraints, and objective, plus a fresh empty 
+transformation backend that preserves the source's solver choice and any 
+user-set optimizer attributes (e.g., those set via `set_silent`, 
+`set_time_limit_sec`, or `set_optimizer_attribute`). The `ref_map` is an 
+[`InfiniteReferenceMap`](@ref) that translates any reference from the source 
+into its counterpart in the copy:
+```jldoctest
+julia> using InfiniteOpt
+
+julia> model = InfiniteModel();
+
+julia> @infinite_parameter(model, t in [0, 1], num_supports = 5);
+
+julia> @variable(model, y >= 0, Infinite(t));
+
+julia> @constraint(model, c, y <= 1);
+
+julia> new_model, ref_map = copy_model(model);
+
+julia> new_y = ref_map[y]
+y(t)
+
+julia> new_c = ref_map[c]
+c : y(t) ≤ 1, ∀ t ∈ [0, 1]
+```
+The map handles `GeneralVariableRef`, `InfOptConstraintRef`, affine/quadratic/
+nonlinear expressions, and any `AbstractArray` of those. Scalar values (numbers, 
+strings, symbols) pass through unchanged.
+
+What the copy does **not** carry over:
+- **Problem data on the transformation backend.** The copy's backend is empty; 
+  `ready_to_optimize` is `false`. Calling `optimize!` rebuilds the transformed 
+  problem from scratch.
+- **References to deleted variables** still left in the source's object 
+  dictionary. The macros keep registrations after `delete!`, but those dangling 
+  entries are skipped on the copy.
+- **Extension state** beyond what an extension's 
+  [`JuMP.copy_extension_data`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.copy_extension_data) 
+  defines.
+
+Unlike `JuMP.copy_model` for plain `Model`s, this method works whether the 
+source's underlying transformation model is in caching mode or 
+[`direct_model`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.direct_model) mode.

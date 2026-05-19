@@ -52,6 +52,7 @@ include("results.jl")
 include("show.jl")
 include("utilities.jl")
 include("general_variables.jl")
+include("copy.jl")
 
 # Import and export TranscriptionOpt
 include("TranscriptionOpt/TranscriptionOpt.jl")
