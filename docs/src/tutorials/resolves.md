@@ -8,6 +8,7 @@ There are settings where one may want to repeatedly solve problems defined in `I
 
 - [`set_parameter_value`](@ref) for updating parameters and parameter functions
 - [`warmstart_backend_start_values`](@ref) for warmstarting the backend using a previous solution
+- [`set_start_value`](@ref) and/or [`set_start_values`](@ref) for updating start values
 
 As a result, we get a persistent backend and solver instance across subsequent solves, reducing initialization overhead and improving performance.
 
