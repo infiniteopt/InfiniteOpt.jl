@@ -381,6 +381,7 @@ end
         @test isa(set_start_value(y, +), Nothing)
         @test start_value(y)(1, -1) == 0
         @test !transformation_backend_ready(m)
+        @test set_upper_bound(y0, 10) isa Nothing
         set_transformation_backend_ready(m, true)
         @test isa(set_start_value(y0, 42), Nothing)
         @test start_value(y0) == 42
