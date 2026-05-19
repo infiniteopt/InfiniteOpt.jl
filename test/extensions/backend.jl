@@ -409,7 +409,7 @@ end
 # Extend `update_start_value` to support incremental start value updates
 function InfiniteOpt.update_start_value(
     backend::NewReformBackend,
-    vref::GeneralVariableRef,
+    vref::DispatchVariableRef,
     new_value::Real
     )
     # REPLACE BELOW WITH ACTUAL START VALUE UPDATE IN THE BACKEND
@@ -425,7 +425,7 @@ function InfiniteOpt.update_start_value(
 end
 function InfiniteOpt.update_start_value(
     backend::NewReformBackend,
-    vref::GeneralVariableRef,
+    vref::DispatchVariableRef,
     new_value::Function
     )
     # REPLACE BELOW WITH ACTUAL START VALUE UPDATE IN THE BACKEND
