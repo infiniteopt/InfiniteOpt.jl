@@ -132,48 +132,6 @@ end
 # Generic fallback
 _rewrite_constraint(c, ::InfiniteReferenceMap) = c
 
-## Decide whether an `obj_dict` entry should survive the copy. An
-## entry is dropped if it (or, for a container, any element of it)
-## points at a variable that was deleted in the source or a constraint
-## that was not copied (deleted in the source, or removed by
-## `filter_constraints`). `source_to_new` is populated only for
-## constraints actually copied, so checking membership there covers
-## both cases.
-
-# Scalar variable ref: drop if invalid in source
-function _copyable_obj_dict_entry(
-    model::InfiniteModel,
-    ::InfiniteReferenceMap,
-    v::GeneralVariableRef
-    )
-    return JuMP.is_valid(model, v)
-end
-
-# Scalar constraint ref: drop if its source index was not copied
-function _copyable_obj_dict_entry(
-    ::InfiniteModel,
-    ref_map::InfiniteReferenceMap,
-    v::InfOptConstraintRef
-    )
-    return haskey(ref_map.source_to_new, JuMP.index(v))
-end
-
-# Container of refs: drop the whole name if any element is uncopyable
-function _copyable_obj_dict_entry(
-    model::InfiniteModel,
-    ref_map::InfiniteReferenceMap,
-    v::AbstractArray
-    )
-    return all(
-        _copyable_obj_dict_entry(model, ref_map, el) for el in v
-        )
-end
-
-# Generic fallback: pure-data / unhandled types pass through
-_copyable_obj_dict_entry(
-    ::InfiniteModel, ::InfiniteReferenceMap, ::Any
-    ) = true
-
 ################################################################################
 #                              COPY MODEL
 ################################################################################
@@ -394,11 +352,19 @@ function JuMP.copy_model(
     # constraints that were not copied (deleted in source or filtered
     # out) are skipped, so the copy never carries dangling references.
     # For container registrations, the whole name is dropped if any
-    # element is uncopyable (see `_copyable_obj_dict_entry`).
+    # element is uncopyable. `source_to_new` is populated only for
+    # constraints actually copied, so its `haskey` check covers both
+    # "deleted in source" and "filtered out" in one test.
+    keep(v) =
+        v isa GeneralVariableRef ? JuMP.is_valid(model, v) :
+        v isa InfOptConstraintRef ?
+            haskey(ref_map.source_to_new, JuMP.index(v)) :
+        v isa AbstractArray ? all(keep, v) :
+        true
     new_model.obj_dict = Dict(
         k => ref_map[v]
         for (k, v) in model.obj_dict
-        if _copyable_obj_dict_entry(model, ref_map, v)
+        if keep(v)
         )
 
     # Backend / ready_to_optimize already set fresh by InfiniteModel()
