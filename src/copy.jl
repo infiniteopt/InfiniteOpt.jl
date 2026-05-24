@@ -355,12 +355,11 @@ function JuMP.copy_model(
     # element is uncopyable. `source_to_new` is populated only for
     # constraints actually copied, so its `haskey` check covers both
     # "deleted in source" and "filtered out" in one test.
-    keep(v) =
-        v isa GeneralVariableRef ? JuMP.is_valid(model, v) :
-        v isa InfOptConstraintRef ?
-            haskey(ref_map.source_to_new, JuMP.index(v)) :
-        v isa AbstractArray ? all(keep, v) :
-        true
+    keep(v::GeneralVariableRef) = JuMP.is_valid(model, v)
+    keep(v::InfOptConstraintRef) =
+        haskey(ref_map.source_to_new, JuMP.index(v))
+    keep(v::AbstractArray) = all(keep, v)
+    keep(::Any) = true
     new_model.obj_dict = Dict(
         k => ref_map[v]
         for (k, v) in model.obj_dict
