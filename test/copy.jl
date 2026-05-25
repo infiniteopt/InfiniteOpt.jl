@@ -608,4 +608,16 @@ end
     new_m4, _ = copy_model(m3; filter_constraints = cref -> true)
     @test length(new_m4.constraints) == 3
     @test haskey(new_m4.obj_dict, :cv)
+
+    # Non-ref `obj_dict` entries (anything that isn't a variable
+    # ref, a constraint ref, or a container of refs) survive the
+    # copy unchanged via the generic `keep(::Any) = true` fallback.
+    m5 = InfiniteModel()
+    @infinite_parameter(m5, u in [0, 1], num_supports = 3)
+    @variable(m5, w, Infinite(u))
+    m5[:scalar_const] = 42
+    m5[:tuple_data]   = (a = 1, b = "two")
+    new_m5, _ = copy_model(m5)
+    @test new_m5[:scalar_const] == 42
+    @test new_m5[:tuple_data]   == (a = 1, b = "two")
 end
