@@ -49,6 +49,7 @@ InfiniteOpt.TranscriptionOpt.parameter_supports(::InfiniteOpt.TranscriptionOpt.T
 ```@docs
 InfiniteOpt.update_parameter_value(::InfiniteOpt.TranscriptionOpt.TranscriptionBackend, ::InfiniteOpt.FiniteParameterRef, ::Real)
 InfiniteOpt.update_parameter_value(::InfiniteOpt.TranscriptionOpt.TranscriptionBackend, ::InfiniteOpt.ParameterFunctionRef, ::Function)
+InfiniteOpt.update_parameter_value(::InfiniteOpt.TranscriptionOpt.TranscriptionBackend, ::InfiniteOpt.DecisionVariableRef, ::Real)
 ```
 
 ## Utilities

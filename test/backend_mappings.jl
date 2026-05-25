@@ -164,11 +164,14 @@ end
     tb = TranscriptionBackend(update_parameter_functions = true)
     m = InfiniteModel(tb)
     @infinite_parameter(m, par in [0, 1], supports = [0, 1])
-    @variable(m, x, Infinite(par))
+    @variable(m, x >= 0, Infinite(par))
+    dx = dispatch_variable_ref(x)
     f = parameter_function(sin, par)
     df = dispatch_variable_ref(f)
     @finite_parameter(m, p == 2)
     dp = dispatch_variable_ref(p)
+    @variable(m, z >= 0)
+    dz = dispatch_variable_ref(z)
     build_transformation_backend!(m)
     # Test update_parameter_value
     @testset "update_parameter_value" begin
@@ -178,6 +181,17 @@ end
         @test !update_parameter_value(TestBackend(), dp, 3)
         @test update_parameter_value(tb, dp, 3)
         @test parameter_value(transformation_variable(p)) == 3
+    end
+    # Test update_start_value
+    @testset "update_start_value" begin
+        @test !update_start_value(TestBackend(), dx, cos)
+        @test update_start_value(tb, dx, cos)
+        @test start_value.(transformation_variable(x)) == [cos(0), cos(1)]
+        @test update_start_value(tb, dx, 42)
+        @test start_value.(transformation_variable(x)) == [42, 42]
+        @test !update_start_value(TestBackend(), dz, 3)
+        @test update_start_value(tb, dz, 3)
+        @test start_value(transformation_variable(z)) == 3
     end
 end
 
