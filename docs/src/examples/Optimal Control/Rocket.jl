@@ -94,6 +94,7 @@ display(plot(plot1, plot2, plot3, plot4, layout=(4,1), size = (1000, 1000)))
 # ### Maintenance Tests
 # These are here to ensure this example stays up to date. 
 using Test
-tol = 1E-6
+tol = 1E-4
 @test termination_status(model) == MOI.LOCALLY_SOLVED
 @test has_values(model)
+@test isapprox(objective_value(model), 7.4482495165303710, atol=tol)
