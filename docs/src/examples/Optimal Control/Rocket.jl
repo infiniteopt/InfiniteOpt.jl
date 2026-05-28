@@ -3,23 +3,27 @@
 
 # # Problem Statement and Model
 # In this problem, we seek to minimize the final time ``t_f`` of a rocket launch between 0 and 10 metres.
-# Minimizing fuel use is also important for this problem.
+# Minimizing fuel use is also important for this problem. The force- or thrust- of the rocket can be between
+# -1.1 and 1.1, while the velocity of the rocket cannot exceed 1.7. The drag resistance of the rocket is
+# proportional to the square of the velocity. The mass of the rocket decreases as fuel is burned over time. 
 # Our optimization guidelines are subject to these constraints:
 # ```math
-# \begin{gathered}
-# &&\min t_f \\
-# &&&\frac{ds}{dt}= v \\
-# &&&\frac{dv}{dt}= (u-0.2*(v^2))/2\\
-# &&&\frac{dm}{dt}= -0.01(u^2)\\
-# &&&0 \leq v(t) \leq 1.7 \\
-# &&&-1.1 \leq v(t) \leq 1.1 \\
-# &&&s(0) = 0 \\
-# &&&v(0) = 0 \\
-# &&&m(0) = 1 \\
-# &&&s(t_f) = 10 \\
-# &&&v(t_f) = 0 \\
-# \end{gathered}
+# \begin{aligned}
+#   &&\min t_f \\
+#   &&&\frac{ds}{dt}= v \\
+#   &&&\frac{dv}{dt}= (u-0.2*(v^2))/2\\
+#   &&&\frac{dm}{dt}= -0.01(u^2)\\
+#   &&&0 \leq v(t) \leq 1.7 \\
+#   &&&-1.1 \leq u(t) \leq 1.1 \\
+#       &&&s(0) = 0 \\
+#       &&&v(0) = 0 \\
+#       &&&m(0) = 1 \\
+#       &&&s(t_f) = 10 \\
+#       &&&v(t_f) = 0 \\
+# \end{aligned}
 # ```
+# where ``v(t)`` represents the rocket's velocity, ``s(t)`` represents the rocket's position and
+# ``m(t)`` represents the rocket's mass. Additionally, ``u(t)`` represents the rocket's force (or thrust).
 
 # # Modeling in InfiniteOpt
 # First we must import ``InfiniteOpt`` and other packages.
