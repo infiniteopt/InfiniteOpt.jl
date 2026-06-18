@@ -543,3 +543,81 @@ end
     # Backends are independent instances.
     @test new_m.backend !== m.backend
 end
+
+@testset "copy_model filter_constraints" begin
+    m = InfiniteModel()
+    @infinite_parameter(m, t in [0, 1], num_supports = 5)
+    @variable(m, x, Infinite(t))
+    @variable(m, y >= 0)
+    @constraint(m, c1, x <= 1)
+    @constraint(m, c2, y <= 5)
+
+    # `filter_constraints = nothing` is identical to omitting the kwarg
+    new_m_a, _ = copy_model(m)
+    new_m_b, _ = copy_model(m; filter_constraints = nothing)
+    @test length(new_m_a.constraints) == length(new_m_b.constraints)
+    @test haskey(new_m_a.obj_dict, :c1) &&
+          haskey(new_m_b.obj_dict, :c1)
+    @test haskey(new_m_a.obj_dict, :c2) &&
+          haskey(new_m_b.obj_dict, :c2)
+
+    # Drop the scalar `c2` only
+    new_m, ref_map = copy_model(
+        m;
+        filter_constraints =
+            cref -> JuMP.index(cref) != JuMP.index(c2)
+        )
+    @test length(new_m.constraints) == length(m.constraints) - 1
+    # Kept constraint still resolves through the ref map
+    @test JuMP.owner_model(ref_map[c1]) === new_m
+    # Dropped constraint is absent from `source_to_new`
+    @test_throws KeyError ref_map[c2]
+    # `obj_dict` keeps the surviving name and drops the filtered one
+    @test haskey(new_m.obj_dict, :c1)
+    @test !haskey(new_m.obj_dict, :c2)
+    # Variables are unaffected by constraint filtering
+    @test JuMP.owner_model(ref_map[x]) === new_m
+    @test JuMP.owner_model(ref_map[y]) === new_m
+
+    # Drop every constraint
+    new_m2, _ = copy_model(m; filter_constraints = cref -> false)
+    @test length(new_m2.constraints) == 0
+    @test !haskey(new_m2.obj_dict, :c1)
+    @test !haskey(new_m2.obj_dict, :c2)
+
+    # Container registration: partial filtering drops the whole name
+    m3 = InfiniteModel()
+    @infinite_parameter(m3, s in [0, 1], num_supports = 3)
+    @variable(m3, z[1:3], Infinite(s))
+    @constraint(m3, cv[i = 1:3], z[i] <= i)
+
+    new_m3, ref_map3 = copy_model(
+        m3;
+        filter_constraints =
+            cref -> JuMP.index(cref) != JuMP.index(cv[2])
+        )
+    @test length(new_m3.constraints) == 2
+    # One element filtered ⇒ drop the entire `:cv` name registration
+    @test !haskey(new_m3.obj_dict, :cv)
+    # Surviving elements still resolvable
+    @test JuMP.owner_model(ref_map3[cv[1]]) === new_m3
+    @test JuMP.owner_model(ref_map3[cv[3]]) === new_m3
+    @test_throws KeyError ref_map3[cv[2]]
+
+    # All-true predicate keeps the full container registration
+    new_m4, _ = copy_model(m3; filter_constraints = cref -> true)
+    @test length(new_m4.constraints) == 3
+    @test haskey(new_m4.obj_dict, :cv)
+
+    # Non-ref `obj_dict` entries (anything that isn't a variable
+    # ref, a constraint ref, or a container of refs) survive the
+    # copy unchanged via the generic `keep(::Any) = true` fallback.
+    m5 = InfiniteModel()
+    @infinite_parameter(m5, u in [0, 1], num_supports = 3)
+    @variable(m5, w, Infinite(u))
+    m5[:scalar_const] = 42
+    m5[:tuple_data]   = (a = 1, b = "two")
+    new_m5, _ = copy_model(m5)
+    @test new_m5[:scalar_const] == 42
+    @test new_m5[:tuple_data]   == (a = 1, b = "two")
+end
