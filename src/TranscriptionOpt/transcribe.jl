@@ -565,6 +565,15 @@ function transcription_expression(
     return zero(JuMP.AffExpr) + num
 end
 
+# Vectors
+function transcription_expression(
+    func::AbstractVector,
+    backend::TranscriptionBackend,
+    support::Vector{Float64}
+    )
+    return map(f -> transcription_expression(f, backend, support), func)
+end
+
 ################################################################################
 #                         MEASURE TRANSCRIPTION METHODS
 ################################################################################
@@ -750,7 +759,7 @@ end
 function _process_constraint(
     backend::TranscriptionBackend, 
     constr::JuMP.VectorConstraint, 
-    func::Vector{<:JuMP.AbstractJuMPScalar}, 
+    func::AbstractVector,
     set::MOI.AbstractVectorSet, 
     raw_supp::Vector{Float64}, 
     name::String
