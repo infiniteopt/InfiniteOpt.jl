@@ -148,7 +148,7 @@ Instead of a `JuMP.AbstractJuMPScalar`, these become `AbstractVector` within the
 These models are defined the same way as scalar, single-objective models with `@objective`, with some slight differences in definition. Looking at the aforementioned example and modifying it a bit, it becomes:
 
 ```jldoctest obj
-julia> set_objective(model, Max, [0.5x[1], 0.5x[2]])
+julia> set_objective(model, MOI.MAX_SENSE, [0.5x[1], 0.5x[2]])
  0.5 x[1]
  0.5 x[2]
 ```
