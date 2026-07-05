@@ -136,7 +136,10 @@ _rewrite_constraint(c, ::InfiniteReferenceMap) = c
 #                              COPY MODEL
 ################################################################################
 """
-    JuMP.copy_model(model::InfiniteModel)
+    JuMP.copy_model(
+        model::InfiniteModel;
+        filter_constraints::Union{Nothing, Function} = nothing
+        )
 
 Return a copy of `model` and an [`InfiniteReferenceMap`](@ref) that
 can be used to obtain the variable and constraint references of the
@@ -162,10 +165,21 @@ Entries left in the source's object dictionary that point at deleted
 refs are skipped on the copy, so dangling registrations do not leak
 into `new_model.obj_dict`.
 
-!!! note
-    Unlike `JuMP.copy_model(::JuMP.GenericModel)`, this method does
-    not currently accept a `filter_constraints` keyword argument. All
-    constraints are copied.
+## Keyword Arguments
+
+- `filter_constraints::Union{Nothing, Function} = nothing`: when not
+  `nothing`, a predicate that receives each source `InfOptConstraintRef`
+  and returns `true` to copy it or `false` to skip it. Skipped
+  constraints are absent from `new_model.constraints` and from
+  `ref_map.source_to_new`, so `ref_map[dropped]` raises a `KeyError`
+  (the same convention `JuMP.copy_model(::GenericModel)` uses for
+  filtered constraints). Variables are not affected — a constraint's
+  variables remain in `new_model` whether or not the constraint
+  itself was copied. If a constraint registered by name in
+  `model.obj_dict` is filtered out, its name registration is dropped
+  from `new_model.obj_dict`; for a constraint container registered
+  under a single name (e.g. `@constraint(model, c[1:n], ...)`), the
+  whole name is dropped if **any** of its elements is filtered out.
 
 **Example**
 ```julia-repl
@@ -182,9 +196,21 @@ julia> new_model, ref_map = copy_model(model);
 julia> new_x = ref_map[x];
 
 julia> new_c = ref_map[c];
+
+julia> # Skip `c` on the copy:
+       new_model2, ref_map2 = copy_model(
+           model;
+           filter_constraints = cref -> cref != c
+           );
+
+julia> haskey(new_model2.obj_dict, :c)
+false
 ```
 """
-function JuMP.copy_model(model::InfiniteModel)
+function JuMP.copy_model(
+    model::InfiniteModel;
+    filter_constraints::Union{Nothing, Function} = nothing
+    )
     new_model = InfiniteModel(copy_empty_backend(model.backend))
     ref_map = InfiniteReferenceMap(model, new_model)
 
@@ -297,8 +323,14 @@ function JuMP.copy_model(model::InfiniteModel)
             _add_data_object(new_model, new_data)
     end
 
-    # Constraints
+    # Constraints — honors `filter_constraints` if provided. Skipped
+    # constraints are never inserted and never recorded in
+    # `source_to_new`, so `ref_map[dropped]` raises `KeyError`.
     for (idx, data) in model.constraints
+        if filter_constraints !== nothing &&
+           !filter_constraints(InfOptConstraintRef(model, idx))
+            continue
+        end
         new_data = copy(data)
         new_data.constraint = _rewrite_constraint(data.constraint, ref_map)
         ref_map.source_to_new[idx] =
@@ -316,13 +348,22 @@ function JuMP.copy_model(model::InfiniteModel)
 
     # obj_dict — values whose types lack a getindex method on
     # InfiniteReferenceMap pass through unchanged via the catch-all
-    # fallback. Symbol entries still registered on `model` that point
-    # at deleted refs are skipped (the macro keeps registrations after
-    # `delete!`, but the copy shouldn't carry dangling references).
+    # fallback. Entries that point at deleted variables or at
+    # constraints that were not copied (deleted in source or filtered
+    # out) are skipped, so the copy never carries dangling references.
+    # For container registrations, the whole name is dropped if any
+    # element is uncopyable. `source_to_new` is populated only for
+    # constraints actually copied, so its `haskey` check covers both
+    # "deleted in source" and "filtered out" in one test.
+    keep(v::GeneralVariableRef) = JuMP.is_valid(model, v)
+    keep(v::InfOptConstraintRef) =
+        haskey(ref_map.source_to_new, JuMP.index(v))
+    keep(v::AbstractArray) = all(keep, v)
+    keep(::Any) = true
     new_model.obj_dict = Dict(
         k => ref_map[v]
         for (k, v) in model.obj_dict
-        if !(v isa GeneralVariableRef) || JuMP.is_valid(model, v)
+        if keep(v)
         )
 
     # Backend / ready_to_optimize already set fresh by InfiniteModel()
