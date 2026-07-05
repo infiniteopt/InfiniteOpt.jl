@@ -28,6 +28,11 @@
         m.objective_function = x + meas + pt
         # test new function
         @test isequal(objective_function(m), x + meas + pt)
+        # change function (vector)
+        multi_obj = [x + pt, 5.0 * meas]
+        m.objective_function = multi_obj
+        @test objective_function(m) isa AbstractVector
+        @test length(objective_function(m)) == length(multi_obj)
         # undo changes
         m.objective_function = zero(GenericAffExpr{Float64, GeneralVariableRef})
     end
@@ -191,5 +196,33 @@ end
         set_objective_function(m, 2)
         @test isa(set_objective_coefficient(m, pt, 2), Nothing)
         @test isequal_canonical(objective_function(m), 2pt + 2)
+    end
+end
+
+@testset "Multi-Objective" begin
+    # initialize the model, references, and other info
+    m = InfiniteModel()
+    @infinite_parameter(m, par in [0, 1])
+    @variable(m, inf, Infinite(par))
+    @variable(m, pt, Point(inf, 0.5))
+    @variable(m, x)
+    data = TestData(par, 0, 1)
+    meas = measure(x, data, name = "test")
+
+    # test set_objective_coefficient
+    @testset "JuMP.set_objective_coefficient" begin
+        multi_obj = [x + pt, 5.0 * meas]    
+        # test set_objective_function
+        @test isa(set_objective_function(m, multi_obj), Nothing)
+        @test objective_function(m) == multi_obj
+        @test used_by_objective(x)
+        @test used_by_objective(pt)
+        @test used_by_objective(meas)
+        @test objective_has_measures(m)
+        @test !transformation_backend_ready(m)
+        # test set_objective
+        @test isa(set_objective(m, MOI.MAX_SENSE, [x, pt]), Nothing)
+        @test objective_sense(m) == MOI.MAX_SENSE
+        @test length(objective_function(m)) == length(multi_obj)
     end
 end

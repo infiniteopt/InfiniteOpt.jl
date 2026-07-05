@@ -147,10 +147,11 @@ Instead of a `JuMP.AbstractJuMPScalar`, these become `AbstractVector` within the
 
 These models are defined the same way as scalar, single-objective models with `@objective`, with some slight differences in definition. Looking at the aforementioned example and modifying it a bit, it becomes:
 
-```jldoctest obj_multi
-julia> @objective(model, Max, [0.5x[1], 0.5x[2]])
+```jldoctest obj
+julia> set_objective(model, Max, [0.5x[1], 0.5x[2]])
  0.5 x[1]
  0.5 x[2]
 ```
 If a scalarization method of solving the model is the goal, the individual `@expression` scalars within the vector can be compiled into a single objective. The weight- or priority- of these expressions can be changed by multiplying each component in the vector by fractions, with the sum of the fractions being 1.
 In hierarchical model solving, the order of the scalars determines the priority of the model.
+For more solvers that support multiple objective optimization, please refer to `JuMP` solvers, such as [`@MultiObjectiveAlgorithms`](https://jump.dev/JuMP.jl/stable/packages/MultiObjectiveAlgorithms/#MultiObjectiveAlgorithms.jl) and [`@Gurobi`](https://jump.dev/JuMP.jl/stable/packages/Gurobi/#Gurobi.jl).
