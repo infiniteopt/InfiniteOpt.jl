@@ -151,7 +151,7 @@ These models are defined the same way as scalar, single-objective models with `@
 julia> set_objective(model, MOI.MAX_SENSE, [0.5x[1], 0.5x[2]])
 
 julia> @objective(model, Max, [0.5x[1], 0.5x[2]])
-2-element Vector{GenericAffExpr{Float64, GeneralVariableRef}}:2-element Vector{GenericAffExpr{Float64, GeneralVariableRef}}:
+2-element Vector{GenericAffExpr{Float64, GeneralVariableRef}}:
 0.5 x[1]
 0.5 x[2]
 ```
