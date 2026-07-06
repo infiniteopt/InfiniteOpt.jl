@@ -380,6 +380,27 @@ end
     end
 end
 
+# Test multi-objective transcription_expression
+@testset "Objective Transcription" begin 
+    # setup
+    m = InfiniteModel()
+    @infinite_parameter(m, t in [0, 1], supports = [0, 0.5, 1])
+    @variable(m, z, Infinite(t))
+    @variable(m, x >= 0, Infinite(t))
+    
+    tb = m.backend
+    IOTO.set_parameter_supports(tb, m)
+    IOTO.transcribe_finite_variables!(tb, m)
+    IOTO.transcribe_infinite_variables!(tb, m)
+    multi_obj = [0.5 * z, 5.0 * x] 
+    vec = IOTO.transcription_expression(multi_obj, tb, [0.5])
+
+    # main test
+    @test vec isa AbstractVector
+    @test length(vec) == length(multi_obj)
+    @test all(v -> v isa JuMP.AbstractJuMPScalar, vec)
+end
+
 # Test transcribe_derivative_evaluations! (TODO SEE IF THIS CAN BE MADE TO WORK WITH DEPENDENT PARAMETER BASED DERIVATIVES)
 @testset "transcribe_derivative_evaluations!" begin 
     # setup 
