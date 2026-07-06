@@ -26,7 +26,7 @@
 @constraint(model, m(0) == 1)
 @constraint(model, m(1) &gt;= 0.2);</code></pre><h1 id="Objective-Definition"><a class="docs-heading-anchor" href="#Objective-Definition">Objective Definition</a><a id="Objective-Definition-1"></a><a class="docs-heading-anchor-permalink" href="#Objective-Definition" title="Permalink"></a></h1><p>We now add the objective, using <code>@objective</code>, which is to minimize final time t_f.</p><pre><code class="language-julia hljs">@objective(model, Min, t_f);</code></pre><h1 id="Constraint-Definition"><a class="docs-heading-anchor" href="#Constraint-Definition">Constraint Definition</a><a id="Constraint-Definition-1"></a><a class="docs-heading-anchor-permalink" href="#Constraint-Definition" title="Permalink"></a></h1><p>We finally are adding our constraints, which are defining the ODEs for our system model.</p><pre><code class="language-julia hljs">@constraint(model, v * t_f == deriv(p, t))
 @constraint(model, ((u - (0.2 * (v ^ 2))) * t_f) == (deriv(v, t)) * m)
-@constraint(model, (-0.01 * (u ^ 2)) * t_f == deriv(m, t));</code></pre><h1 id="Problem-Solution"><a class="docs-heading-anchor" href="#Problem-Solution">Problem Solution</a><a id="Problem-Solution-1"></a><a class="docs-heading-anchor-permalink" href="#Problem-Solution" title="Permalink"></a></h1><p>Now that everything is set up, we can solve the model by using <code>@optimize!</code></p><pre><code class="language-julia hljs">optimize!(model)</code></pre><pre><code class="nohighlight hljs">This is Ipopt version 3.14.19, running with linear solver MUMPS 5.8.2.
+@constraint(model, (-0.01 * (u ^ 2)) * t_f == deriv(m, t));</code></pre><h1 id="Problem-Solution"><a class="docs-heading-anchor" href="#Problem-Solution">Problem Solution</a><a id="Problem-Solution-1"></a><a class="docs-heading-anchor-permalink" href="#Problem-Solution" title="Permalink"></a></h1><p>Now that everything is set up, we can solve the model by using <code>@optimize!</code></p><pre><code class="language-julia hljs">optimize!(model)</code></pre><pre><code class="nohighlight hljs">This is Ipopt version 3.14.19, running with linear solver MUMPS 5.9.0.
 
 Number of nonzeros in equality constraint Jacobian...:      996
 Number of nonzeros in inequality constraint Jacobian.:        1
@@ -103,17 +103,17 @@ iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
   52  7.4488628e+00 7.23e-05 9.30e+02  -5.7 1.06e-01    -  9.85e-01 9.22e-01h  1
   53  7.4483375e+00 6.04e-07 2.30e-07  -5.7 8.51e-03    -  1.00e+00 1.00e+00h  1
   54  7.4482497e+00 1.32e-08 3.65e-01  -8.6 1.07e-03    -  1.00e+00 9.98e-01h  1
-  55  7.4482495e+00 5.68e-14 7.77e-14  -8.6 2.50e-06    -  1.00e+00 1.00e+00f  1
+  55  7.4482495e+00 5.51e-14 7.77e-14  -8.6 2.50e-06    -  1.00e+00 1.00e+00f  1
 
 Number of Iterations....: 55
 
                                    (scaled)                 (unscaled)
 Objective...............:   7.4482495165303710e+00    7.4482495165303710e+00
-Dual infeasibility......:   7.7656631125577746e-14    7.7656631125577746e-14
-Constraint violation....:   5.6843418860808015e-14    5.6843418860808015e-14
-Variable bound violation:   3.2404592624652052e-39    3.2404592624652052e-39
-Complementarity.........:   2.5059601286904100e-09    2.5059601286904100e-09
-Overall NLP error.......:   2.5059601286904100e-09    2.5059601286904100e-09
+Dual infeasibility......:   7.7657498487315735e-14    7.7657498487315735e-14
+Constraint violation....:   5.5067062021407764e-14    5.5067062021407764e-14
+Variable bound violation:   2.7857661363190818e-40    2.7857661363190818e-40
+Complementarity.........:   2.5059601286904092e-09    2.5059601286904092e-09
+Overall NLP error.......:   2.5059601286904092e-09    2.5059601286904092e-09
 
 
 Number of objective function evaluations             = 148
@@ -123,7 +123,7 @@ Number of inequality constraint evaluations          = 148
 Number of equality constraint Jacobian evaluations   = 57
 Number of inequality constraint Jacobian evaluations = 57
 Number of Lagrangian Hessian evaluations             = 55
-Total seconds in IPOPT                               = 0.043
+Total seconds in IPOPT                               = 0.035
 
 EXIT: Optimal Solution Found.
 </code></pre><h1 id="Extract-and-Plot-the-Results"><a class="docs-heading-anchor" href="#Extract-and-Plot-the-Results">Extract and Plot the Results</a><a id="Extract-and-Plot-the-Results-1"></a><a class="docs-heading-anchor-permalink" href="#Extract-and-Plot-the-Results" title="Permalink"></a></h1><p>We can now extract the optimized results and plot them to visualize four results graphically: Position over time, velocity over time, mass over time and force over time. In addition, we can print the final time value of t_f.</p><pre><code class="language-julia hljs">tf_data = value(t_f)
@@ -139,4 +139,4 @@ plot4 = plot(t_data, u_data, title=&quot;Force Over Time&quot;, linecolor = :lim
 tol = 1E-4
 @test termination_status(model) == MOI.LOCALLY_SOLVED
 @test has_values(model)
-@test isapprox(objective_value(model), 7.4482495165303710, atol=tol)</code></pre><pre><code class="nohighlight hljs">Test Passed</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Jennings/">« Minimizing Final Time (Jennings Problem)</a><a class="docs-footer-nextpage" href="../consumption_savings/">Consumption Savings Problem »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Friday 29 May 2026 16:03">Friday 29 May 2026</span>. Using Julia version 1.10.11.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+@test isapprox(objective_value(model), 7.4482495165303710, atol=tol)</code></pre><pre><code class="nohighlight hljs">Test Passed</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Jennings/">« Minimizing Final Time (Jennings Problem)</a><a class="docs-footer-nextpage" href="../consumption_savings/">Consumption Savings Problem »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Monday 6 July 2026 12:46">Monday 6 July 2026</span>. Using Julia version 1.10.11.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
