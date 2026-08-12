@@ -192,6 +192,19 @@ function JuMP.get_attribute(
 end
 
 """
+    JuMP.solution_summary(backend::AbstractTransformationBackend, attr)
+
+"""
+function JuMP.solution_summary(
+    backend::AbstractTransformationBackend;
+    result::Int = 1,
+    verbose::Bool = false,
+    )
+    error("`JuMP.solution_summary` not implemented for transformation backends " * 
+          "of type `$(typeof(backend))`.")
+end
+
+"""
     JuMP.get_attribute(model::InfiniteModel, attr)
 
 Retrieve an attribute `attr` from the transformation backend of 
@@ -543,6 +556,26 @@ end
 # Define for JuMPBackend
 function JuMP.variable_ref_type(backend::JuMPBackend)
     return JuMP.variable_ref_type(backend.model)
+end
+
+"""
+    JuMP.solution_summary(backend::JuMPBackend)
+
+Implement [`JuMP.solution_summary`](https://jump.dev/JuMP.jl/v1/api/JuMP/#JuMP.solution_summary)
+for transformation backends. If applicable, this should be extended for 
+new backend types. No extension is needed for [`JuMPBackend`](@ref)s.
+"""
+# Define for JuMPBackend
+function JuMP.solution_summary(
+    backend::JuMPBackend;
+    result::Int = 1,
+    verbose::Bool = false,
+    )
+    if verbose
+        @warn "`verbose = true` is not currently supported."
+    end
+
+    return JuMP.solution_summary(backend.model; result = result, verbose = verbose)
 end
 
 # Single argument methods that don't rely on `[get/set]_attribute`
