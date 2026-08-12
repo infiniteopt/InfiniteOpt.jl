@@ -172,7 +172,7 @@ JuMP.solution_summary(
 Extend [`JuMP.solution_summary`](@ref) to return the summary of the 
 optimization solution. This method utilizes the solution_summary backend and prints solution information and
 termination status. 
-If verbose=true, it writes out the primal solution for every variable 
+If verbose = true, it writes out the primal solution for every variable 
 and the dual solution for every constraint, excluding those with empty names.
 - `result::Int = 1`: indexes the solution result to be queried.
 - `verbose::Bool = false`: If `true`, lists the primal values of all variables and dual values of every constraint.
