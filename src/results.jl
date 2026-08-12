@@ -173,7 +173,7 @@ Extend [`JuMP.solution_summary`](@ref) to return the summary of the
 optimization solution. This method utilizes the solution_summary backend and prints solution information and
 termination status. 
 - `result::Int = 1`: indexes the solution result to be queried.
-- `verbose::Bool = false`: If `true`, lists the primal values of all variables and dual values of every constraint.
+- `verbose::Bool = false`: If `true`, throws a warning as it is not currently supported.
 
 Extend [`JuMP.solution_summary`](https://jump.dev/JuMP.jl/v1/api/JuMP/#solution_summary))
 for `model`. See the JuMP docs details. 
@@ -238,8 +238,8 @@ feasible solution.
 - `result::Int = 1`: indexes the solution result to be queried.
 The keyword arguments `kwargs` depend on the transformation backend that is 
 being used.
-If the return is false, assert_is_solved_and_feasible errors with an informative error message 
-describing the state of the solver.
+If the return is false, assert_is_solved_and_feasible errors with an error message, along with a solution_summary to
+help in debugging.
 
 Extend [`JuMP.assert_is_solved_and_feasible`](https://jump.dev/JuMP.jl/v1/api/JuMP/#assert_is_solved_and_feasible))
 for `model`. See the JuMP docs details.
