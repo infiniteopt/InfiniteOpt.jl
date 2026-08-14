@@ -57,8 +57,9 @@
     end
     # test solution_summary
     @testset "JuMP.solution_summary" begin
-        @test solution_summary(m) isa JuMP.SolutionSummary
-        @test solution_summary(m, verbose = true) isa JuMP.SolutionSummary
+        SolutionSummary = typeof(JuMP.solution_summary(tb))
+        @test solution_summary(m) isa SolutionSummary
+        @test solution_summary(m, verbose = true) isa SolutionSummary
         @test_throws ErrorException solution_summary(test_model)
     end
     # test assert_is_solved_and_feasible
