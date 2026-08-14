@@ -221,7 +221,7 @@ function JuMP.solution_summary(
     verbose::Bool = false,
 ) 
     backend = model.backend
-    println("Infinite model showing results with: ", backend)
+    println("Solution summary of infinite model with a ", typeof(model.backend) ," transformation backend:")
     return JuMP.solution_summary(backend; result=result, verbose=verbose)
 
 end
