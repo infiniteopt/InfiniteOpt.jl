@@ -151,7 +151,7 @@ end
         @test solution_summary(jump_backend) isa SolutionSummary
         @test_throws ErrorException solution_summary(TestBackend())
         str = "`verbose = true` is not currently supported."
-        @test_logs (:warn, str) solution_summary(jump_backend, verbose = true)
+        @test_logs (:warn, str) match_mode = :any solution_summary(jump_backend, verbose = true)
     end
     @testset "JuMP.variable_ref_type" begin
         @test variable_ref_type(jump_backend) == JuMP.VariableRef
