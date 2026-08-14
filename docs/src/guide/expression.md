@@ -259,7 +259,7 @@ normal Julia code outside a macro:
 julia> @infinite_parameter(model, t ∈ [0, 1]); @variable(model, y, Infinite(t));
 
 julia> expr = exp(y^2.3) * y - 42
-(exp(y(t) ^ 2.3) * y(t)) - 42
+exp(y(t) ^ 2.3) * y(t) - 42
 
 julia> typeof(expr)
 GenericNonlinearExpr{GeneralVariableRef}
@@ -271,14 +271,14 @@ and/or constraints. For macro-based definition, we simply use the `@expression`,
 `@objective`, and `@constraint` macros as normal:
 ```jldoctest nlp
 julia> @expression(model, expr, exp(y^2.3) * y - 42)
-(exp(y(t) ^ 2.3) * y(t)) - 42
+exp(y(t) ^ 2.3) * y(t) - 42
 
 julia> @objective(model, Min, ∫(0.3^cos(y^2), t))
 ∫{t ∈ [0, 1]}[0.3 ^ cos(y(t)²)]
 
 
 julia> @constraint(model, constr, y^y * sin(y) + sum(y^i for i in 3:4) == 3)
-constr : (((y(t) ^ y(t)) * sin(y(t))) + (y(t) ^ 3) + (y(t) ^ 4)) - 3 = 0, ∀ t ∈ [0, 1]
+constr : ((y(t) ^ y(t)) * sin(y(t)) + y(t) ^ 3 + y(t) ^ 4) - 3 = 0, ∀ t ∈ [0, 1]
 ```
 
 !!! note
@@ -299,7 +299,7 @@ same linear algebra operations as affine/quadratic expressions:
 julia> @variable(model, v[1:2]); @variable(model, Q[1:2, 1:2]);
 
 julia> @expression(model, v' * Q * v)
-0 + ((Q[1,2]*v[1] + Q[2,2]*v[2]) * v[2]) + ((Q[1,1]*v[1] + Q[2,1]*v[2]) * v[1])
+(Q[1,1]*v[1] + Q[2,1]*v[2]) * v[1] + (Q[1,2]*v[1] + Q[2,2]*v[2]) * v[2]
 ```
 
 ### Function Tracing
@@ -362,10 +362,10 @@ admittedly this implementation is not perfect in terms of efficiency.
     used instead when efficiency is critical.
     ```jldoctest nlp
     julia> v' * Q * v # convenient linear algebra syntax
-    (+(0) + ((Q[1,1]*v[1] + Q[2,1]*v[2]) * v[1])) + ((Q[1,2]*v[1] + Q[2,2]*v[2]) * v[2])
+    (Q[1,1]*v[1] + Q[2,1]*v[2]) * v[1] + (Q[1,2]*v[1] + Q[2,2]*v[2]) * v[2]
 
     julia> sum(v[i] * Q[i, j] * v[j] for i in 1:2, j in 1:2) # more efficient
-    ((((v[1]*Q[1,1]) * v[1]) + ((v[2]*Q[2,1]) * v[1])) + ((v[1]*Q[1,2]) * v[2])) + ((v[2]*Q[2,2]) * v[2])
+    (((v[1]*Q[1,1]) * v[1] + (v[2]*Q[2,1]) * v[1]) + (v[1]*Q[1,2]) * v[2]) + (v[2]*Q[2,2]) * v[2]
     ```
 
 We can also set vectorized constraints using the `.==`, `.<=`, and `.>=`
@@ -375,8 +375,8 @@ julia> @variable(model, W[1:2, 1:2]);
 
 julia> @constraint(model, W * Q * v .== 0)
 2-element Vector{InfOptConstraintRef}:
- ((+(0) + ((W[1,1]*Q[1,1] + W[1,2]*Q[2,1]) * v[1])) + ((W[1,1]*Q[1,2] + W[1,2]*Q[2,2]) * v[2])) - 0 = 0
- ((+(0) + ((W[2,1]*Q[1,1] + W[2,2]*Q[2,1]) * v[1])) + ((W[2,1]*Q[1,2] + W[2,2]*Q[2,2]) * v[2])) - 0 = 0
+ ((W[1,1]*Q[1,1] + W[1,2]*Q[2,1]) * v[1] + (W[1,1]*Q[1,2] + W[1,2]*Q[2,2]) * v[2]) - 0 = 0 
+ ((W[2,1]*Q[1,1] + W[2,2]*Q[2,1]) * v[1] + (W[2,1]*Q[1,2] + W[2,2]*Q[2,2]) * v[2]) - 0 = 0
 ```
 
 ### Adding Nonlinear Operators
