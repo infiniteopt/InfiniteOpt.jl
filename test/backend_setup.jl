@@ -147,9 +147,11 @@ end
         stdout_test(print_bridge_graph, expected, m)
     end
     @testset "JuMP.solution_summary" begin
-        @test solution_summary(jump_backend) == JuMP.solution_summary
+        SolutionSummary = typeof(JuMP.solution_summary(bmodel))
+        @test solution_summary(jump_backend) isa SolutionSummary
         @test_throws ErrorException solution_summary(TestBackend())
-        @test_logs (:warn, "`verbose = true` is not currently supported.") solution_summary(jump_backend, verbose = true)
+        str = "`verbose = true` is not currently supported."
+        @test_logs (:warn, str) solution_summary(jump_backend, verbose = true)
     end
     @testset "JuMP.variable_ref_type" begin
         @test variable_ref_type(jump_backend) == JuMP.VariableRef
