@@ -55,6 +55,17 @@
         @test !is_solved_and_feasible(test_model)
         @test is_solved_and_feasible(test_model, allow_almost = true, dual = true)
     end
+    # test solution_summary
+    @testset "JuMP.solution_summary" begin
+        SolutionSummary = typeof(JuMP.solution_summary(tb))
+        @test solution_summary(m) isa SolutionSummary
+        @test_throws ErrorException solution_summary(test_model)
+    end
+    # test assert_is_solved_and_feasible
+    @testset "JuMP.assert_is_solved_and_feasible" begin
+        @test assert_is_solved_and_feasible(m) === nothing
+        @test_throws ErrorException assert_is_solved_and_feasible(test_model)
+    end
     # test primal_status
     @testset "JuMP.primal_status" begin
         @test primal_status(m) == MOI.FEASIBLE_POINT
