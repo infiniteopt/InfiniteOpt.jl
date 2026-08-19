@@ -192,11 +192,11 @@ function JuMP.get_attribute(
 end
 
 """
-    JuMP.solution_summary(backend::AbstractTransformationBackend, attr)
+    JuMP.solution_summary(backend::AbstractTransformationBackend)
 
-Extension point for implementing `JuMP.solution_summary` for an `AbstractTransformationBackend`. This
-is not intended as a method to general users, but rather as an extension point for those making a new backend
-type.
+Extension point for implementing `JuMP.solution_summary` for an 
+`AbstractTransformationBackend`. This is not intended as a method to general 
+users, but rather as an extension point for those making a new backend type.
 """
 function JuMP.solution_summary(
     backend::AbstractTransformationBackend;
@@ -577,7 +577,6 @@ function JuMP.solution_summary(
     if verbose
         @warn "`verbose = true` is not currently supported."
     end
-
     return JuMP.solution_summary(backend.model; result = result, verbose = verbose)
 end
 
