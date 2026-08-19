@@ -194,6 +194,9 @@ end
 """
     JuMP.solution_summary(backend::AbstractTransformationBackend, attr)
 
+Extension point for implementing `JuMP.solution_summary` for an `AbstractTransformationBackend`. This
+is not intended as a method to general users, but rather as an extension point for those making a new backend
+type.
 """
 function JuMP.solution_summary(
     backend::AbstractTransformationBackend;
