@@ -765,6 +765,9 @@ function _process_constraint(
     name::String
     )
     new_func = map(f -> transcription_expression(f, backend, raw_supp), func)
+    # promote to a common type (constant rows transcribe to numbers)
+    NewType = mapreduce(typeof, promote_type, new_func)
+    new_func = convert.(NewType, new_func)
     shape = JuMP.shape(constr)
     shaped_func = JuMP.reshape_vector(new_func, shape)
     shaped_set = JuMP.reshape_set(set, shape)
