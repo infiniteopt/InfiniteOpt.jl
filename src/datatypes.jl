@@ -686,26 +686,11 @@ vectorized form of the support that comes from `support::VectorTuple` via:
                         inputs to `func`. Their formatting is analagous 
                         to those of infinite variables. 
 - `group_int_idxs::Vector{Int}`: The parameter group integer indices associated with `parameter_refs`.
-- `lower_bound::Float64`: A user-declared lower bound on the output of `func`
-                          over its domain (`-Inf` if not declared).
-- `upper_bound::Float64`: A user-declared upper bound on the output of `func`
-                          over its domain (`Inf` if not declared).
 """
 struct ParameterFunction{F <: Function, T <: JuMP.AbstractVariableRef}
     func::F
     parameter_refs::Collections.VectorTuple{T}
     group_int_idxs::Vector{Int}
-    lower_bound::Float64
-    upper_bound::Float64
-end
-
-# Default constructor without declared bounds
-function ParameterFunction(
-    func::Function,
-    parameter_refs::Collections.VectorTuple,
-    group_int_idxs::Vector{Int}
-    )
-    return ParameterFunction(func, parameter_refs, group_int_idxs, -Inf, Inf)
 end
 
 """

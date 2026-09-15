@@ -113,48 +113,10 @@
         @test parameter_value(fref).func == sin
         @test parameter_value(gvref).func == sin
     end
-    # bound declarations and queries
-    @testset "JuMP bound info" begin
-        # test defaults (no declared bounds)
-        @test !has_lower_bound(fref)
-        @test !has_lower_bound(gvref)
-        @test !has_upper_bound(fref)
-        @test !has_upper_bound(gvref)
-        @test_throws ErrorException lower_bound(fref)
-        @test_throws ErrorException upper_bound(gvref)
-        # test setting bounds
-        @test isa(set_lower_bound(fref, -1), Nothing)
-        @test has_lower_bound(fref)
-        @test has_lower_bound(gvref)
-        @test lower_bound(fref) == -1
-        @test lower_bound(gvref) == -1
-        @test isa(set_upper_bound(gvref, 1), Nothing)
-        @test has_upper_bound(fref)
-        @test upper_bound(fref) == 1
-        @test upper_bound(gvref) == 1
-        # test that non-finite bounds are rejected
-        @test_throws ErrorException set_lower_bound(fref, -Inf)
-        @test_throws ErrorException set_upper_bound(gvref, Inf)
-        @test lower_bound(fref) == -1
-        @test upper_bound(fref) == 1
-        # test deleting bounds
-        @test isa(delete_lower_bound(fref), Nothing)
-        @test !has_lower_bound(fref)
-        @test_throws ErrorException delete_lower_bound(gvref)
-        @test isa(delete_upper_bound(gvref), Nothing)
-        @test !has_upper_bound(fref)
-        @test_throws ErrorException delete_upper_bound(fref)
-        # restore for later testsets
-        @test isa(set_lower_bound(fref, -1), Nothing)
-        @test isa(set_upper_bound(fref, 1), Nothing)
-    end
     # set_parameter_value
     @testset "JuMP.set_parameter_value" begin
         @test isa(set_parameter_value(fref, cos), Nothing)
         @test parameter_value(fref).func == cos
-        # test that declared bounds are discarded with the old function
-        @test !has_lower_bound(fref)
-        @test !has_upper_bound(fref)
         @test isa(set_parameter_value(gvref, tan), Nothing)
         @test parameter_value(gvref).func  == tan
         @test_throws ErrorException set_parameter_value(fref, (a, b) -> 42)

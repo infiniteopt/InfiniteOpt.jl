@@ -189,8 +189,6 @@ end
     model = InfiniteModel()
     @infinite_parameter(model, t in [0, 1], num_supports = 5)
     p = parameter_function(sin, t)
-    set_lower_bound(p, -1)
-    set_upper_bound(p, 1)
     @variable(model, x, Infinite(t))
     @constraint(model, x >= p)
 
@@ -198,8 +196,6 @@ end
     new_p = ref_map[p]
     @test JuMP.owner_model(new_p) === new_model
     @test length(new_model.param_functions) == length(model.param_functions)
-    @test lower_bound(new_p) == -1
-    @test upper_bound(new_p) == 1
 end
 
 @testset "copy_model Point Variables" begin
