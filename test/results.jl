@@ -125,9 +125,11 @@ end
 
 # Test objective queries
 @testset "Objective Queries" begin
-    # Setup the infinite model
+    # Setup the infinite model (the dual objective is set below rather
+    # than computed: MOI's fallback rejects the quadratic objective)
     optimizer = () -> MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()),
-                                         eval_objective_value=false)
+                                         eval_objective_value=false,
+                                         eval_dual_objective_value=false)
     m = InfiniteModel(optimizer)
     @infinite_parameter(m, par in [0, 1], supports = [0, 1])
     @variable(m, inf, Infinite(par))
