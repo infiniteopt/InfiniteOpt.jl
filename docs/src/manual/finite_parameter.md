@@ -21,6 +21,10 @@ methods available for finite parameters (i.e., any method typed for
 ```@docs
 JuMP.parameter_value(::FiniteParameterRef)
 JuMP.set_parameter_value(::FiniteParameterRef, ::Real)
+JuMP.has_lower_bound(::FiniteParameterRef)
+JuMP.lower_bound(::FiniteParameterRef)
+JuMP.has_upper_bound(::FiniteParameterRef)
+JuMP.upper_bound(::FiniteParameterRef)
 used_by_objective(::FiniteParameterRef)
 core_object(::FiniteParameterRef)
 ```

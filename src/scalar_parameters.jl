@@ -1522,6 +1522,62 @@ function JuMP.set_parameter_value(pref::FiniteParameterRef, value::Real)
 end
 
 """
+    JuMP.has_lower_bound(pref::FiniteParameterRef)::Bool
+
+Extend `JuMP.has_lower_bound` to accomodate finite parameters. Always
+returns `true` since a finite parameter is bounded by its value.
+
+**Example**
+```julia-repl
+julia> has_lower_bound(cost)
+true
+```
+"""
+JuMP.has_lower_bound(pref::FiniteParameterRef) = true
+
+"""
+    JuMP.lower_bound(pref::FiniteParameterRef)::Float64
+
+Extend `JuMP.lower_bound` to accomodate finite parameters. Returns the
+parameter value which is the tightest lower bound on a constant.
+
+**Example**
+```julia-repl
+julia> lower_bound(cost)
+42.0
+```
+"""
+JuMP.lower_bound(pref::FiniteParameterRef) = JuMP.parameter_value(pref)
+
+"""
+    JuMP.has_upper_bound(pref::FiniteParameterRef)::Bool
+
+Extend `JuMP.has_upper_bound` to accomodate finite parameters. Always
+returns `true` since a finite parameter is bounded by its value.
+
+**Example**
+```julia-repl
+julia> has_upper_bound(cost)
+true
+```
+"""
+JuMP.has_upper_bound(pref::FiniteParameterRef) = true
+
+"""
+    JuMP.upper_bound(pref::FiniteParameterRef)::Float64
+
+Extend `JuMP.upper_bound` to accomodate finite parameters. Returns the
+parameter value which is the tightest upper bound on a constant.
+
+**Example**
+```julia-repl
+julia> upper_bound(cost)
+42.0
+```
+"""
+JuMP.upper_bound(pref::FiniteParameterRef) = JuMP.parameter_value(pref)
+
+"""
     fill_in_supports!(
         pref::IndependentParameterRef;
         [num_supports::Int = DefaultNumSupports]
