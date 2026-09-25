@@ -443,6 +443,22 @@ function JuMP.value(vref::GeneralVariableRef; kwargs...)
 end
 
 """
+    JuMP.value(f::Function, vref::GeneralVariableRef)
+
+Return `f(vref)`. This is the substitution form of `value` that JuMP uses
+at each variable when evaluating an expression with a supplied variable
+value function, e.g., `value(v -> start_value(v), expr)` evaluates `expr`
+at the start values of its variables.
+
+**Example**
+```julia-repl
+julia> value(v -> 2.0, exp(x) - 1)
+6.38905609893065
+```
+"""
+JuMP.value(f::Function, vref::GeneralVariableRef) = f(vref)
+
+"""
     JuMP.value(expr::JuMP.AbstractJuMPScalar; [kwargs...])
 
 Extend `JuMP.value` to return the value(s) of `vref` in accordance with its 

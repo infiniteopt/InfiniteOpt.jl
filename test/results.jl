@@ -259,6 +259,8 @@ end
         @test value(a) == sin.([0., 1.])
         @test value(a, label = All) == sin.([0., 0.5, 1.])
         @test value(sin(0.0)) == sin(0.0)
+        @test value(v -> 2.0, inf) == 2.
+        @test value(v -> 2.0, g) == 2.
     end
     #test Reduced Cost
     @testset "map_reduced_cost" begin
@@ -355,6 +357,8 @@ end
         @test value(zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}) - 42) == -42.
         @test value(sin(g)) == sin(1)
         @test value(GenericNonlinearExpr{GeneralVariableRef}(:sin, Any[0])) == 0
+        @test value(v -> 0.0, exp(g) - 1) == 0.
+        @test value(v -> 2.0, sin(inf) * g + 3g - 1) == 2sin(2.) + 5.
     end
     # test dual
     @testset "JuMP.dual" begin
