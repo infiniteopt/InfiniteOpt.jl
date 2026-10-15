@@ -322,11 +322,19 @@ end
         @test num_constraints(tb.model, typeof(func), typeof(set)) == 1
         cref = constraint_by_name(tb.model, "test2")
         delete(tb.model, cref)
-        # test nonlinear vector constraint 
+        # test nonlinear vector constraint
         con = VectorConstraint([sin(z)], MOI.Zeros(1))
         func = [sin(z)]
         set = MOI.Zeros(1)
         @test IOTO._process_constraint(tb, con, func, set, zeros(3), "test2") isa ConstraintRef
+        # test vector constraint with a constant entry (rows promote)
+        aff3 = zero(JuMP.GenericAffExpr{Float64, GeneralVariableRef}) + 3
+        con = VectorConstraint([1z, aff3], MOI.Nonnegatives(2))
+        func = [1z, aff3]
+        set = MOI.Nonnegatives(2)
+        @test IOTO._process_constraint(tb, con, func, set, zeros(3), "test3") isa ConstraintRef
+        cref = constraint_by_name(tb.model, "test3")
+        delete(tb.model, cref)
         # fallback
         @test_throws ErrorException IOTO._process_constraint(tb, :bad, func, set, 
                                                              zeros(3), "bad")
