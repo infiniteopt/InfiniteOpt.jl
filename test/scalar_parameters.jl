@@ -1052,6 +1052,19 @@ end
         @test parameter_value(pref) == 39
         @test !transformation_backend_ready(m)
     end
+    # test bound queries
+    @testset "JuMP bound info" begin
+        pref = GeneralVariableRef(m, 1, FiniteParameterIndex)
+        dpref = dispatch_variable_ref(pref)
+        @test has_lower_bound(dpref)
+        @test has_lower_bound(pref)
+        @test lower_bound(dpref) == 39
+        @test lower_bound(pref) == 39
+        @test has_upper_bound(dpref)
+        @test has_upper_bound(pref)
+        @test upper_bound(dpref) == 39
+        @test upper_bound(pref) == 39
+    end
 end
 
 # Test support flll-in and geneartion functions
