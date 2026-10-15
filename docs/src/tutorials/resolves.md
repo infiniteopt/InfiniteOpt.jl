@@ -145,7 +145,7 @@ julia> @expression(model, k, k₀ * exp(-E/T))
 72000000000 * exp(-8750 / T(t))
 
 julia> @expression(model, rate, k*Ca)
-72000000000 * Ca(t) * exp(-8750 / T(t))
+72000000000 * exp(-8750 / T(t)) * Ca(t)
 
 julia> @constraint(model, deriv(Ca, t) == (F*(cf - Ca) - V*rate)/V);
 

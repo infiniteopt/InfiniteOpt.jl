@@ -770,6 +770,7 @@ extended using the following steps:
     - [`JuMP.backend`](@ref JuMP.backend(::AbstractTransformationBackend))
     - [`JuMP.unsafe_backend`](@ref JuMP.unsafe_backend(::AbstractTransformationBackend))
     - [`JuMP.variable_ref_type`](@ref JuMP.variable_ref_type(::AbstractTransformationBackend))
+    - [`JuMP.solution_summary`](@ref JuMP.solution_summary(::AbstractTransformationBackend))
 6. Extend the following, if possible (also enables result queries for `JuMPBackend`s):
     - [`transformation_variable`](@ref transformation_variable(::GeneralVariableRef, ::AbstractTransformationBackend))
     - [`transformation_expression`](@ref transformation_expression(::Any, ::AbstractTransformationBackend))

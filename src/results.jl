@@ -162,6 +162,135 @@ function JuMP.is_solved_and_feasible(
     return ret
 end
 
+"""
+JuMP.solution_summary(
+        model::InfiniteModel;
+        result::Int = 1,
+        verbose::Bool = false,
+        )
+
+Extend [`JuMP.solution_summary`](@ref) to return the summary of the 
+optimization solution. This method utilizes the solution_summary backend and prints solution information and
+termination status. 
+- `result::Int = 1`: indexes the solution result to be queried.
+- `verbose::Bool = false`: If `true`, throws a warning as it is not currently supported.
+
+Extend [`JuMP.solution_summary`](https://jump.dev/JuMP.jl/v1/api/JuMP/#solution_summary))
+for `model`. See the JuMP docs details. 
+
+**Example**
+```julia-repl
+julia> model = Model(Ipopt.Optimizer);
+
+julia> solution_summary(model)
+
+Infinite model showing results with: A TranscriptionBackend that uses a
+A JuMP Model
+├ solver: HiGHS
+├ objective_sense: MAX_SENSE
+│ └ objective_function_type: AffExpr
+├ num_variables: 17
+├ num_constraints: 18
+│ ├ AffExpr in MOI.LessThan{Float64}: 1
+│ └ VariableRef in MOI.ZeroOne: 17
+└ Names registered in the model: none
+solution_summary(; result = 1, verbose = false)
+├ solver_name          : HiGHS
+├ Termination
+│ ├ termination_status : OPTIMAL
+│ ├ result_count       : 1
+│ ├ raw_status         : kHighsModelStatusOptimal
+│ └ objective_bound    : 9.50100e+02
+├ Solution (result = 1)
+│ ├ primal_status        : FEASIBLE_POINT
+│ ├ dual_status          : NO_SOLUTION
+│ ├ objective_value      : 9.50100e+02
+│ ├ dual_objective_value : NaN
+│ └ relative_gap         : 0.00000e+00
+└ Work counters
+  ├ solve_time (sec)   : 6.86052e-02
+  ├ simplex_iterations : 10
+  ├ barrier_iterations : -1
+  └ node_count         : 1
+```
+"""
+
+function JuMP.solution_summary(
+    model::InfiniteModel;
+    result::Int = 1,
+    verbose::Bool = false,
+) 
+    backend = model.backend
+    println("Solution summary of infinite model with a ", typeof(model.backend) ," transformation backend:")
+    return JuMP.solution_summary(backend; result=result, verbose=verbose)
+
+end
+
+"""
+JuMP.assert_is_solved_and_feasible(
+        model::InfiniteModel;
+        result::Int = 1,
+        kwargs...,
+        )
+
+Extend [`JuMP.is_solved_and_feasible`](@ref) to return whether or not the model completed optimization and has found a
+feasible solution. 
+- `result::Int = 1`: indexes the solution result to be queried.
+The keyword arguments `kwargs` depend on the transformation backend that is 
+being used.
+If the return is false, assert_is_solved_and_feasible errors with an error message, along with a solution_summary to
+help in debugging.
+
+Extend [`JuMP.assert_is_solved_and_feasible`](https://jump.dev/JuMP.jl/v1/api/JuMP/#assert_is_solved_and_feasible))
+for `model`. See the JuMP docs details.
+For new transformation backend types, this relies on `JuMP.is_solved_and_feasible`.
+    
+**Example**
+```julia-repl
+julia> model = Model(Ipopt.Optimizer);
+
+julia> assert_is_solved_and_feasible(model)
+
+ERROR: The model was not solved correctly. Here is the output of `solution_summary` to help debug why this happened:
+
+solution_summary(; result = 1, verbose = false)
+├ solver_name          : HiGHS
+├ Termination
+│ ├ termination_status : OPTIMAL
+│ ├ result_count       : 1
+│ ├ raw_status         : kHighsModelStatusOptimal
+│ └ objective_bound    : -0.00000e+00
+├ Solution (result = 1)
+│ ├ primal_status        : FEASIBLE_POINT
+│ ├ dual_status          : NO_SOLUTION
+│ ├ objective_value      : 0.00000e+00
+│ ├ dual_objective_value : NaN
+│ └ relative_gap         : 0.00000e+00
+└ Work counters
+  ├ solve_time (sec)   : 1.78261e-02
+  ├ simplex_iterations : 0
+  ├ barrier_iterations : -1
+  └ node_count         : 0
+```
+"""
+function JuMP.assert_is_solved_and_feasible(
+    model::InfiniteModel;
+    result::Int = 1,
+    kwargs...,
+)
+    if !JuMP.is_solved_and_feasible(model; result, kwargs...)
+        error(
+            string(
+                "The model was not solved correctly. Here is the output of ",
+                "`solution_summary` to help debug why this happened:\n\n",
+                JuMP.solution_summary(model; result),
+                "\n",
+            ),
+        )
+    end
+    return
+end
+
 ################################################################################
 #                                 VALUE QUERIES
 ################################################################################

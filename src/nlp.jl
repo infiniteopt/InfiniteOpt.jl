@@ -81,7 +81,7 @@ function all_nonlinear_operators(model::InfiniteModel)
 end
 
 """
-    user_defined_operators(model::InfiniteModel)::Vector{NLPOperator}
+    added_nonlinear_operators(model::InfiniteModel)::Vector{NLPOperator}
 
 Return all the operators (and their associated information) that the user has
 added to `model`. Each is stored as a [`NLPOperator`](@ref).

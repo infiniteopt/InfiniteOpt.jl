@@ -1398,7 +1398,7 @@ mutable struct InfiniteModel <: JuMP.AbstractModel
 
     # Objective Data
     objective_sense::MOI.OptimizationSense
-    objective_function::JuMP.AbstractJuMPScalar
+    objective_function::Union{JuMP.AbstractJuMPScalar, AbstractVector{<:JuMP.AbstractJuMPScalar}}
     objective_has_measures::Bool
 
     # Operator Registration
