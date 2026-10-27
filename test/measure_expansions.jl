@@ -704,4 +704,37 @@ end
         @test !has_domain_restriction(c4)
         @test !has_domain_restriction(c5)
     end
+    # test expand_all_measures! with measures inside derivatives
+    @testset "expand_all_measures! (derivatives of measures)" begin
+        m2 = InfiniteModel()
+        @infinite_parameter(m2, t in [0, 1], supports = [0, 0.5, 1])
+        @infinite_parameter(m2, x in [0, 1], supports = [0, 1])
+        @variable(m2, y, Infinite(t, x))
+        @variable(m2, z, Infinite(x))
+        @constraint(m2, c1, ∂(∫(y, t), x) == z)
+        @constraint(m2, c2, @deriv(∫(y^2, t), x^2) <= 1)
+        @constraint(m2, c3, ∂(∫(z, t), x) + z >= 0)  # analytic measure
+        @constraint(m2, c4, z + ∂(∫(x, t), x) == 3)  # the derivative is a constant
+        @constraint(m2, c5, [∂(∫(y, t), x), z] in MOI.Zeros(2))
+        @objective(m2, Min, ∫(∂(∫(y, t), x)^2, x))
+        dy = ∂(y, x)
+        d2y = @deriv(y, x^2)
+        tw = ((0, 0.25), (0.5, 0.5), (1, 0.25))
+        c1_expected = sum(w * dy(s, x) for (s, w) in tw) - z
+        c2_expected = sum(w * (2 * d2y(s, x) * y(s, x) + 2 * dy(s, x)^2) for (s, w) in tw)
+        obj_expected = sum(0.5 * sum(w * dy(s, xs) for (s, w) in tw)^2 for xs in (0, 1))
+        @test isa(expand_all_measures!(m2), Nothing)
+        @test isequal_canonical(constraint_object(c1).func, c1_expected)
+        @test isequal_canonical(constraint_object(c2).func, c2_expected)
+        @test isequal_canonical(objective_function(m2), obj_expected)
+        @test isequal_canonical(constraint_object(c3).func, ∂(z, x) + z)
+        @test isequal_canonical(constraint_object(c4).func, 1.0 * z)
+        @test isequal_canonical(constraint_object(c5).func,
+                                AbstractJuMPScalar[c1_expected + z, z])
+        @test constraint_object(c1).set == MOI.EqualTo(0.)
+        @test constraint_object(c2).set == MOI.LessThan(1.)
+        @test constraint_object(c3).set == MOI.GreaterThan(0.)
+        @test constraint_object(c4).set == MOI.EqualTo(2.)
+        @test constraint_object(c5).set == MOI.Zeros(2)
+    end
 end
