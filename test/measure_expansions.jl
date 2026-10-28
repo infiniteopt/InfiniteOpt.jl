@@ -736,5 +736,12 @@ end
         @test constraint_object(c3).set == MOI.GreaterThan(0.)
         @test constraint_object(c4).set == MOI.EqualTo(2.)
         @test constraint_object(c5).set == MOI.Zeros(2)
+        # nonlinear measure functions are not supported by `deriv`
+        m3 = InfiniteModel()
+        @infinite_parameter(m3, t in [0, 1], supports = [0, 1])
+        @infinite_parameter(m3, x in [0, 1])
+        @variable(m3, y, Infinite(t, x))
+        @constraint(m3, ∂(∫(sin(y), t), x) == 0)
+        @test_throws ErrorException expand_all_measures!(m3)
     end
 end

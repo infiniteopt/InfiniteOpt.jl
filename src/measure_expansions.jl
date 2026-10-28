@@ -880,15 +880,39 @@ end
 
 # Expand the measure `mref` with the (expanded) measure function `func` in place of
 # its own
-function _expand_measure_with(func, mref::GeneralVariableRef, model::InfiniteModel)
-    if func isa Number
-        func = JuMP.GenericAffExpr{Float64, GeneralVariableRef}(func)
-    end
+function _expand_measure_with(
+    func::JuMP.AbstractJuMPScalar,
+    mref::GeneralVariableRef,
+    model::InfiniteModel
+    )
     data = measure_data(mref)
     if is_analytic(mref)
         return analytic_expansion(func, data, model)
     end
     return expand_measure(func, data, model)
+end
+function _expand_measure_with(func::Number, mref::GeneralVariableRef, model::InfiniteModel)
+    aff = JuMP.GenericAffExpr{Float64, GeneralVariableRef}(func)
+    return _expand_measure_with(aff, mref, model)
+end
+
+# Apply the derivatives in `chain` (from the outermost to the innermost) to the
+# function `func` of the measure that the derivative `dref` is taken of
+function _deriv_measure_function(func, chain, dref::GeneralVariableRef)
+    for (pref, order) in Iterators.reverse(chain)
+        func = deriv(func, ntuple(_ -> pref, order)...)
+    end
+    return func
+end
+function _deriv_measure_function(
+    ::JuMP.GenericNonlinearExpr,
+    chain,
+    dref::GeneralVariableRef
+    )
+    error("`expand_all_measures!` cannot expand the derivative `$dref` because ",
+          "the function of its measure is a nonlinear expression, which `deriv` ",
+          "does not support. Without `expand_all_measures!`, TranscriptionOpt ",
+          "handles such derivatives directly.")
 end
 
 # Expand a derivative of a measure. The measure is not taken over the operator
@@ -897,10 +921,7 @@ end
 # the measure is expanded.
 function _expand_derivative_of_measure(dref::GeneralVariableRef, model::InfiniteModel)
     mref, chain = _derivative_measure_chain(dref)
-    func = measure_function(mref)
-    for (pref, order) in Iterators.reverse(chain)
-        func = deriv(func, ntuple(_ -> pref, order)...)
-    end
+    func = _deriv_measure_function(measure_function(mref), chain, dref)
     return _expand_measure_with(_expand_measures_and_derivatives(func, model), mref, model)
 end
 
@@ -941,6 +962,8 @@ Expand all of the measures used in the objective and/or constraints of `model`.
 This includes measures inside derivatives: since a measure does not depend on the
 parameters it is taken over, a derivative of a measure is expanded as the measure
 of the derivative of its function (e.g., `∂(∫(y, t), x)` as `∫(∂(y, x), t)`).
+Derivatives of measures whose function is a nonlinear expression are not supported
+(since [`deriv`](@ref) does not support nonlinear expressions) and lead to an error.
 The objective and constraints are updated accordingly. Note that
 variables are added to the model as necessary to accomodate the expansion (i.e.,
 point variables and semi-infinite variables are made as needed). Errors if
