@@ -865,10 +865,105 @@ function expand_measures(expr, ::Union{InfiniteModel, AbstractTransformationBack
           "`$(typeof(expr))`.")
 end
 
+# Return the measure that the derivative `dref` is taken of (through any nested
+# derivatives) and the operator parameters and orders from the outermost to the
+# innermost derivative, or `nothing` if the innermost argument is not a measure
+function _derivative_measure_chain(dref::GeneralVariableRef)
+    chain = Tuple{GeneralVariableRef, Int}[]
+    vref = dref
+    while _index_type(vref) == DerivativeIndex
+        push!(chain, (operator_parameter(vref), derivative_order(vref)))
+        vref = derivative_argument(vref)
+    end
+    return _index_type(vref) == MeasureIndex ? (vref, chain) : nothing
+end
+
+# Expand the measure `mref` with the (expanded) measure function `func` in place of
+# its own
+function _expand_measure_with(
+    func::JuMP.AbstractJuMPScalar,
+    mref::GeneralVariableRef,
+    model::InfiniteModel
+    )
+    data = measure_data(mref)
+    if is_analytic(mref)
+        return analytic_expansion(func, data, model)
+    end
+    return expand_measure(func, data, model)
+end
+function _expand_measure_with(func::Number, mref::GeneralVariableRef, model::InfiniteModel)
+    aff = JuMP.GenericAffExpr{Float64, GeneralVariableRef}(func)
+    return _expand_measure_with(aff, mref, model)
+end
+
+# Apply the derivatives in `chain` (from the outermost to the innermost) to the
+# function `func` of the measure that the derivative `dref` is taken of
+function _deriv_measure_function(func, chain, dref::GeneralVariableRef)
+    for (pref, order) in Iterators.reverse(chain)
+        func = deriv(func, ntuple(_ -> pref, order)...)
+    end
+    return func
+end
+function _deriv_measure_function(
+    ::JuMP.GenericNonlinearExpr,
+    chain,
+    dref::GeneralVariableRef
+    )
+    error("`expand_all_measures!` cannot expand the derivative `$dref` because ",
+          "the function of its measure is a nonlinear expression, which `deriv` ",
+          "does not support. Without `expand_all_measures!`, TranscriptionOpt ",
+          "handles such derivatives directly.")
+end
+
+# Expand a derivative of a measure. The measure is not taken over the operator
+# parameters of the derivatives (otherwise it would not depend on them), so the
+# derivatives can be applied to the measure function inside the measure, and then
+# the measure is expanded.
+function _expand_derivative_of_measure(dref::GeneralVariableRef, model::InfiniteModel)
+    mref, chain = _derivative_measure_chain(dref)
+    func = _deriv_measure_function(measure_function(mref), chain, dref)
+    return _expand_measure_with(_expand_measures_and_derivatives(func, model), mref, model)
+end
+
+# Whether `vref` is a derivative of a measure or a measure whose function contains one
+function _contains_derivative_of_measure(vref::GeneralVariableRef)
+    index_type = _index_type(vref)
+    if index_type == DerivativeIndex
+        return !isnothing(_derivative_measure_chain(vref))
+    elseif index_type == MeasureIndex
+        return any(_contains_derivative_of_measure, 
+                   all_expression_variables(measure_function(vref)))
+    end
+    return false
+end
+
+# Expand the measures in `expr`, including measures inside derivatives
+function _expand_measures_and_derivatives(expr, model::InfiniteModel)
+    return map_expression(expr, model) do v
+        if !_contains_derivative_of_measure(v)
+            return expand_measures(v, model)
+        elseif _index_type(v) == DerivativeIndex
+            return _expand_derivative_of_measure(v, model)
+        else
+            func = _expand_measures_and_derivatives(measure_function(v), model)
+            return _expand_measure_with(func, v, model)
+        end
+    end
+end
+function _expand_measures_and_derivatives(arr::AbstractArray, model::InfiniteModel)
+    return map(e -> _expand_measures_and_derivatives(e, model), arr)
+end
+_expand_measures_and_derivatives(c::Number, ::InfiniteModel) = c
+
 """
     expand_all_measures!(model::InfiniteModel)::Nothing
 
 Expand all of the measures used in the objective and/or constraints of `model`.
+This includes measures inside derivatives: since a measure does not depend on the
+parameters it is taken over, a derivative of a measure is expanded as the measure
+of the derivative of its function (e.g., `∂(∫(y, t), x)` as `∫(∂(y, x), t)`).
+Derivatives of measures whose function is a nonlinear expression are not supported
+(since [`deriv`](@ref) does not support nonlinear expressions) and lead to an error.
 The objective and constraints are updated accordingly. Note that
 variables are added to the model as necessary to accomodate the expansion (i.e.,
 point variables and semi-infinite variables are made as needed). Errors if
@@ -904,14 +999,22 @@ Subject to
 ```
 """
 function expand_all_measures!(model::InfiniteModel)
+    # derivatives of measures: the expressions that use them do not record the
+    # measure, so collect where these derivatives are used
+    mderivs = filter(d -> !isnothing(_derivative_measure_chain(d)), all_derivatives(model))
+    mderiv_cindices = Set(
+        cindex for d in mderivs
+        for cindex in _constraint_dependencies(dispatch_variable_ref(d))
+        )
+    obj_has_mderivs = any(d -> _data_object(dispatch_variable_ref(d)).in_objective, mderivs)
     # expand the objective if it contains measures
-    if objective_has_measures(model)
-        new_obj = expand_measures(JuMP.objective_function(model), model)
+    if objective_has_measures(model) || obj_has_mderivs
+        new_obj = _expand_measures_and_derivatives(JuMP.objective_function(model), model)
         JuMP.set_objective_function(model, new_obj)
     end
     # expand all of the constraints that contain measures
     for (cindex, object) in model.constraints
-        if !isempty(object.measure_indices)
+        if !isempty(object.measure_indices) || cindex in mderiv_cindices
             old_constr = object.constraint
             set = JuMP.moi_set(old_constr)
             # clear the old dependencies
@@ -920,7 +1023,8 @@ function expand_all_measures!(model::InfiniteModel)
                 filter!(e -> e != cindex, _constraint_dependencies(vref))
             end
             # expand the expression
-            new_func = expand_measures(JuMP.jump_function(old_constr), model)
+            old_func = JuMP.jump_function(old_constr)
+            new_func = _expand_measures_and_derivatives(old_func, model)
             vrefs = all_expression_variables(new_func)
             # make the new constraint object
             if old_constr isa DomainRestrictedConstraint
